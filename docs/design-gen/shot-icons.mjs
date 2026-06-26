@@ -1,0 +1,10 @@
+import { chromium } from 'playwright';
+import { pathToFileURL } from 'node:url';
+const b = await chromium.launch({ channel: 'chrome', headless: true });
+const ctx = await b.newContext({ viewport: { width: 1080, height: 900 }, deviceScaleFactor: 2 });
+const p = await ctx.newPage();
+await p.goto(pathToFileURL('C:/dev/BudgetBook/kakeibo-saas/docs/design-gen/icons/preview.html').href, { waitUntil: 'networkidle' });
+await p.waitForTimeout(1200);
+await p.screenshot({ path: 'shots/redesign-applied/icon-concepts.png', fullPage: true });
+await ctx.close(); await b.close();
+console.log('done icons');

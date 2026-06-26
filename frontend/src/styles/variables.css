@@ -1,0 +1,24 @@
+/* ── テーマ変数（刷新: ティール × ソフトカード配色 / Data-forward） ── */
+:root, [data-theme="dark"] {
+  --bg0: #151b1a; --bg1: #1a211f; --bg2: #1f2725; --bg3: #29322f; --bg4: #34403d;
+  --bd: #34403d; --bd2: #44504d;
+  --tx: #e9f1f0; --tx2: #9fadaa; --tx3: #7b8987;
+  --ac: #2dd4bf; --ac2: #5eead4; --acb: rgba(45,212,191,.14); --ac-tx: #04201c;
+  --red: #f0697e; --grn: #34d399; --blu: #5eb0e8; --pur: #a78bfa;
+  --csh: 0 1px 2px rgba(0,0,0,.3), 0 14px 30px -20px rgba(0,0,0,.55);
+  --dh: #1f2725;
+  --warn: rgba(224,160,32,.16);
+  --fc-bg: #29322f; --fc-bd: #44504d; --fc-hover: #55615d;
+}
+
+[data-theme="light"] {
+  --bg0: #e8eaed; --bg1: #ffffff; --bg2: #ffffff; --bg3: #f8fafa; --bg4: #eef1f4;
+  --bd: #e6ebec; --bd2: #d7dde0;
+  --tx: #23262d; --tx2: #71767f; --tx3: #93a09e;
+  --ac: #0d9488; --ac2: #0b7d72; --acb: rgba(13,148,136,.10); --ac-tx: #ffffff;
+  --red: #e0556a; --grn: #15a06a; --blu: #2f86c9; --pur: #8b5cf6;
+  --csh: 0 1px 2px rgba(20,24,40,.04), 0 14px 30px -20px rgba(20,24,40,.20);
+  --dh: #ffffff;
+  --warn: rgba(224,160,32,.10);
+  --fc-bg: #ffffff; --fc-bd: #d7dde0; --fc-hover: #b9c2c5;
+}

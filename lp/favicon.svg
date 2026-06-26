@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="116" fill="#0d9488"/>
+  <!-- 純資産の上昇カーブ -->
+  <polyline points="118,338 212,300 296,206 392,156" fill="none" stroke="#ffffff" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- 先端の矢印(↗) -->
+  <polyline points="338,156 392,156 392,210" fill="none" stroke="#ffffff" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- 帳簿のベースライン -->
+  <line x1="118" y1="398" x2="394" y2="398" stroke="#bdeee6" stroke-width="20" stroke-linecap="round"/>
+</svg>

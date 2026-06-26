@@ -1,0 +1,569 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Kakeibo SaaS Backend
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 10
+    MemorySize: 256
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref KakeiboTable
+        ALLOWED_ORIGIN: !Ref AllowedOrigin
+    Architectures:
+      - arm64
+
+Parameters:
+  Stage:
+    Type: String
+    Default: prod
+    AllowedValues: [prod, staging, dev]
+  AllowedOrigin:
+    Type: String
+    Default: "*"
+    Description: CORS で許可するオリジン（例 https://app.kakeibo.example.com）。本番では具体的なオリジンを指定すること。
+  AlarmEmail:
+    Type: String
+    Default: ""
+    Description: CloudWatch アラートの通知先メール。空なら通知サブスクリプションを作成しない。
+  SesIdentityArn:
+    Type: String
+    Default: ""
+    Description: Cognito の送信に使う SES 検証済みドメインIDの ARN。空なら Cognito 既定送信者を使う。
+  SesFromEmail:
+    Type: String
+    Default: "no-reply@kurofukubo.com"
+    Description: SES 利用時の差出人アドレス（SesIdentityArn のドメイン配下）。
+  GoogleClientId:
+    Type: String
+    Default: ""
+    Description: Google OAuth クライアントID（公開値）。空なら Google IdP を作成しない。
+  GoogleClientSecret:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: Google OAuth クライアントシークレット。デプロイ時に SSM SecureString から読んで渡す（ファイルに保存しない）。
+
+Conditions:
+  HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
+  HasSes: !Not [!Equals [!Ref SesIdentityArn, ""]]
+  HasGoogle: !Not [!Equals [!Ref GoogleClientId, ""]]
+
+Resources:
+  # ── Cognito ──
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub kakeibo-users-${Stage}
+      AutoVerifiedAttributes: [email]
+      UsernameAttributes: [email]
+      EmailConfiguration: !If
+        - HasSes
+        - EmailSendingAccount: DEVELOPER
+          From: !Ref SesFromEmail
+          SourceArn: !Ref SesIdentityArn
+        - !Ref AWS::NoValue
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailSubject: "【kurofukubo】メールアドレスの確認コード"
+        EmailMessage: "kurofukubo（家計簿アプリ）へのご登録ありがとうございます。<br><br>下の6桁の確認コードを、登録画面に入力してください。<br><br>確認コード： <b>{####}</b><br><br>※ お心当たりがない場合は、このメールを破棄してください。"
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireUppercase: false
+          RequireNumbers: true
+          RequireSymbols: false
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: kakeibo-web
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      PreventUserExistenceErrors: ENABLED
+      AccessTokenValidity: 1    # hours
+      IdTokenValidity: 1
+      RefreshTokenValidity: 30  # days
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+        RefreshToken: days
+      # OAuth (Hosted UI / Google など外部IdP用)。
+      # !Ref GoogleIdP は ProviderName("Google") を返しつつ暗黙の依存を張る。
+      SupportedIdentityProviders: !If
+        - HasGoogle
+        - [COGNITO, !Ref GoogleIdP]
+        - [COGNITO]
+      CallbackURLs:
+        - !Ref AllowedOrigin
+      LogoutURLs:
+        - !Ref AllowedOrigin
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub kurofukubo-auth-${Stage}
+      UserPoolId: !Ref UserPool
+
+  GoogleIdP:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Condition: HasGoogle
+    Properties:
+      UserPoolId: !Ref UserPool
+      ProviderName: Google
+      ProviderType: Google
+      ProviderDetails:
+        client_id: !Ref GoogleClientId
+        client_secret: !Ref GoogleClientSecret
+        authorize_scopes: "email openid profile"
+      AttributeMapping:
+        email: email
+        name: name
+
+  # ── DynamoDB ──
+  KakeiboTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub kakeibo-${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  # ── API Gateway ──
+  KakeiboApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref Stage
+      Auth:
+        DefaultAuthorizer: CognitoAuth
+        Authorizers:
+          CognitoAuth:
+            UserPoolArn: !GetAtt UserPool.Arn
+      # ステージ全体のスロットリング（DoS・コスト暴走対策）
+      MethodSettings:
+        - ResourcePath: "/*"
+          HttpMethod: "*"
+          ThrottlingRateLimit: 25
+          ThrottlingBurstLimit: 50
+      # CORS はゲートウェイ MOCK ではなく Lambda 側で ALLOWED_ORIGIN 環境変数から返す
+      # （MOCK だと AllowedOrigin 変更が再デプロイで反映されない問題を回避）。
+      # 各関数に Authorizer: NONE の OPTIONS イベントを定義してプリフライトを通す。
+
+  # ── Lambda Functions ──
+  JournalsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/journals.handler
+      CodeUri: .
+      Events:
+        List:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/journals
+            Method: GET
+        Create:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/journals
+            Method: POST
+        Update:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/journals/{id}
+            Method: PUT
+        Delete:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/journals/{id}
+            Method: DELETE
+        Options:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/journals
+            Method: OPTIONS
+            Auth: { Authorizer: NONE }
+        OptionsId:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/journals/{id}
+            Method: OPTIONS
+            Auth: { Authorizer: NONE }
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref KakeiboTable
+
+  AccountsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/accounts.handler
+      CodeUri: .
+      Events:
+        List:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/accounts
+            Method: GET
+        Create:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/accounts
+            Method: POST
+        Update:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/accounts/{id}
+            Method: PUT
+        Delete:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/accounts/{id}
+            Method: DELETE
+        Options:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/accounts
+            Method: OPTIONS
+            Auth: { Authorizer: NONE }
+        OptionsId:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/accounts/{id}
+            Method: OPTIONS
+            Auth: { Authorizer: NONE }
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref KakeiboTable
+
+  SettingsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/settings.handler
+      CodeUri: .
+      Events:
+        GetTags:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/tags
+            Method: GET
+        SaveTags:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/tags
+            Method: POST
+        GetWallets:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/wallets
+            Method: GET
+        SaveWallets:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/wallets
+            Method: POST
+        GetBudgets:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/budgets
+            Method: GET
+        SaveBudgets:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/budgets
+            Method: POST
+        SaveRecurring:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/recurring
+            Method: POST
+        GetEncData:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/encdata
+            Method: GET
+        SaveEncData:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/encdata
+            Method: POST
+        BulkExport:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/export
+            Method: GET
+        BulkImport:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/import
+            Method: POST
+        DeleteAccount:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/account
+            Method: DELETE
+        OptionsAccount:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/account
+            Method: OPTIONS
+            Auth: { Authorizer: NONE }
+        OptionsTags:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/tags
+            Method: OPTIONS
+            Auth: { Authorizer: NONE }
+        OptionsWallets:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/wallets
+            Method: OPTIONS
+            Auth: { Authorizer: NONE }
+        OptionsBudgets:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/budgets
+            Method: OPTIONS
+            Auth: { Authorizer: NONE }
+        OptionsRecurring:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/recurring
+            Method: OPTIONS
+            Auth: { Authorizer: NONE }
+        OptionsEncData:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/encdata
+            Method: OPTIONS
+            Auth: { Authorizer: NONE }
+        OptionsExport:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/export
+            Method: OPTIONS
+            Auth: { Authorizer: NONE }
+        OptionsImport:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/import
+            Method: OPTIONS
+            Auth: { Authorizer: NONE }
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref UserPool
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref KakeiboTable
+        - Statement:
+            - Effect: Allow
+              Action: cognito-idp:AdminDeleteUser
+              Resource: !GetAtt UserPool.Arn
+
+  # ── 新規ユーザー初期データ投入 ──
+  PostConfirmFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/postConfirm.handler
+      CodeUri: .
+      Events:
+        CognitoTrigger:
+          Type: Cognito
+          Properties:
+            UserPool: !Ref UserPool
+            Trigger: PostConfirmation
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref KakeiboTable
+
+  # 外部IdP(Google)ユーザーは PostConfirmation が発火しないため、
+  # PostAuthentication で初回ログイン時に初期化する。
+  PostAuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/postAuth.handler
+      CodeUri: .
+      Events:
+        CognitoTrigger:
+          Type: Cognito
+          Properties:
+            UserPool: !Ref UserPool
+            Trigger: PostAuthentication
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref KakeiboTable
+
+  # ── CloudWatch アラート ──
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub kakeibo-alarms-${Stage}
+
+  AlarmEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasAlarmEmail
+    Properties:
+      TopicArn: !Ref AlarmTopic
+      Protocol: email
+      Endpoint: !Ref AlarmEmail
+
+  LambdaErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub kakeibo-${Stage}-lambda-errors
+      AlarmDescription: Lambda 関数のエラーが発生
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  Api5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub kakeibo-${Stage}-api-5xx
+      AlarmDescription: API Gateway が 5xx を返した
+      Namespace: AWS/ApiGateway
+      MetricName: 5XXError
+      Dimensions:
+        - Name: ApiName
+          Value: !Ref AWS::StackName
+        - Name: Stage
+          Value: !Ref Stage
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  DynamoReadThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub kakeibo-${Stage}-ddb-read-throttle
+      AlarmDescription: DynamoDB 読み取りスロットリング発生
+      Namespace: AWS/DynamoDB
+      MetricName: ReadThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref KakeiboTable
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+  DynamoWriteThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub kakeibo-${Stage}-ddb-write-throttle
+      AlarmDescription: DynamoDB 書き込みスロットリング発生
+      Namespace: AWS/DynamoDB
+      MetricName: WriteThrottleEvents
+      Dimensions:
+        - Name: TableName
+          Value: !Ref KakeiboTable
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlarmTopic]
+
+Outputs:
+  ApiUrl:
+    Description: API endpoint URL
+    Value: !Sub https://${KakeiboApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref UserPool
+  UserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref UserPoolClient
+  HostedUIDomain:
+    Description: Cognito Hosted UI / OAuth domain
+    Value: !Sub https://kurofukubo-auth-${Stage}.auth.${AWS::Region}.amazoncognito.com
+  GoogleRedirectUri:
+    Description: Value to register as an Authorized redirect URI in Google Cloud Console
+    Value: !Sub https://kurofukubo-auth-${Stage}.auth.${AWS::Region}.amazoncognito.com/oauth2/idpresponse

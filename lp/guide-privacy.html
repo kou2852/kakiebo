@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1494837719359912" crossorigin="anonymous"></script>
+<title>家計簿のデータは誰が見られる？ 連携なし・ゼロ知識(E2E)で使う家計簿 | kurofukubo</title>
+<meta name="description" content="家計簿アプリのデータは誰が見られるのか。銀行連携のリスク、運営者にも中身が読めないゼロ知識（E2E）暗号化の仕組み、連携なし＝認証情報を預けない安全な家計管理の考え方をやさしく解説します。">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://kurofukubo.com/guide-privacy.html">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f4f7f9;--bg2:#ffffff;--bd:#e6ebec;--tx:#14201f;--tx2:#5d6b6a;--tx3:#93a09e;--ac:#0d9488;--ac2:#0f766e}
+body{font-family:'Manrope','Noto Sans JP',sans-serif;background:var(--bg);color:var(--tx);font-size:15px;line-height:1.9;-webkit-font-smoothing:antialiased}
+a{color:var(--ac);text-decoration:none}a:hover{color:var(--ac2)}
+.wrap{max-width:760px;margin:0 auto;padding:0 24px}
+nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.88);backdrop-filter:blur(12px);border-bottom:1px solid var(--bd)}
+.nav-inner{max-width:1080px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px}
+.nav-logo{font-size:18px;font-weight:800;color:var(--ac);display:inline-flex;align-items:center;gap:8px}
+.nav-logo svg{width:22px;height:22px;border-radius:6px}
+.nav-r a{color:var(--tx2);font-size:13px;margin-left:18px}.nav-r a:hover{color:var(--ac)}.nav-r .cta{color:var(--ac)}
+.doc{padding:48px 0 80px}
+.doc h1{font-size:28px;font-weight:800;margin-bottom:8px;line-height:1.5;letter-spacing:-0.01em}
+.doc .lead{color:var(--tx2);margin-bottom:28px}
+.doc h2{font-size:19px;font-weight:800;margin:34px 0 12px;color:var(--ac)}
+.doc h3{font-size:15px;font-weight:700;margin:20px 0 6px;color:var(--tx)}
+.doc p{color:var(--tx2);margin-bottom:12px}
+.doc ul,.doc ol{color:var(--tx2);margin:0 0 12px 1.4em}.doc li{margin-bottom:6px}
+.callout{background:var(--bg2);border:1px solid var(--bd);border-left:3px solid var(--ac);border-radius:6px;padding:14px 18px;font-size:14px;color:var(--tx2);margin:18px 0}
+.cta-box{background:var(--bg2);border:1px solid var(--bd);border-radius:8px;padding:22px;text-align:center;margin:36px 0 0}
+.cta-box a{display:inline-block;background:var(--ac);color:#fff;font-weight:700;padding:10px 24px;border-radius:6px;margin-top:8px}
+.cta-box a:hover{background:var(--ac2)}
+.more{margin-top:28px;font-size:14px;color:var(--tx3)}
+.note{font-size:13px;color:var(--tx3);margin-top:24px;border-top:1px solid var(--bd);padding-top:14px}
+footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--tx3);text-align:center}
+</style>
+<meta property="og:type" content="article">
+<meta property="og:title" content="家計簿のデータは誰が見られる？ 連携なし・ゼロ知識(E2E)で使う家計簿 | kurofukubo">
+<meta property="og:description" content="家計簿アプリのデータは誰が見られるのか。銀行連携のリスク、運営者にも中身が読めないゼロ知識（E2E）暗号化の仕組み、連携なし＝認証情報を預けない安全な家計管理の考え方をやさしく解説します。">
+<meta property="og:url" content="https://kurofukubo.com/guide-privacy.html">
+<meta property="og:image" content="https://kurofukubo.com/ogp.png">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"家計簿のデータは誰が見られる？ 連携なし・ゼロ知識(E2E)で使う家計簿 | kurofukubo","description":"家計簿アプリのデータは誰が見られるのか。銀行連携のリスク、運営者にも中身が読めないゼロ知識（E2E）暗号化の仕組み、連携なし＝認証情報を預けない安全な家計管理の考え方をやさしく解説します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-privacy.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}}}</script>
+  <script defer src="/analytics.js"></script>
+</head>
+<body>
+<nav><div class="nav-inner"><a href="/" class="nav-logo"><svg viewBox="0 0 512 512"><rect width="512" height="512" rx="116" fill="#0d9488"/><polyline points="118,338 212,300 296,206 392,156" fill="none" stroke="#fff" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/><polyline points="338,156 392,156 392,210" fill="none" stroke="#fff" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/><line x1="118" y1="398" x2="394" y2="398" stroke="#bdeee6" stroke-width="20" stroke-linecap="round"/></svg>kurofukubo</a><div class="nav-r"><a href="/guides.html">ガイド</a><a href="https://app.kurofukubo.com/" class="cta">無料で始める</a></div></div></nav>
+
+<section class="doc">
+  <div class="wrap">
+    <h1>家計簿のデータは誰が見られる？ — 連携なし・ゼロ知識(E2E)で使う家計簿</h1>
+    <p class="lead">家計簿には、収入・資産・借金といった、最も人に見られたくない情報が集まります。では、そのデータは<strong>誰が見られる</strong>のでしょうか。この記事では、よくある「銀行連携型」家計簿の仕組みと、運営者にも中身が読めない<strong>ゼロ知識（E2E）暗号化</strong>という考え方を、やさしく解説します。</p>
+
+    <h2>「銀行連携」家計簿のしくみとリスク</h2>
+    <p>多くの家計簿アプリは、銀行・カード・証券のIDやトークンを預かって明細を自動取得します。便利な一方で、(1)金融機関の認証情報を第三者に預ける、(2)取得した明細がサービス側のサーバーに平文で蓄積される、という構造的なリスクがあります。「運営者は見ない」と言われても、技術的には<strong>見られる状態</strong>であることが多いのです。</p>
+
+    <h2>kurofukubo の考え方：連携しない＋運営者も読めない</h2>
+    <ul>
+      <li><strong>銀行自動連携をしない</strong>。だから金融機関の認証情報をそもそも預かりません。明細はCSV取込か手入力で、あなたの手元から入れます。</li>
+      <li><strong>ゼロ知識（E2E）暗号化</strong>に対応。暗号化を有効にすると、データは端末内で暗号化されてから保存され、<strong>運営者を含む誰も中身を復号できません</strong>。</li>
+    </ul>
+
+    <h2>ゼロ知識（E2E）暗号化とは</h2>
+    <p>「エンドツーエンド暗号化（E2E）」とは、データを<strong>あなたの端末で暗号化</strong>し、鍵をあなたしか持たない方式です。サーバーには“鍵を持たない暗号文”だけが保存されるため、サーバーを運営する側も、仮に保存データを見ても<strong>意味のある内容を読めません</strong>。これを「ゼロ知識（zero-knowledge）」と呼びます。</p>
+    <div class="callout">
+      kurofukubo では、設定画面から暗号化を有効にすると、パスフレーズから作った鍵でデータを封緘します。鍵はサーバーに送られません。万一に備えて<strong>リカバリーキー</strong>を発行し、パスフレーズを忘れても自分だけで復元できるようにしています。仕組みの詳細は<a href="/security.html">安全とデータの扱い</a>をご覧ください。
+    </div>
+
+    <h2>「見られない」のに、資産はちゃんと見える</h2>
+    <p>プライバシーを守りながらでも、家計の見える化は犠牲になりません。CSV取込と一行入力で手早く記帳でき、純資産・貸借対照表・損益計算書まで自動で作成されます。<strong>“見られない設計”と“資産が見える”は両立します。</strong></p>
+
+    <div class="cta-box">
+      <p>運営者にも見えない、家族のお金の全体像。無料で始められます。</p>
+      <a href="https://app.kurofukubo.com/">無料で始める</a>
+    </div>
+
+    <p class="note">※ E2E暗号化は任意（オプトイン）です。リカバリーキーを紛失するとデータを復元できないため、安全に保管してください。</p>
+
+    <p class="more">関連記事：<a href="/security.html">安全とデータの扱い</a> ／ <a href="/guide-family-bs.html">家族のバランスシートの作り方</a> ／ <a href="/guides.html">ガイド一覧へ</a></p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">&copy; 2026 kurofukubo ・ <a href="/">トップ</a> ・ <a href="https://forms.gle/bWjXVifk6tQbEXpQ7" target="_blank" rel="noopener">お問い合わせ</a> ・ <a href="/guides.html">ガイド</a> ・ <a href="/terms.html">利用規約</a> ・ <a href="/privacy.html">プライバシーポリシー</a></div>
+</footer>
+</body>
+</html>

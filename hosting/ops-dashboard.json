@@ -1,0 +1,82 @@
+{
+  "widgets": [
+    {
+      "type": "text", "x": 0, "y": 0, "width": 24, "height": 2,
+      "properties": {
+        "markdown": "# kurofukubo 運営ダッシュボード (prod)\n登録ユーザー総数: `aws cognito-idp describe-user-pool --user-pool-id ap-northeast-1_ddBDF3HKK --query UserPool.EstimatedNumberOfUsers --profile kakeibo-prod --region ap-northeast-1` ／ 広告収益・表示回数・CTR は **AdSense コンソール**（AWS外）。"
+      }
+    },
+    {
+      "type": "metric", "x": 0, "y": 2, "width": 12, "height": 6,
+      "properties": {
+        "title": "API リクエスト数 / エラー", "region": "ap-northeast-1",
+        "view": "timeSeries", "stat": "Sum", "period": 300,
+        "metrics": [
+          ["AWS/ApiGateway", "Count", "ApiName", "kakeibo-saas-prod", "Stage", "prod"],
+          ["AWS/ApiGateway", "4XXError", "ApiName", "kakeibo-saas-prod", "Stage", "prod"],
+          ["AWS/ApiGateway", "5XXError", "ApiName", "kakeibo-saas-prod", "Stage", "prod"]
+        ]
+      }
+    },
+    {
+      "type": "metric", "x": 12, "y": 2, "width": 12, "height": 6,
+      "properties": {
+        "title": "API レイテンシ (平均 ms)", "region": "ap-northeast-1",
+        "view": "timeSeries", "stat": "Average", "period": 300,
+        "metrics": [
+          ["AWS/ApiGateway", "Latency", "ApiName", "kakeibo-saas-prod", "Stage", "prod"]
+        ]
+      }
+    },
+    {
+      "type": "metric", "x": 0, "y": 8, "width": 12, "height": 6,
+      "properties": {
+        "title": "Lambda 呼び出し回数", "region": "ap-northeast-1",
+        "view": "timeSeries", "stat": "Sum", "period": 300,
+        "metrics": [
+          ["AWS/Lambda", "Invocations", "FunctionName", "kakeibo-saas-prod-JournalsFunction-5HeQXTGMVYhm"],
+          [".", ".", ".", "kakeibo-saas-prod-AccountsFunction-E3XmvUIOx0Sv"],
+          [".", ".", ".", "kakeibo-saas-prod-SettingsFunction-ruoTTMCvIWbp"],
+          [".", ".", ".", "kakeibo-saas-prod-PostAuthFunction-aj3N9OTOKg4Y"],
+          [".", ".", ".", "kakeibo-saas-prod-PostConfirmFunction-B2MMXjvTVCoC"]
+        ]
+      }
+    },
+    {
+      "type": "metric", "x": 12, "y": 8, "width": 12, "height": 6,
+      "properties": {
+        "title": "Lambda エラー", "region": "ap-northeast-1",
+        "view": "timeSeries", "stat": "Sum", "period": 300,
+        "metrics": [
+          ["AWS/Lambda", "Errors", "FunctionName", "kakeibo-saas-prod-JournalsFunction-5HeQXTGMVYhm"],
+          [".", ".", ".", "kakeibo-saas-prod-AccountsFunction-E3XmvUIOx0Sv"],
+          [".", ".", ".", "kakeibo-saas-prod-SettingsFunction-ruoTTMCvIWbp"],
+          [".", ".", ".", "kakeibo-saas-prod-PostAuthFunction-aj3N9OTOKg4Y"],
+          [".", ".", ".", "kakeibo-saas-prod-PostConfirmFunction-B2MMXjvTVCoC"]
+        ]
+      }
+    },
+    {
+      "type": "metric", "x": 0, "y": 14, "width": 12, "height": 6,
+      "properties": {
+        "title": "DynamoDB 消費キャパシティ", "region": "ap-northeast-1",
+        "view": "timeSeries", "stat": "Sum", "period": 300,
+        "metrics": [
+          ["AWS/DynamoDB", "ConsumedReadCapacityUnits", "TableName", "kakeibo-prod"],
+          ["AWS/DynamoDB", "ConsumedWriteCapacityUnits", "TableName", "kakeibo-prod"]
+        ]
+      }
+    },
+    {
+      "type": "metric", "x": 12, "y": 14, "width": 12, "height": 6,
+      "properties": {
+        "title": "Cognito サインイン / 新規登録 (日次)", "region": "ap-northeast-1",
+        "view": "timeSeries", "stat": "Sum", "period": 86400,
+        "metrics": [
+          ["AWS/Cognito", "SignInSuccesses", "UserPool", "ap-northeast-1_ddBDF3HKK", "UserPoolClient", "lprqfuad5gm32gkb4g2bkvebk"],
+          [".", "SignUpSuccesses", ".", ".", ".", "."]
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+frontend/dist/
+
+# Env / local config (account-specific; client config also ships in bundle)
+.env
+.env.*
+!.env.example
+
+# AWS SAM build artifacts (duplicates source)
+.aws-sam/
+backend/.aws-sam/
+
+# SAM deploy config (contains account IDs / personal email)
+samconfig.toml
+
+# Generated verification screenshots / design exports (not source)
+docs/design-gen/shots/
+docs/design-gen/shots-*/
+docs/design-gen/redesign/
+
+# Logs / temp / OS
+*.log
+*.gz
+.DS_Store
+Thumbs.db
+npm-debug.log*

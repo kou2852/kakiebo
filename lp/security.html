@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1494837719359912" crossorigin="anonymous"></script>
+<title>安心とデータの扱い — kurofukubo</title>
+<meta name="description" content="kurofukubo（複式家計簿）のデータの扱い・プライバシーの考え方。第三者提供なし、銀行連携なし、データはあなたのもの、端末だけで使う選択肢について。">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://kurofukubo.com/security.html">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f4f7f9;--bg2:#ffffff;--bd:#e6ebec;--tx:#14201f;--tx2:#5d6b6a;--tx3:#93a09e;--ac:#0d9488;--ac2:#0f766e;--grn:#15a06a}
+body{font-family:'Manrope','Noto Sans JP',sans-serif;background:var(--bg);color:var(--tx);font-size:15px;line-height:1.9;-webkit-font-smoothing:antialiased}
+a{color:var(--ac);text-decoration:none}a:hover{color:var(--ac2)}
+.wrap{max-width:760px;margin:0 auto;padding:0 24px}
+nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.88);backdrop-filter:blur(12px);border-bottom:1px solid var(--bd)}
+.nav-inner{max-width:1080px;margin:0 auto;padding:0 24px;display:flex;align-items:center;height:56px}
+.nav-logo{font-family:'Manrope','Noto Sans JP',sans-serif;font-size:18px;font-weight:700;color:var(--ac)}
+.doc{padding:48px 0 80px}
+.doc h1{font-family:'Manrope','Noto Sans JP',sans-serif;font-size:28px;margin-bottom:8px}
+.doc .lead{color:var(--tx2);font-size:15px;margin-bottom:28px}
+.doc h2{font-size:18px;font-weight:700;margin:30px 0 8px;color:var(--ac);display:flex;align-items:center;gap:8px}
+.doc p{color:var(--tx2);margin-bottom:12px}
+.doc ul{color:var(--tx2);margin:0 0 12px 1.4em}
+.doc li{margin-bottom:6px}
+.notice{background:var(--bg2);border:1px solid var(--bd);border-left:3px solid var(--grn);border-radius:6px;padding:16px 18px;font-size:14px;color:var(--tx2);margin:20px 0}
+.notice strong{color:var(--tx)}
+.roadmap{background:#fbf8f1;border:1px dashed var(--ac);border-radius:6px;padding:16px 18px;font-size:14px;color:var(--tx2);margin:20px 0}
+.cta{display:inline-block;margin-top:8px;background:var(--ac);color:#fff;padding:10px 20px;border-radius:6px;font-weight:500}
+.cta:hover{background:var(--ac2);color:#fff}
+footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--tx3);text-align:center}
+</style>
+  <script defer src="/analytics.js"></script>
+</head>
+<body>
+<nav><div class="nav-inner"><a href="/" class="nav-logo">kurofukubo</a></div></nav>
+
+<section class="doc">
+  <div class="wrap">
+    <h1>安心とデータの扱い</h1>
+    <p class="lead">家計のデータは、特に人に知られたくない情報です。kurofukubo がそのデータをどう扱い、あなたがどこまでコントロールできるかを、できるだけ正直に・わかりやすくまとめました。</p>
+
+    <h2>🚫 第三者に渡しません</h2>
+    <ul>
+      <li>銀行口座やクレジットカードとの<strong>自動連携は行いません</strong>。外部の金融機関APIに接続して明細を吸い上げることはありません。入力・CSV取込はすべてあなたの操作によるものです。</li>
+      <li>あなたの家計データを<strong>広告事業者を含む第三者に提供・販売しません</strong>。広告（Google AdSense）にも家計の中身は渡しません。</li>
+    </ul>
+
+    <h2>🗂️ データはあなたのものです</h2>
+    <ul>
+      <li>入力した家計データの所有権は<strong>あなたに帰属</strong>します。</li>
+      <li>いつでも<strong>JSON形式でエクスポート</strong>でき、他のツールへ持ち出せます。</li>
+      <li><strong>アカウントを完全に削除</strong>でき、削除時はサーバー上のデータも消去されます。</li>
+    </ul>
+
+    <h2>🔒 通信と保管の保護</h2>
+    <ul>
+      <li>通信はすべて <strong>HTTPS（暗号化）</strong> で行われます。</li>
+      <li>保存先（Amazon Web Services）では<strong>暗号化して保管</strong>され、ストレージは直接公開していません。</li>
+      <li>データは<strong>アカウントごとに分離</strong>され、他のユーザーのデータと混ざりません。</li>
+    </ul>
+
+    <h2>👤 運営者の方針と最小限の情報</h2>
+    <ul>
+      <li>運営者（個人開発者）は、<strong>個別ユーザーの家計データを業務上閲覧しません</strong>。</li>
+      <li>登録に必要なのは<strong>メールアドレスのみ</strong>です。実名や住所などは求めません。</li>
+      <li>家計の計算（残高・貸借対照表・損益計算書など）は、サーバーではなく<strong>あなたの端末（ブラウザ）の中で</strong>行っています。サーバーは保存の役割が中心です。</li>
+    </ul>
+
+    <div class="notice">
+      <strong>クラウドに預けたくない方へ。</strong><br>
+      トップページの「ゲストとして試す」を使うと、<strong>データはあなたの端末（ブラウザ）にのみ保存され、サーバーには一切送信されません</strong>。アカウント登録なしで全機能を試せます。バックアップはエクスポート機能で手元に保存できます。
+    </div>
+
+    <div class="roadmap">
+      <strong>今後の予定：運営者でも中身を見られない仕組みへ。</strong><br>
+      さらに安心して使っていただけるよう、データを<strong>あなたの端末側で暗号化してから保存し、運営者でも復号できない方式（エンドツーエンド暗号化）</strong>の導入を検討・準備しています。導入時はこのページで改めてご案内します。
+    </div>
+
+    <h2>📩 ご質問・ご懸念</h2>
+    <p>データの扱いについて不明な点があれば、お気軽にお問い合わせください。詳細な取り扱いは<a href="/privacy.html">プライバシーポリシー</a>に記載しています。</p>
+    <a class="cta" href="https://forms.gle/bWjXVifk6tQbEXpQ7" target="_blank" rel="noopener">お問い合わせ</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">&copy; 2026 kurofukubo ・ <a href="/">トップ</a> ・ <a href="/privacy.html">プライバシーポリシー</a> ・ <a href="/terms.html">利用規約</a> ・ <a href="https://forms.gle/bWjXVifk6tQbEXpQ7" target="_blank" rel="noopener">お問い合わせ</a></div>
+</footer>
+</body>
+</html>

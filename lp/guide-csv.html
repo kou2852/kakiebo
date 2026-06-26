@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1494837719359912" crossorigin="anonymous"></script>
+<title>銀行・カードのCSVを家計簿に取り込む手順と自動分類のコツ | kurofukubo</title>
+<meta name="description" content="銀行やクレジットカードの明細CSVを家計簿に取り込めば、手入力の手間が大幅に減ります。取り込みの手順、自動分類ルールで記帳を半自動化する方法、重複を防ぐコツをわかりやすく解説します。">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://kurofukubo.com/guide-csv.html">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f4f7f9;--bg2:#ffffff;--bd:#e6ebec;--tx:#14201f;--tx2:#5d6b6a;--tx3:#93a09e;--ac:#0d9488;--ac2:#0f766e}
+body{font-family:'Manrope','Noto Sans JP',sans-serif;background:var(--bg);color:var(--tx);font-size:15px;line-height:1.9;-webkit-font-smoothing:antialiased}
+a{color:var(--ac);text-decoration:none}a:hover{color:var(--ac2)}
+.wrap{max-width:760px;margin:0 auto;padding:0 24px}
+nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.88);backdrop-filter:blur(12px);border-bottom:1px solid var(--bd)}
+.nav-inner{max-width:1080px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px}
+.nav-logo{font-family:'Manrope','Noto Sans JP',sans-serif;font-size:18px;font-weight:700;color:var(--ac)}
+.nav-r a{color:var(--tx2);font-size:13px;margin-left:18px}.nav-r a:hover{color:var(--ac)}.nav-r .cta{color:var(--ac)}
+.doc{padding:48px 0 80px}
+.doc h1{font-family:'Manrope','Noto Sans JP',sans-serif;font-size:28px;margin-bottom:8px;line-height:1.5}
+.doc .lead{color:var(--tx2);margin-bottom:28px}
+.doc h2{font-size:19px;font-weight:700;margin:34px 0 12px;color:var(--ac)}
+.doc h3{font-size:15px;font-weight:700;margin:20px 0 6px;color:var(--tx)}
+.doc p{color:var(--tx2);margin-bottom:12px}
+.doc ul,.doc ol{color:var(--tx2);margin:0 0 12px 1.4em}.doc li{margin-bottom:6px}
+.callout{background:var(--bg2);border:1px solid var(--bd);border-left:3px solid var(--ac);border-radius:6px;padding:14px 18px;font-size:14px;color:var(--tx2);margin:18px 0}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+th,td{border:1px solid var(--bd);padding:8px 12px;text-align:left;color:var(--tx2)}
+th{color:var(--tx);background:var(--bg2)}
+.cta-box{background:var(--bg2);border:1px solid var(--bd);border-radius:8px;padding:22px;text-align:center;margin:36px 0 0}
+.cta-box a{display:inline-block;background:var(--ac);color:#ffffff;font-weight:700;padding:10px 24px;border-radius:6px;margin-top:8px}
+.cta-box a:hover{background:var(--ac2)}
+.more{margin-top:28px;font-size:14px;color:var(--tx3)}
+footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--tx3);text-align:center}
+</style>
+<meta property="og:type" content="article">
+<meta property="og:title" content="銀行・カードのCSVを家計簿に取り込む手順と自動分類のコツ | kurofukubo">
+<meta property="og:description" content="銀行やクレジットカードの明細CSVを家計簿に取り込めば、手入力の手間が大幅に減ります。取り込みの手順、自動分類ルールで記帳を半自動化する方法、重複を防ぐコツをわかりやすく解説します。">
+<meta property="og:url" content="https://kurofukubo.com/guide-csv.html">
+<meta property="og:image" content="https://kurofukubo.com/ogp.png">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"銀行・カードのCSVを家計簿に取り込む手順と自動分類のコツ | kurofukubo","description":"銀行やクレジットカードの明細CSVを家計簿に取り込めば、手入力の手間が大幅に減ります。取り込みの手順、自動分類ルールで記帳を半自動化する方法、重複を防ぐコツをわかりやすく解説します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-csv.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}}}</script>
+  <script defer src="/analytics.js"></script>
+</head>
+<body>
+<nav><div class="nav-inner"><a href="/" class="nav-logo">kurofukubo</a><div class="nav-r"><a href="/guides.html">ガイド</a><a href="https://app.kurofukubo.com/" class="cta">無料で始める</a></div></div></nav>
+
+<section class="doc">
+  <div class="wrap">
+    <h1>銀行・カードのCSVを家計簿に取り込む手順と自動分類のコツ</h1>
+    <p class="lead">家計簿が続かない最大の理由は「入力が面倒」だから。そこで活躍するのが、銀行やクレジットカードからダウンロードできる明細CSVの取り込みです。手入力をやめてCSVをまとめて取り込めば、記帳の負担は大きく減ります。この記事では、取り込みの手順と、自動分類ルールで記帳を半自動化するコツを紹介します。</p>
+
+    <h2>CSV取込のメリット</h2>
+    <ul>
+      <li><strong>入力の手間が激減する。</strong> 1か月分の明細を一度に取り込めるので、毎日コツコツ入力する必要がありません。</li>
+      <li><strong>転記ミスが減る。</strong> 金額や日付を手で打ち直さないため、打ち間違いがなくなります。</li>
+      <li><strong>つけ忘れがなくなる。</strong> 明細に残っている取引はすべて取り込めるので、記録漏れを防げます。</li>
+    </ul>
+
+    <h2>取り込みの手順（3ステップ）</h2>
+    <h3>ステップ1：明細CSVをダウンロードする</h3>
+    <p>銀行やカード会社のサイト・アプリにログインし、対象期間の利用明細をCSV形式でダウンロードします。多くの金融機関が「明細ダウンロード」や「CSV出力」のメニューを用意しています。</p>
+    <h3>ステップ2：家計簿に読み込ませる</h3>
+    <p>ダウンロードしたファイルを家計簿アプリに取り込みます。kurofukubo では、CSVファイルを画面にドラッグ＆ドロップするだけで読み込めます。日付・金額・摘要（内容）の列を指定すれば、取引の一覧として認識されます。</p>
+    <h3>ステップ3：科目を割り当てて確定する</h3>
+    <p>取り込んだ各取引に、食費・日用品などの科目を割り当てて記帳します。次に紹介する自動分類ルールを設定しておけば、この作業の大半を自動化できます。</p>
+
+    <h2>自動分類ルールで記帳を半自動化する</h2>
+    <p>摘要に含まれるキーワードと科目を紐づけておくと、取り込み時に自動で振り分けられます。よく使う店舗やサービスをルール化しておくのがコツです。</p>
+    <table>
+      <tr><th>摘要に含まれる語</th><th>自動で割り当てる科目</th></tr>
+      <tr><td>「コンビニ」「スーパー」</td><td>食費</td></tr>
+      <tr><td>「電気」「ガス」「水道」</td><td>水道光熱費</td></tr>
+      <tr><td>「Amazon」「ドラッグ」</td><td>日用品</td></tr>
+    </table>
+    <p>ルールを育てていくほど、取り込み後に手で直す件数が減り、記帳がどんどん楽になります。</p>
+
+    <h2>重複を防ぐ</h2>
+    <p>「先月のCSVをもう一度取り込んでしまった」というときに怖いのが、同じ取引の二重登録です。kurofukubo は取り込み時に<strong>重複を自動で検知</strong>するため、すでに記帳済みの取引が二重に入るのを防げます。安心して、期間が一部重なるCSVも取り込めます。</p>
+
+    <div class="callout">
+      kurofukubo の<strong>CSV取込</strong>は、ドラッグ＆ドロップ・自動分類ルール・重複チェックに対応しています。手入力に疲れてしまった人ほど、CSV取込を中心にすると家計簿が続きやすくなります。
+    </div>
+
+    <div class="cta-box">
+      <p>明細CSVをまとめて取り込み。手入力ゼロを目指せる家計簿を無料で。</p>
+      <a href="https://app.kurofukubo.com/">無料で始める</a>
+    </div>
+
+    <p class="more">関連記事：<a href="/guide-start.html">はじめての使い方ガイド</a> ／ <a href="/guide-credit-card.html">クレジットカード払いの仕訳</a> ／ <a href="/guides.html">ガイド一覧へ</a></p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">&copy; 2026 kurofukubo ・ <a href="/">トップ</a> ・ <a href="https://forms.gle/bWjXVifk6tQbEXpQ7" target="_blank" rel="noopener">お問い合わせ</a> ・ <a href="/guides.html">ガイド</a> ・ <a href="/terms.html">利用規約</a> ・ <a href="/privacy.html">プライバシーポリシー</a></div>
+</footer>
+</body>
+</html>

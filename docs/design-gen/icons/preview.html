@@ -1,0 +1,48 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Noto+Sans+JP:wght@800&display=swap" rel="stylesheet">
+<style>
+body{font-family:'Manrope','Noto Sans JP',sans-serif;background:#e8eaed;color:#14201f;margin:0;padding:28px}
+h2{font-size:16px;margin:0 0 12px}
+.row{display:flex;align-items:center;gap:26px;background:#fff;border:1px solid #e6ebec;border-radius:16px;padding:20px 24px;margin-bottom:18px;box-shadow:0 1px 2px rgba(20,30,40,.05),0 18px 36px -28px rgba(20,30,40,.2)}
+.col-label{width:90px;font-weight:800;font-size:15px}
+.sizes{display:flex;align-items:center;gap:22px;flex:1}
+.s512 svg,.s512 img{width:84px;height:84px;border-radius:20px;display:block}
+.s64 svg,.s64 img{width:64px;height:64px;border-radius:15px;display:block}
+.s32 svg,.s32 img{width:32px;height:32px;border-radius:8px;display:block}
+.s16 svg,.s16 img{width:16px;height:16px;border-radius:4px;display:block}
+.cap{font-size:10px;color:#93a09e;text-align:center;margin-top:5px}
+/* タブ風 */
+.tab{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid #e6ebec;border-radius:8px 8px 0 0;padding:7px 12px;font-size:12px;color:#5d6b6a}
+.tab svg,.tab img{width:16px;height:16px;border-radius:4px}
+/* サイドバー風 */
+.sb{display:inline-flex;align-items:center;gap:10px;background:#fff;border:1px solid #e6ebec;border-radius:12px;padding:12px 16px}
+.sb.dark{background:#1a211f;border-color:#34403d}
+.sb svg,.sb img{width:30px;height:30px;border-radius:8px}
+.sb .nm{font-weight:800;font-size:16px;letter-spacing:-.01em}
+.sb.dark .nm{color:#fff}
+.ctx{display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap}
+</style></head><body>
+<div id="rows"></div>
+<script>
+const A=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="116" fill="#0d9488"/><text x="256" y="280" font-family="'Noto Sans JP',sans-serif" font-weight="800" font-size="350" fill="#fff" text-anchor="middle" dominant-baseline="middle">黒</text></svg>`;
+const B=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="116" fill="#0d9488"/><polyline points="118,338 212,300 296,206 398,150" fill="none" stroke="#fff" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/><circle cx="398" cy="150" r="30" fill="#fff"/><line x1="118" y1="398" x2="394" y2="398" stroke="#bdeee6" stroke-width="20" stroke-linecap="round"/></svg>`;
+const C=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="116" fill="#0d9488"/><g fill="#fff"><rect x="150" y="252" width="80" height="150" rx="24"/><rect x="282" y="150" width="80" height="252" rx="24"/></g><line x1="128" y1="396" x2="384" y2="396" stroke="#bdeee6" stroke-width="20" stroke-linecap="round"/></svg>`;
+const items=[['A：黒モノグラム',A],['B：純資産の上昇',B],['C：貸借バランス',C]];
+document.getElementById('rows').innerHTML = items.map(([label,svg])=>`
+  <h2>${label}</h2>
+  <div class="row">
+    <div class="sizes">
+      <div><div class="s512">${svg}</div><div class="cap">84</div></div>
+      <div><div class="s64">${svg}</div><div class="cap">64</div></div>
+      <div><div class="s32">${svg}</div><div class="cap">32</div></div>
+      <div><div class="s16">${svg}</div><div class="cap">16 (favicon)</div></div>
+    </div>
+    <div class="ctx">
+      <div><div class="tab">${svg}<span>kurofukubo — お金の全体像</span></div><div class="cap">ブラウザタブ</div></div>
+      <div><div class="sb">${svg}<span class="nm" style="color:#0d9488">kurofukubo</span></div><div class="cap">左上(明)</div></div>
+      <div><div class="sb dark">${svg}<span class="nm">kurofukubo</span></div><div class="cap">左上(暗)</div></div>
+    </div>
+  </div>`).join('');
+</script>
+</body></html>
