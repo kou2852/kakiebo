@@ -1,87 +1,91 @@
 <mxfile host="app.diagrams.net" type="device">
   <diagram id="kurofukubo-arch" name="システム構成図">
-    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1300" pageHeight="800" math="0" shadow="0">
+    <mxGraphModel dx="1340" dy="800" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1040" pageHeight="740" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
 
-        <!-- prod account boundary -->
-        <mxCell id="acct" value="AWS prod アカウント (117953360790) / ap-northeast-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#999999;dashed=1;verticalAlign=top;fontStyle=1;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="300" y="60" width="940" height="640" as="geometry" />
+        <mxCell id="title" value="kurofukubo — システム構成図 (AWS / サーバーレス)" style="text;html=1;fontSize=17;fontStyle=1;fontColor=#232F3E;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="28" y="16" width="640" height="26" as="geometry" />
         </mxCell>
 
-        <!-- User -->
-        <mxCell id="user" value="ユーザー&#10;(ブラウザ)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="1">
-          <mxGeometry x="60" y="320" width="130" height="60" as="geometry" />
+        <!-- AWS Cloud frame -->
+        <mxCell id="aws" value="AWS Cloud — prod (117953360790) ／ ap-northeast-1（CloudFront・Route 53=グローバル, ACM=us-east-1）" style="sketch=0;outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=11;fontStyle=0;container=0;pointerEvents=0;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud_alt;strokeColor=#232F3E;fillColor=none;verticalAlign=top;align=left;spacingLeft=34;fontColor=#232F3E;dashed=0;" vertex="1" parent="1">
+          <mxGeometry x="200" y="55" width="800" height="635" as="geometry" />
         </mxCell>
 
-        <!-- Route53 -->
-        <mxCell id="r53" value="Route 53&#10;app.kurofukubo.com" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="340" y="120" width="160" height="50" as="geometry" />
+        <!-- support (top) -->
+        <mxCell id="r53" value="Route 53&#10;DNS" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.route_53;" vertex="1" parent="1">
+          <mxGeometry x="250" y="88" width="48" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="acm" value="ACM&#10;TLS (us-east-1)" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#DD344C;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.certificate_manager;" vertex="1" parent="1">
+          <mxGeometry x="372" y="88" width="48" height="48" as="geometry" />
         </mxCell>
 
-        <!-- ACM -->
-        <mxCell id="acm" value="ACM (us-east-1)&#10;TLS証明書" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="340" y="500" width="150" height="50" as="geometry" />
+        <!-- entry column (stacked): CloudFront / Cognito / API Gateway -->
+        <mxCell id="cf" value="CloudFront&#10;CDN" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#8C4FFF;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudfront;" vertex="1" parent="1">
+          <mxGeometry x="300" y="190" width="48" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="cognito" value="Cognito&#10;認証" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#DD344C;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cognito;" vertex="1" parent="1">
+          <mxGeometry x="300" y="330" width="48" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="apigw" value="API Gateway&#10;REST" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#E7157B;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.api_gateway;" vertex="1" parent="1">
+          <mxGeometry x="300" y="470" width="48" height="48" as="geometry" />
         </mxCell>
 
-        <!-- CloudFront -->
-        <mxCell id="cf" value="CloudFront&#10;(OAC / SPAフォールバック)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="340" y="300" width="170" height="60" as="geometry" />
+        <!-- right flow -->
+        <mxCell id="s3" value="S3（非公開）&#10;React SPA" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#7AA116;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;" vertex="1" parent="1">
+          <mxGeometry x="500" y="190" width="48" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="google" value="Google IdP&#10;OAuth" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="490" y="332" width="120" height="44" as="geometry" />
+        </mxCell>
+        <mxCell id="lambda" value="Lambda&#10;API実装" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#ED7100;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" vertex="1" parent="1">
+          <mxGeometry x="500" y="470" width="48" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="ddb" value="DynamoDB&#10;単一テーブル+GSI1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#C925D1;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.dynamodb;" vertex="1" parent="1">
+          <mxGeometry x="700" y="470" width="48" height="48" as="geometry" />
         </mxCell>
 
-        <!-- S3 -->
-        <mxCell id="s3" value="S3 (非公開)&#10;React SPA (Vite)" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="350" y="430" width="150" height="60" as="geometry" />
+        <!-- monitoring (bottom) -->
+        <mxCell id="cw" value="CloudWatch&#10;監視" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#E7157B;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch_2;" vertex="1" parent="1">
+          <mxGeometry x="500" y="610" width="48" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="sns" value="SNS&#10;通知" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#E7157B;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.simple_notification_service;" vertex="1" parent="1">
+          <mxGeometry x="700" y="610" width="48" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="mail" value="メール通知" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="850" y="616" width="86" height="36" as="geometry" />
         </mxCell>
 
-        <!-- API Gateway -->
-        <mxCell id="apigw" value="API Gateway&#10;(REST, stage=prod)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="560" y="300" width="160" height="60" as="geometry" />
+        <!-- E2E note -->
+        <mxCell id="e2e" value="🔐 E2E暗号化（オプトイン）&#10;有効時は Lambda が平文を保存せず&#10;暗号文(ct)+鍵bundle のみ保管&#10;鍵・平文は端末内のみ（ゼロ知識）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF8E1;strokeColor=#E0B84C;fontSize=10;align=left;verticalAlign=top;spacingLeft=8;spacingTop=6;" vertex="1" parent="1">
+          <mxGeometry x="700" y="300" width="225" height="92" as="geometry" />
         </mxCell>
 
-        <!-- Cognito -->
-        <mxCell id="cognito" value="Cognito User Pool&#10;Authorizer (JWT検証)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="560" y="150" width="160" height="60" as="geometry" />
+        <!-- External -->
+        <mxCell id="user" value="ユーザー&#10;（ブラウザ）" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#232F3E;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=10;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.user;" vertex="1" parent="1">
+          <mxGeometry x="55" y="320" width="48" height="48" as="geometry" />
         </mxCell>
-
-        <!-- Lambda -->
-        <mxCell id="lambda" value="Lambda (Node.js 20, arm64)&#10;journals / accounts / settings / postConfirm&#10;OPTIONS=CORS(env ALLOWED_ORIGIN)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="780" y="290" width="220" height="80" as="geometry" />
-        </mxCell>
-
-        <!-- DynamoDB -->
-        <mxCell id="ddb" value="DynamoDB&#10;シングルテーブル + GSI1&#10;PK=USER#&lt;userId&gt; (テナント分離)&#10;PITR有効" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1050" y="280" width="170" height="90" as="geometry" />
-        </mxCell>
-
-        <!-- CloudWatch -->
-        <mxCell id="cw" value="CloudWatch Alarms&#10;Lambda err / API 5xx / DDB throttle" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="780" y="470" width="220" height="60" as="geometry" />
-        </mxCell>
-
-        <!-- SNS -->
-        <mxCell id="sns" value="SNS&#10;kakeibo-alarms-prod" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1050" y="470" width="170" height="60" as="geometry" />
-        </mxCell>
-
-        <!-- Email -->
-        <mxCell id="mail" value="メール通知" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
-          <mxGeometry x="1090" y="600" width="100" height="40" as="geometry" />
+        <mxCell id="legend" value="凡例：&lt;b style=&quot;color:#2D6CDF&quot;&gt;青=外部通信&lt;/b&gt; ／ &lt;b style=&quot;color:#8C4FFF&quot;&gt;紫=DB&lt;/b&gt; ／ 破線=認証・補助・非同期&#10;①〜⑤=リクエストの流れ ／ ゲスト = localStorage のみ（サーバー通信なし）" style="text;html=1;fontSize=10;fontColor=#5d6b6a;align=left;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="40" y="560" width="320" height="40" as="geometry" />
         </mxCell>
 
         <!-- Edges -->
-        <mxCell id="e_user_cf" value="HTTPS (静的)" style="endArrow=block;html=1;fontSize=10;" edge="1" parent="1" source="user" target="cf"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_user_api" value="fetch /api (Bearer JWT)" style="endArrow=block;html=1;fontSize=10;" edge="1" parent="1" source="user" target="apigw"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_r53_cf" value="Alias" style="endArrow=block;html=1;dashed=1;fontSize=10;" edge="1" parent="1" source="r53" target="cf"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_acm_cf" value="証明書" style="endArrow=block;html=1;dashed=1;fontSize=10;" edge="1" parent="1" source="acm" target="cf"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_cf_s3" value="OAC" style="endArrow=block;html=1;fontSize=10;" edge="1" parent="1" source="cf" target="s3"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_api_cog" value="検証" style="endArrow=block;html=1;dashed=1;fontSize=10;" edge="1" parent="1" source="apigw" target="cognito"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_api_lambda" value="invoke" style="endArrow=block;html=1;fontSize=10;" edge="1" parent="1" source="apigw" target="lambda"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_lambda_ddb" value="CRUD" style="endArrow=block;html=1;fontSize=10;" edge="1" parent="1" source="lambda" target="ddb"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_lambda_cw" value="logs/metrics" style="endArrow=block;html=1;dashed=1;fontSize=10;" edge="1" parent="1" source="lambda" target="cw"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_cw_sns" value="アラーム" style="endArrow=block;html=1;fontSize=10;" edge="1" parent="1" source="cw" target="sns"><mxGeometry relative="1" as="geometry" /></mxCell>
-        <mxCell id="e_sns_mail" value="" style="endArrow=block;html=1;fontSize=10;" edge="1" parent="1" source="sns" target="mail"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_user_cf" value="① HTTPS（静的）" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;endArrow=block;strokeColor=#2D6CDF;fontColor=#1F55B0;" edge="1" parent="1" source="user" target="cf"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_cf_s3" value="② OAC" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;endArrow=block;strokeColor=#6C7B8A;fontColor=#44525F;" edge="1" parent="1" source="cf" target="s3"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_user_cog" value="サインイン" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;endArrow=block;dashed=1;strokeColor=#2D6CDF;fontColor=#1F55B0;" edge="1" parent="1" source="user" target="cognito"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_user_api" value="③ fetch /api（JWT）" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;endArrow=block;strokeColor=#2D6CDF;fontColor=#1F55B0;" edge="1" parent="1" source="user" target="apigw"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_api_lambda" value="④ invoke" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;endArrow=block;strokeColor=#6C7B8A;fontColor=#44525F;" edge="1" parent="1" source="apigw" target="lambda"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_lambda_ddb" value="⑤ CRUD" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;endArrow=block;strokeColor=#8C4FFF;fontColor=#6E2FD0;" edge="1" parent="1" source="lambda" target="ddb"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_api_cog" value="JWT検証" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;endArrow=block;dashed=1;strokeColor=#6C7B8A;fontColor=#44525F;" edge="1" parent="1" source="apigw" target="cognito"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_cog_google" value="フェデレーション" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;endArrow=block;dashed=1;strokeColor=#6C7B8A;fontColor=#44525F;" edge="1" parent="1" source="cognito" target="google"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_r53_cf" value="Alias" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;fontSize=10;endArrow=block;strokeColor=#6C7B8A;fontColor=#44525F;" edge="1" parent="1" source="r53" target="cf"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_acm_cf" value="証明書" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;fontSize=10;endArrow=block;strokeColor=#6C7B8A;fontColor=#44525F;" edge="1" parent="1" source="acm" target="cf"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_lambda_cw" value="logs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;fontSize=10;endArrow=block;strokeColor=#6C7B8A;fontColor=#44525F;" edge="1" parent="1" source="lambda" target="cw"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_cw_sns" value="アラーム" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;endArrow=block;strokeColor=#6C7B8A;fontColor=#44525F;" edge="1" parent="1" source="cw" target="sns"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_sns_mail" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;endArrow=block;strokeColor=#6C7B8A;" edge="1" parent="1" source="sns" target="mail"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="e_e2e_ddb" value="暗号文のみ" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;dashed=1;fontSize=10;endArrow=block;strokeColor=#C9A227;fontColor=#9a7d1a;" edge="1" parent="1" source="e2e" target="ddb"><mxGeometry relative="1" as="geometry" /></mxCell>
       </root>
     </mxGraphModel>
   </diagram>
