@@ -3,8 +3,8 @@
 **純資産まで見える、銀行と連携しない複式簿記ベースの家計簿 SaaS。**
 現金・預金・証券・NISA・iDeCo・ローンまで含めた“純資産”を自動で可視化し、データは運営者にも中身が見えない **ゼロ知識 E2E 暗号化**に対応した、プライバシー重視の個人開発プロダクトです。
 
-🌐 **アプリ**: https://app.kurofukubo.com （登録不要のゲストモードで即試用可）
-📄 **ランディング / ガイド**: https://kurofukubo.com
+🌐 **アプリ**: https://app.kurofukubo.com/?utm_source=github&utm_medium=readme （登録不要のゲストモードで即試用可）
+📄 **ランディング / ガイド**: https://kurofukubo.com/?utm_source=github&utm_medium=readme
 
 ![ダッシュボード](docs/note-images/full-dashboard.png)
 
