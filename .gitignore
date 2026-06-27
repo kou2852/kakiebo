@@ -28,3 +28,10 @@ docs/design-gen/redesign/
 .DS_Store
 Thumbs.db
 npm-debug.log*
+
+# 管理用は kakeibo-private へ分離（公開しない）
+docs/design-gen/
+docs/NEXT_STEPS.md
+docs/STRATEGY.md
+docs/SEO_ROADMAP.md
+docs/marketing-tracking.md

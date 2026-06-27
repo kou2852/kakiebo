@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <rect width="512" height="512" rx="116" fill="#0d9488"/>
-  <!-- 貸借バランス：負債(低)＜資産(高)＝純資産プラス -->
-  <g fill="#ffffff">
-    <rect x="150" y="252" width="80" height="150" rx="24"/>
-    <rect x="282" y="150" width="80" height="252" rx="24"/>
-  </g>
-  <line x1="128" y1="396" x2="384" y2="396" stroke="#bdeee6" stroke-width="20" stroke-linecap="round"/>
-</svg>
