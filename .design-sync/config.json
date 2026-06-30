@@ -1,0 +1,17 @@
+{
+  "projectId": "c7d649c3-9221-41fa-ae7a-345d37889a7e",
+  "pkg": "kakeibo-frontend",
+  "globalName": "KurofukuboUI",
+  "shape": "package",
+  "entry": "frontend/.ds-entry.js",
+  "componentSrcMap": {
+    "Modal": "src/components/Common/Modal.jsx",
+    "InfoTip": "src/components/Common/InfoTip.jsx",
+    "EmptyState": "src/components/Common/EmptyState.jsx"
+  },
+  "cssEntry": ".ds-styles.css",
+  "readmeHeader": ".design-sync/conventions.md",
+  "overrides": {
+    "Modal": { "cardMode": "single" }
+  }
+}

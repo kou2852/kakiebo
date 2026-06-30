@@ -35,3 +35,10 @@ docs/NEXT_STEPS.md
 docs/STRATEGY.md
 docs/SEO_ROADMAP.md
 docs/marketing-tracking.md
+
+# design-sync の生成物・作業キャッシュ（アップロード成果物。ソースではない）
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules/
