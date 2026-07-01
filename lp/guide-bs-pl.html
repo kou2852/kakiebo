@@ -48,6 +48,7 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"家計のバランスシート（BS）・損益計算書（PL）の作り方と読み方 | kurofukubo","description":"家計のバランスシート（貸借対照表BS）と損益計算書（PL）の作り方と読み方を解説。資産・負債・純資産、収入・支出の関係を、家計の具体例でやさしく紹介します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-bs-pl.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}}}</script>
   <script defer src="/analytics.js"></script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ホーム","item":"https://kurofukubo.com/"},{"@type":"ListItem","position":2,"name":"ガイド","item":"https://kurofukubo.com/guides.html"},{"@type":"ListItem","position":3,"name":"家計のバランスシート（BS）・損益計算書（PL）の作り方と読み方","item":"https://kurofukubo.com/guide-bs-pl.html"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"家計にBS・PLは本当に必要ですか？","acceptedAnswer":{"@type":"Answer","text":"収支トントンを目指すだけならPL（家計簿）で十分ですが、投資も含めて財産が増えているかを知りたいならBS（純資産）まで見る必要があります。両方あって家計の全体像が見えます。"}},{"@type":"Question","name":"どのくらいの頻度で作ればいいですか？","acceptedAnswer":{"@type":"Answer","text":"PLは毎月、BSは月末に1回で十分です。投資の評価額は月1回まとめて更新する程度で問題ありません。"}},{"@type":"Question","name":"簿記の知識がないと作れませんか？","acceptedAnswer":{"@type":"Answer","text":"複式簿記で記帳できるアプリを使えば、入力からBS・PLが自動生成されます。kurofukubo はかんたん入力や一行入力に対応しており、簿記を知らなくても記録できます。"}}]}</script>
 </head>
 <body>
 <nav><div class="nav-inner"><a href="/" class="nav-logo"><img src="/favicon.svg" alt="" width="22" height="22" style="border-radius:6px;vertical-align:middle;margin-right:8px">kurofukubo</a><div class="nav-r"><a href="/guides.html">ガイド</a><a href="https://app.kurofukubo.com/" class="cta">無料で始める</a></div></div></nav>
@@ -79,6 +80,60 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
 
     <h2>PLとBSはつながっている</h2>
     <p>損益計算書の「収支（黒字）」は、貸借対照表の「純資産の増加」につながります。毎月の黒字を積み上げることが、純資産を増やすこと——つまり家計の健全化に直結します。複式簿記で記録すれば、この2つの表が自動的に整合します。</p>
+
+    <h2>具体例：1か月分を数字で作ってみる</h2>
+    <p>言葉だけだとイメージしづらいので、あるご家庭の1か月を数字で追ってみましょう。手取り30万円の会社員で、毎月2万円を投資（NISA）に積み立てているケースです。</p>
+
+    <h3>① 損益計算書（PL）＝その月の収支</h3>
+    <table>
+      <tr><th>項目</th><th>金額</th></tr>
+      <tr><td>収入（給与手取り）</td><td>300,000円</td></tr>
+      <tr><td>住居費（家賃）</td><td>−90,000円</td></tr>
+      <tr><td>食費</td><td>−55,000円</td></tr>
+      <tr><td>水道光熱・通信</td><td>−25,000円</td></tr>
+      <tr><td>日用品・娯楽・その他</td><td>−60,000円</td></tr>
+      <tr><td><strong>収支（黒字）</strong></td><td><strong>+70,000円</strong></td></tr>
+    </table>
+    <p>この月は7万円の黒字でした。ここで大事なのは、<strong>NISAへの積立2万円は「支出」に入れない</strong>という点です。お金が消えたのではなく、現金という資産から投資という資産へ「移動」しただけだからです。PL（損益計算書）に載るのは、消費・費用として家計の外へ出ていったお金だけです。</p>
+
+    <h3>② 貸借対照表（BS）＝月末時点の財産</h3>
+    <p>次に、月末時点の財産を並べます。先月末の純資産は 250万円だったとします。今月は株価が上がり、NISAに1万円の含み益（評価益）が出ました。</p>
+    <table>
+      <tr><th>資産</th><th>金額</th></tr>
+      <tr><td>現金・普通預金</td><td>1,550,000円</td></tr>
+      <tr><td>投資（NISA評価額）</td><td>1,230,000円</td></tr>
+      <tr><td><strong>資産合計</strong></td><td><strong>2,780,000円</strong></td></tr>
+    </table>
+    <table>
+      <tr><th>負債</th><th>金額</th></tr>
+      <tr><td>クレジットカード未払い</td><td>200,000円</td></tr>
+      <tr><td><strong>負債合計</strong></td><td><strong>200,000円</strong></td></tr>
+    </table>
+    <p>純資産＝資産 2,780,000 − 負債 200,000 ＝ <strong>2,580,000円</strong>。先月末の250万円から、8万円増えました。</p>
+
+    <h3>③ 「黒字は7万円」なのに、純資産は8万円増えた理由</h3>
+    <p>ここが、家計にBS・PLの両方を使うおもしろさです。今月の純資産の増加8万円は、こう分解できます。</p>
+    <ul>
+      <li>PLの黒字（家計に残ったお金）：<strong>+70,000円</strong>（うち2万円はNISAへ移動、5万円は預金に残った）</li>
+      <li>NISAの含み益（評価額の上昇）：<strong>+10,000円</strong>（これはPLには一切出てこない）</li>
+      <li>合計：純資産 <strong>+80,000円</strong></li>
+    </ul>
+    <p>つまり<strong>「今月いくら使ったか（PL）」と「財産が結局いくら増えたか（BSの純資産）」は別物</strong>で、両方を見て初めて家計の実態がわかります。支出管理だけの家計簿では、投資に回した分や評価益が見えないため、「黒字なのにお金が増えた気がしない」「赤字なのに実は資産は増えていた」といったズレが起きがちです。</p>
+
+    <h2>よくある勘違い</h2>
+    <ul>
+      <li><strong>「黒字＝手元のお金が増える」とは限らない</strong>：黒字分を投資やローンの繰上返済に回すと、純資産は増えても手元現金は増えません。PL（もうけ）とBS（現金残高）を混同しないのがコツです。</li>
+      <li><strong>「資産が多い＝お金持ち」ではない</strong>：住宅を持っていても住宅ローンが同額あれば、純資産への寄与はゼロです。必ず負債を引いた<strong>純資産</strong>で見ます。</li>
+      <li><strong>ローンの返済は「支出」ではない</strong>：元本の返済は負債が減るだけ（資産も同額減る）なので純資産は中立。ただし利息部分はPL上の支出になります。</li>
+    </ul>
+
+    <h2>よくある質問</h2>
+    <h3>Q. 家計にBS・PLは本当に必要ですか？</h3>
+    <p>収支トントンを目指すだけならPL（家計簿）で十分です。ただ「老後までにいくら貯まるか」「投資も含めて財産が増えているか」を知りたいなら、BS（純資産）まで見ないと判断できません。両方あって家計の全体像が見えます。</p>
+    <h3>Q. どのくらいの頻度で作ればいいですか？</h3>
+    <p>PLは毎月、BSは月末に1回で十分です。投資の評価額は月1回まとめて更新する程度で問題ありません。毎日つける必要はありません。</p>
+    <h3>Q. 簿記の知識がないと作れませんか？</h3>
+    <p>手計算だと大変ですが、複式簿記で記帳できるアプリを使えば、入力からBS・PLが自動生成されます。kurofukubo は「かんたん入力」や「一行入力」に対応しており、簿記を知らなくても記録できます。</p>
 
     <div class="callout">
       kurofukubo は記帳したデータから、貸借対照表・損益計算書・キャッシュフロー計算書を<strong>自動で作成</strong>します。さらに純資産の推移や予算との比較も確認でき、家計の全体像を継続的に把握できます。

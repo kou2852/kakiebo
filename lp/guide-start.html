@@ -45,6 +45,7 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"はじめての複式家計簿 — 使い方ガイド | kurofukubo","description":"複式家計簿アプリ kurofukubo の始め方ガイド。口座の登録、最初の記帳、クイック入力、ダッシュボードの見方まで、3ステップでわかりやすく解説します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-start.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}}}</script>
   <script defer src="/analytics.js"></script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ホーム","item":"https://kurofukubo.com/"},{"@type":"ListItem","position":2,"name":"ガイド","item":"https://kurofukubo.com/guides.html"},{"@type":"ListItem","position":3,"name":"はじめての複式家計簿","item":"https://kurofukubo.com/guide-start.html"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"簿記の知識がなくても使えますか？","acceptedAnswer":{"@type":"Answer","text":"使えます。かんたんモードとクイック入力なら、費目と金額を選ぶ・打つだけで複式簿記の仕訳が自動で作られます。用語を覚える必要はありません。"}},{"@type":"Question","name":"登録しないと試せませんか？","acceptedAnswer":{"@type":"Answer","text":"「ゲストで試す」を選べば、アカウント登録なし・メール入力なしで今すぐ使えます。ゲストのデータは端末にのみ保存され、登録すればそのまま引き継がれます。"}},{"@type":"Question","name":"毎日つけないとダメですか？","acceptedAnswer":{"@type":"Answer","text":"いいえ。CSV取込や定期取引を使えばまとめて記帳できます。まず残高を入れて純資産を見るだけでも家計の現在地がわかります。"}}]}</script>
 </head>
 <body>
 <nav><div class="nav-inner"><a href="/" class="nav-logo"><img src="/favicon.svg" alt="" width="22" height="22" style="border-radius:6px;vertical-align:middle;margin-right:8px">kurofukubo</a><div class="nav-r"><a href="/guides.html">ガイド</a><a href="https://app.kurofukubo.com/" class="cta">無料で始める</a></div></div></nav>
@@ -79,6 +80,31 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
       <li>家賃やサブスクなどは<strong>定期取引</strong>に登録すると、期日が来た分をワンクリックでまとめて記帳できます。</li>
       <li>銀行やカードの明細は<strong>CSV取込</strong>でまとめて取り込めます。重複は自動で検知され、自動分類ルールを設定すれば科目も自動で振り分けられます。</li>
     </ul>
+
+    <h2>最初の1週間の進め方</h2>
+    <p>いきなり完璧を目指すと続きません。次の順番でゆるく始めるのがおすすめです。</p>
+    <ol>
+      <li><strong>1日目</strong>：現金・メイン銀行・よく使うカードの3つだけ口座を登録し、それぞれの<strong>今の残高</strong>を「元入金」として入力する。これで純資産のスタート地点が決まります。</li>
+      <li><strong>2〜3日目</strong>：まずは支出だけ、その日のうちに記帳する習慣をつける。クイック入力で「食費 1200 現金」のように一行で。</li>
+      <li><strong>4〜5日目</strong>：家賃・サブスク・給与など毎月決まったものを<strong>定期取引</strong>に登録。以後は自動で候補が作られます。</li>
+      <li><strong>週末</strong>：ダッシュボードで今週の収支と純資産を眺める。銀行・カードの明細があれば<strong>CSV取込</strong>で抜け漏れを補完。</li>
+    </ol>
+    <p>この時点で「入力すると自動でBS・PL・純資産が出る」感覚がつかめます。あとは毎日1〜2分の記帳を続けるだけです。</p>
+
+    <h2>「かんたんモード」と「詳細モード」</h2>
+    <p>記帳画面には2つのモードがあります。簿記に慣れていない最初のうちは<strong>かんたんモード</strong>で十分です。</p>
+    <ul>
+      <li><strong>かんたんモード</strong>：支出／収入／振替を選び、費目・金額・支払い方法を選ぶだけ。借方・貸方は裏側で自動変換されます。</li>
+      <li><strong>詳細モード</strong>：借方・貸方を自分で組み立てるモード。慣れてきたら、1回の支払いを複数費目に分ける・立替を記録するなど、細かい仕訳ができます。</li>
+    </ul>
+
+    <h2>よくある質問</h2>
+    <h3>Q. 簿記の知識がなくても使えますか？</h3>
+    <p>使えます。かんたんモードとクイック入力なら、費目と金額を選ぶ・打つだけで、複式簿記の仕訳は自動で作られます。用語を覚える必要はありません。</p>
+    <h3>Q. 登録しないと試せませんか？</h3>
+    <p>「ゲストで試す」を選べば、アカウント登録なし・メール入力なしで今すぐ使えます。ゲストのデータはお使いの端末にのみ保存され、気に入ってから登録すればデータはそのまま引き継がれます。</p>
+    <h3>Q. 毎日つけないとダメですか？</h3>
+    <p>いいえ。CSV取込や定期取引を使えば、まとめて記帳できます。まずは「残高を入れる→純資産を見る」だけでも、家計の現在地がわかります。</p>
 
     <div class="cta-box">
       <p>登録は1分・クレジットカード不要。今日から家計の全体像を把握しましょう。</p>
