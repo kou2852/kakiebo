@@ -35,6 +35,8 @@ docs/NEXT_STEPS.md
 docs/STRATEGY.md
 docs/SEO_ROADMAP.md
 docs/marketing-tracking.md
+docs/analytics/
+docs/zenn-*.md
 
 # design-sync の生成物・作業キャッシュ（アップロード成果物。ソースではない）
 .ds-sync/
