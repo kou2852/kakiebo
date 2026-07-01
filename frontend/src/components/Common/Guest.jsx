@@ -18,7 +18,7 @@ export function GuestBanner() {
       <span style={{ flex: 1, minWidth: 200 }}>
         🔒 ゲストモード — データはこの端末にのみ保存されます。
       </span>
-      <button className="btn btn-p btn-s" onClick={exitGuest}>無料で登録 →</button>
+      <button className="btn btn-p btn-s" data-tour="register" onClick={exitGuest}>無料で登録 →</button>
     </div>
   );
 }

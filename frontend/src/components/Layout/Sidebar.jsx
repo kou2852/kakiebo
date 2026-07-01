@@ -33,12 +33,7 @@ export default function Sidebar({ currentPage, onNavigate, open, onClose, tier, 
     >
       <div className="s-logo" style={{ padding: '18px 12px 8px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          <svg viewBox="0 0 512 512" width="26" height="26" style={{ borderRadius: 7, flexShrink: 0 }} aria-hidden="true">
-            <rect width="512" height="512" rx="116" fill="#0d9488" />
-            <polyline points="118,338 212,300 296,206 392,156" fill="none" stroke="#fff" strokeWidth="38" strokeLinecap="round" strokeLinejoin="round" />
-            <polyline points="338,156 392,156 392,210" fill="none" stroke="#fff" strokeWidth="38" strokeLinecap="round" strokeLinejoin="round" />
-            <line x1="118" y1="398" x2="394" y2="398" stroke="#bdeee6" strokeWidth="20" strokeLinecap="round" />
-          </svg>
+          <img src="/favicon.svg" width="26" height="26" style={{ borderRadius: 7, flexShrink: 0 }} alt="" aria-hidden="true" />
           <div style={{ minWidth: 0 }}>
             <h1 style={{ fontFamily: 'inherit', fontSize: 16, fontWeight: 800, letterSpacing: '-0.01em', color: 'var(--tx)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               kurofukubo
@@ -98,6 +93,7 @@ export default function Sidebar({ currentPage, onNavigate, open, onClose, tier, 
             {items.map((item) => (
               <div
                 key={item.id}
+                data-tour={`nav-${item.id}`}
                 className={`s-item ${currentPage === item.id ? 'active' : ''}`}
                 onClick={() => onNavigate(item.id)}
               >

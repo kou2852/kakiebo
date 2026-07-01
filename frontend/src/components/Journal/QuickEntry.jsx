@@ -190,10 +190,10 @@ export default function QuickEntry() {
       {/* 一行クイック入力 */}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', padding: '12px 16px', background: 'var(--bg3)', borderBottom: '1px solid var(--bd)' }}>
         <span style={{ fontSize: 12, color: 'var(--tx3)', whiteSpace: 'nowrap', fontWeight: 600 }}>⚡ 一行で入力</span>
-        <input type="text" className="fc" value={text} placeholder="例: 食費 1200 現金 / コンビニ"
+        <input type="text" className="fc" value={text} placeholder="例: 食費 1200 現金 / コンビニ" data-tour="quick-input"
           onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') quickSubmit(); }}
           style={{ flex: 1, minWidth: 200, padding: '7px 10px', fontSize: 13 }} />
-        <button className="btn btn-p btn-s" onClick={quickSubmit}>記帳</button>
+        <button className="btn btn-p btn-s" data-tour="quick-submit" onClick={quickSubmit}>記帳</button>
         {preview && (
           <div style={{ flexBasis: '100%', fontSize: 12 }}>
             <span style={{ color: 'var(--ac)' }}>借方: {preview.drAcct.name}</span>{' / '}
@@ -204,7 +204,7 @@ export default function QuickEntry() {
       </div>
 
       {/* モード切替 */}
-      <div style={{ display: 'flex', gap: 6, padding: '10px 16px', borderBottom: '1px solid var(--bd)', alignItems: 'center', flexWrap: 'wrap' }}>
+      <div data-tour="entry-mode" style={{ display: 'flex', gap: 6, padding: '10px 16px', borderBottom: '1px solid var(--bd)', alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>入力方法</span>
         <button className={`btn btn-s ${mode === 'simple' ? 'btn-p' : 'btn-g'}`} onClick={() => setModeP('simple')}>かんたん</button>
         <button className={`btn btn-s ${mode === 'detail' ? 'btn-p' : 'btn-g'}`} onClick={() => setModeP('detail')}>詳細（借方・貸方）</button>

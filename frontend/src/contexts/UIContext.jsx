@@ -17,15 +17,16 @@ export function UIProvider({ children }) {
   // 初回（未オンボーディング）のユーザーは操作ガイドを最初に表示。以降はダッシュボード。
   const [currentPage, setCurrentPage] = useState(() => (localStorage.getItem(ONBOARD_KEY) ? 'dashboard' : 'guide'));
   const [hiddenNav, setHiddenNav] = useState(loadHidden);
-  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [tourId, setTourId] = useState(null);      // 起動中のツアーID（null=なし）
+  const [menuOpen, setMenuOpen] = useState(false); // チュートリアル選択メニュー
 
   useEffect(() => {
     try { localStorage.setItem(HIDDEN_KEY, JSON.stringify(hiddenNav)); } catch {}
   }, [hiddenNav]);
 
-  // 初回のみ自動表示
+  // 初回のみ「はじめてのツアー」を自動表示
   useEffect(() => {
-    if (!localStorage.getItem(ONBOARD_KEY)) setOnboardingOpen(true);
+    if (!localStorage.getItem(ONBOARD_KEY)) setTourId('firstRun');
   }, []);
 
   const navigate = useCallback((id) => setCurrentPage(id), []);
@@ -35,18 +36,21 @@ export function UIProvider({ children }) {
     setHiddenNav((h) => (h.includes(id) ? h.filter((x) => x !== id) : [...h, id]));
   }, []);
 
-  const openOnboarding = useCallback(() => setOnboardingOpen(true), []);
-  const closeOnboarding = useCallback(() => {
+  const startTour = useCallback((id = 'firstRun') => { setMenuOpen(false); setTourId(id); }, []);
+  const endTour = useCallback(() => {
     localStorage.setItem(ONBOARD_KEY, '1');
-    setOnboardingOpen(false);
+    setTourId(null);
   }, []);
+  const openMenu = useCallback(() => setMenuOpen(true), []);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
 
   const value = {
     currentPage, navigate,
     hiddenNav,
     isHidden: (id) => hiddenNav.includes(id),
     toggleNav,
-    onboardingOpen, openOnboarding, closeOnboarding,
+    tourId, startTour, endTour,
+    menuOpen, openMenu, closeMenu,
   };
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
 }

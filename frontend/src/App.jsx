@@ -22,7 +22,8 @@ import GuidePage from './components/Guide/GuidePage';
 import Toast from './components/Common/Toast';
 import Ad from './components/Common/Ad';
 import { GuestBanner, GuestPromoModal } from './components/Common/Guest';
-import OnboardingModal from './components/Onboarding/OnboardingModal';
+import Tour from './components/Onboarding/Tour';
+import TutorialMenu from './components/Onboarding/TutorialMenu';
 import WhatsNewModal from './components/Common/WhatsNewModal';
 import { AD_CONFIG } from './config/tiers';
 import { APP_UPDATES } from './config/updates';
@@ -44,7 +45,7 @@ const PAGES = {
 };
 
 function AppShell({ devMode, guestMode, tier }) {
-  const { currentPage, navigate, hiddenNav, onboardingOpen, openOnboarding, closeOnboarding } = useUI();
+  const { currentPage, navigate, hiddenNav, tourId, startTour, endTour, menuOpen, openMenu, closeMenu } = useUI();
   const { encLocked } = useData();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [navCount, setNavCount] = useState(0);
@@ -83,7 +84,7 @@ function AppShell({ devMode, guestMode, tier }) {
           onClose={() => setSidebarOpen(false)}
           tier={tier}
           hiddenNav={hiddenNav}
-          onOpenGuide={openOnboarding}
+          onOpenGuide={openMenu}
           onOpenWhatsNew={() => setWhatsNewOpen(true)}
           hasUnread={hasUnreadUpdate}
         />
@@ -94,12 +95,7 @@ function AppShell({ devMode, guestMode, tier }) {
             </svg>
           </button>
           <span className="m-logo" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg viewBox="0 0 512 512" width="24" height="24" style={{ borderRadius: 6 }} aria-hidden="true">
-              <rect width="512" height="512" rx="116" fill="#0d9488" />
-              <polyline points="118,338 212,300 296,206 392,156" fill="none" stroke="#fff" strokeWidth="38" strokeLinecap="round" strokeLinejoin="round" />
-              <polyline points="338,156 392,156 392,210" fill="none" stroke="#fff" strokeWidth="38" strokeLinecap="round" strokeLinejoin="round" />
-              <line x1="118" y1="398" x2="394" y2="398" stroke="#bdeee6" strokeWidth="20" strokeLinecap="round" />
-            </svg>
+            <img src="/favicon.svg" width="24" height="24" style={{ borderRadius: 6 }} alt="" aria-hidden="true" />
             kurofukubo
           </span>
         </header>
@@ -111,7 +107,8 @@ function AppShell({ devMode, guestMode, tier }) {
         </main>
       </div>
       {guestMode && <GuestPromoModal />}
-      <OnboardingModal open={onboardingOpen} onClose={closeOnboarding} onNavigate={onNavigate} />
+      <Tour tourId={tourId} onClose={endTour} onNavigate={onNavigate} onOpenSidebar={() => setSidebarOpen(true)} />
+      <TutorialMenu open={menuOpen} onClose={closeMenu} onStart={startTour} />
       <WhatsNewModal open={whatsNewOpen} onClose={closeWhatsNew} />
       <Toast />
     </>

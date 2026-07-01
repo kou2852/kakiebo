@@ -172,7 +172,7 @@ export default function JournalPage() {
             onClick={() => toast('AI仕分けは準備中です（近日公開予定）')}>
             🤖 AI仕分け（準備中）
           </button>
-          <button className="btn btn-g" onClick={() => setCsvOpen(true)}>CSV取込</button>
+          <button className="btn btn-g" data-tour="csv-btn" onClick={() => setCsvOpen(true)}>CSV取込</button>
           <button className="btn btn-p" onClick={openNew}>＋ 新規仕訳</button>
         </div>
       </div>
@@ -180,7 +180,7 @@ export default function JournalPage() {
       <QuickEntry />
 
       {presets.length > 0 && (
-        <div className="card" style={{ marginBottom: 14, padding: '10px 14px' }}>
+        <div className="card" data-tour="presets" style={{ marginBottom: 14, padding: '10px 14px' }}>
           <div style={{ fontSize: 11, color: 'var(--tx3)', marginBottom: 6 }}>プリセットから記帳（タップで入力欄に反映）</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {presets.map((p) => (

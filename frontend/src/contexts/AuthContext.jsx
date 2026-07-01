@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { setTokenProvider, account as accountApi } from '../api/client';
+import { track } from '../utils/track';
 import {
   OAUTH_ENABLED, loginWithGoogle, handleRedirectCallback,
   hasOAuthSession, getOAuthIdToken, logoutRedirect, clearOAuth,
@@ -79,6 +80,7 @@ export function AuthProvider({ children }) {
     if (new URLSearchParams(window.location.search).get('guest') !== null) {
       localStorage.setItem(GUEST_KEY, '1');
       window.history.replaceState({}, '', window.location.pathname);
+      track('guest_start');
     }
 
     (async () => {
@@ -211,6 +213,7 @@ export function AuthProvider({ children }) {
   const loginAsGuest = useCallback(() => {
     localStorage.setItem(GUEST_KEY, '1');
     setGuestMode(true);
+    track('guest_start');
     setUser({ guest: true });
     setError(null);
   }, []);

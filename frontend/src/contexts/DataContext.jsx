@@ -6,6 +6,7 @@ import { hasEncryption, loadEncrypted, saveEncrypted, enableEncryption as csEnab
 import { setupEncryption, unlock as cryptoUnlock, recover as cryptoRecover, changePassphrase as cryptoChangePass, regenerateRecovery as regenRecovery, seal as cryptoSeal, open as cryptoOpen } from '../utils/crypto';
 import { readBundle, writeBundle } from '../utils/cryptoStore';
 import { saveDek, loadDek, clearDek } from '../utils/dekStore';
+import { track } from '../utils/track';
 
 const DataContext = createContext(null);
 
@@ -174,12 +175,13 @@ export function DataProvider({ children }) {
     const newJ = { id: uid(), ...data };
     if (useLocal || encEnabled) {
       setJournals((prev) => [...prev, newJ]);
+      if (guestMode) track('journal_added'); // ゲストの記帳はサーバに残らないため件数のみ計測
       return newJ;
     }
     const created = await api.journals.create(data);
     setJournals((prev) => [...prev, created]);
     return created;
-  }, [useLocal, encEnabled]);
+  }, [useLocal, encEnabled, guestMode]);
 
   const updateJournal = useCallback(async (id, data) => {
     if (useLocal || encEnabled) {

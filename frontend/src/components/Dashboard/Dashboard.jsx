@@ -148,7 +148,7 @@ export default function Dashboard() {
       )}
 
       {/* 純資産ヒーロー */}
-      <div className="nw-hero">
+      <div className="nw-hero" data-tour="networth">
         <div style={{ flex: '1 1 240px', minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,.78)', fontWeight: 600, letterSpacing: '.04em' }}>純資産 — {periodNote}</div>
@@ -202,7 +202,7 @@ export default function Dashboard() {
       <BudgetPanel />
 
       {/* 純資産の推移 */}
-      <div className="card mt-16">
+      <div className="card mt-16" data-tour="nw-trend">
         <div className="card-title">純資産の推移（直近6ヶ月末）</div>
         <NetWorthChart data={nwTrend} />
       </div>

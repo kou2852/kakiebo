@@ -4,7 +4,7 @@ import { ACCOUNT_TYPES } from '../../utils/format';
 import { useToast } from '../Common/Toast';
 import Modal from '../Common/Modal';
 
-export default function AccountModal({ open, onClose, editId, defaultType }) {
+export default function AccountModal({ open, onClose, editId, defaultType, prefill }) {
   const { accounts, addAccount, updateAccount } = useData();
   const toast = useToast();
 
@@ -28,10 +28,11 @@ export default function AccountModal({ open, onClose, editId, defaultType }) {
         setCcClose(a.ccClose || ''); setCcDay(a.ccDay || ''); setCcDelay(String(a.ccDelay || 1)); setCcFrom(a.ccFrom || '');
       }
     } else {
-      setName(''); setType(defaultType || 'asset'); setCode(''); setNote('');
+      // テンプレから開いた場合は内容をプリフィル（編集して保存できる）
+      setName(prefill?.name || ''); setType(prefill?.type || defaultType || 'asset'); setCode(prefill?.code || ''); setNote('');
       setCcClose(''); setCcDay(''); setCcDelay('1'); setCcFrom('');
     }
-  }, [open, editId, accounts, defaultType]);
+  }, [open, editId, accounts, defaultType, prefill]);
 
   const handleSave = async () => {
     if (!name.trim()) { toast('科目名を入力してください'); return; }

@@ -97,7 +97,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div style={{ background: 'var(--bg1)', border: '1px solid var(--bd)', borderRadius: 10, padding: 18, marginBottom: 16 }}>
+      <div data-tour="backup" style={{ background: 'var(--bg1)', border: '1px solid var(--bd)', borderRadius: 10, padding: 18, marginBottom: 16 }}>
         <h3 style={{ fontSize: 14, marginBottom: 6 }}>エクスポート</h3>
         <p style={{ color: 'var(--tx3)', fontSize: 12, marginBottom: 12 }}>
           現在のデータをJSONファイルとして保存します。
@@ -117,7 +117,7 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      <EncryptionPanel />
+      <div data-tour="e2e"><EncryptionPanel /></div>
 
       {!guestMode && (
         <div style={{ background: 'var(--bg1)', border: '1px solid var(--red)', borderRadius: 10, padding: 18, marginTop: 24 }}>

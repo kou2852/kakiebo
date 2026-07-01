@@ -12,8 +12,10 @@ import RuleModal from './RuleModal';
 import WalletModal from './WalletModal';
 import PresetModal from './PresetModal';
 
-// 純資産（家族のBS）に効く科目テンプレ。ワンクリックで追加（オプトイン・重複回避）。
+// 純資産（家族のBS）に効く科目テンプレ。クリックでモーダルに内容をプリフィルし、編集してから追加できる。
 const ACCOUNT_TEMPLATES = [
+  { name: '銀行口座', type: 'asset', code: '1011' },
+  { name: 'クレジットカード', type: 'liability', code: '2102' },
   { name: 'NISA口座', type: 'asset', code: '1211' },
   { name: 'iDeCo', type: 'asset', code: '1212' },
   { name: '証券口座', type: 'asset', code: '1213' },
@@ -24,7 +26,7 @@ const ACCOUNT_TEMPLATES = [
 ];
 
 export default function AccountsPage() {
-  const { accounts, journals, wallets, presets, rules, budgets, allocs, addJournal, addAccount, updateAccount, deleteAccount, saveWallets, setPresets, setRules, loading } = useData();
+  const { accounts, journals, wallets, presets, rules, budgets, allocs, addJournal, updateAccount, deleteAccount, saveWallets, setPresets, setRules, loading } = useData();
   const { guestMode } = useAuth();
   const toast = useToast();
 
@@ -34,7 +36,7 @@ export default function AccountsPage() {
       toast(`ゲストは追加科目を${GUEST_LIMITS.accounts}件まで作成できます。アカウント登録で解除されます`);
       return;
     }
-    setAcctEditId(null); setAcctModalOpen(true);
+    setAcctEditId(null); setAcctPrefill(null); setAcctModalOpen(true);
   };
 
   const openNewWallet = () => {
@@ -45,23 +47,23 @@ export default function AccountsPage() {
     setWalletEditId(null); setWalletModalOpen(true);
   };
 
-  const addTemplate = async (t) => {
+  // テンプレは即追加せず、内容をプリフィルしたモーダルを開いて編集・保存させる。
+  const openTemplate = (t) => {
     if (guestMode && accounts.filter((a) => !a.sys).length >= GUEST_LIMITS.accounts) {
       toast(`ゲストは追加科目を${GUEST_LIMITS.accounts}件まで作成できます。アカウント登録で解除されます`);
       return;
     }
-    if (accounts.some((a) => a.name === t.name)) { toast(`「${t.name}」は既にあります`); return; }
-    try {
-      await addAccount({ name: t.name, type: t.type, code: t.code, note: '' });
-      setTab(t.type);
-      toast(`「${t.name}」を追加しました`);
-    } catch { toast('追加に失敗しました'); }
+    setAcctEditId(null);
+    setAcctPrefill({ name: t.name, type: t.type, code: t.code });
+    setTab(t.type);
+    setAcctModalOpen(true);
   };
   const [tab, setTab] = useState('asset');
   const [sortKey, setSortKey] = useState('code');
   const [sortDir, setSortDir] = useState('asc');
   const [acctModalOpen, setAcctModalOpen] = useState(false);
   const [acctEditId, setAcctEditId] = useState(null);
+  const [acctPrefill, setAcctPrefill] = useState(null);
   const [ruleModalOpen, setRuleModalOpen] = useState(false);
   const [ruleEditId, setRuleEditId] = useState(null);
   const [walletModalOpen, setWalletModalOpen] = useState(false);
@@ -164,26 +166,20 @@ export default function AccountsPage() {
         ))}
       </div>
 
-      {/* 純資産テンプレ（NISA/iDeCo/証券/ローン） */}
-      {(() => {
-        const avail = ACCOUNT_TEMPLATES.filter((t) => !accounts.some((a) => a.name === t.name));
-        if (!avail.length) return null;
-        return (
-          <div className="card" style={{ marginBottom: 14, padding: '12px 16px' }}>
-            <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 8 }}>
-              💡 純資産に効く科目をテンプレから追加（NISA・iDeCo・証券・各種ローン）
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {avail.map((t) => (
-                <button key={t.name} className="btn btn-g btn-s" onClick={() => addTemplate(t)}>
-                  ＋ {t.name}
-                  <span style={{ fontSize: 10, color: 'var(--tx3)', marginLeft: 4 }}>{t.type === 'asset' ? '資産' : '負債'}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
+      {/* 純資産テンプレ（NISA/iDeCo/証券/ローン）。クリックで内容を編集してから追加。再追加できるよう常に表示。 */}
+      <div className="card" style={{ marginBottom: 14, padding: '12px 16px' }}>
+        <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 8 }}>
+          💡 口座・カード・投資・ローンをテンプレから追加（クリックで内容を編集してから保存）
+        </div>
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
+          {ACCOUNT_TEMPLATES.map((t) => (
+            <button key={t.name} className="btn btn-g btn-s" style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }} onClick={() => openTemplate(t)}>
+              ＋ {t.name}
+              <span style={{ fontSize: 10, color: 'var(--tx3)', marginLeft: 4 }}>{t.type === 'asset' ? '資産' : '負債'}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* 勘定科目一覧 */}
       <div className="card">
@@ -341,7 +337,7 @@ export default function AccountsPage() {
           )}
         </div>
       </div>
-      <AccountModal open={acctModalOpen} onClose={() => setAcctModalOpen(false)} editId={acctEditId} defaultType={tab} />
+      <AccountModal open={acctModalOpen} onClose={() => setAcctModalOpen(false)} editId={acctEditId} prefill={acctPrefill} defaultType={tab} />
       <RuleModal open={ruleModalOpen} onClose={() => setRuleModalOpen(false)} editId={ruleEditId} />
       <WalletModal open={walletModalOpen} onClose={() => setWalletModalOpen(false)} editId={walletEditId} />
       <PresetModal open={presetModalOpen} onClose={() => setPresetModalOpen(false)} editId={presetEditId} walletId={presetWalletId} type={presetType} />
