@@ -90,7 +90,13 @@ function getFeedback() {
     '--expression-attribute-values', '{":pk":{"S":"FEEDBACK"}}',
     '--no-scan-index-forward', // SKが FEEDBACK#<ISO日時>#<uuid> なので降順＝新しい順
     '--output', 'json', '--profile', PROFILE, '--region', 'ap-northeast-1',
-  ], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+  ], {
+    encoding: 'utf8',
+    maxBuffer: 32 * 1024 * 1024,
+    // ご意見は日本語で届く。aws cli(Python) の既定出力は Windows だと cp932 になり、
+    // 日本語や絵文字を出力できずエラー終了するため UTF-8 を強制する。
+    env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' },
+  });
   if (r.status !== 0) {
     const err = (r.stderr || r.error?.message || '').trim();
     const needLogin = /token|expired|sso|credential|Unable to locate/i.test(err);
@@ -416,8 +422,10 @@ const server = createServer((req, res) => {
   }
   if (url.pathname === '/api/feedback') {
     try {
+      // 先に取得してから書き出す（writeHead の後に例外が出るとヘッダ二重送信で落ちるため）
+      const data = getFeedback();
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
-      res.end(JSON.stringify(getFeedback()));
+      res.end(JSON.stringify(data));
     } catch (e) {
       res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ error: e.message }));
