@@ -182,6 +182,32 @@ function analyze(days) {
   const bySrc = Object.entries(bySrcCnt).sort((a, b) => b[1] - a[1])
     .map(([src, count]) => ({ src, count, distinct: bySrcIps[src].size }));
 
+  // 記事別のアプリ流入（utm_content）。LPのCTAに付けたページ名が入る。
+  // これが「記事→アプリのクリック数」で、GA4の記事別PVと突き合わせるとCTRが出る。
+  // slug にはハイフンが入るため [a-z0-9_-] で拾う。
+  const byArticleCnt = {}, byArticleIps = {};
+  for (const r of humanOpens) {
+    const m = dec(r.q).match(/utm_content=([a-z0-9_-]+)/i);
+    if (!m) continue;
+    const a = m[1].toLowerCase();
+    byArticleCnt[a] = (byArticleCnt[a] || 0) + 1;
+    (byArticleIps[a] ||= new Set()).add(r.ip);
+  }
+  const byArticle = Object.entries(byArticleCnt).sort((a, b) => b[1] - a[1])
+    .map(([slug, count]) => ({ slug, count, distinct: byArticleIps[slug].size }));
+
+  // デバイス別。モバイル最適化（FAB・ボトムシート）の効果を見るために分ける。
+  const isMobile = (ua) => /iphone|ipod|android.*mobile|windows phone/i.test(ua);
+  const isTablet = (ua) => /ipad|android(?!.*mobile)|tablet/i.test(ua);
+  const devCnt = { モバイル: 0, タブレット: 0, PC: 0 };
+  const devIps = { モバイル: new Set(), タブレット: new Set(), PC: new Set() };
+  for (const r of humanOpens) {
+    const ua = dec(r.ua);
+    const k = isMobile(ua) ? 'モバイル' : isTablet(ua) ? 'タブレット' : 'PC';
+    devCnt[k]++; devIps[k].add(r.ip);
+  }
+  const byDevice = Object.entries(devCnt).map(([name, count]) => ({ name, count, distinct: devIps[name].size }));
+
   // 参照元 上位
   const refCnt = {};
   for (const r of humanOpens) { const k = r.ref && r.ref !== '-' ? r.ref : '(直接/なし)'; refCnt[k] = (refCnt[k] || 0) + 1; }
@@ -254,7 +280,7 @@ function analyze(days) {
       total: opens.length, bot: botOpens.length, self: selfOpens.length,
       human: humanOpens.length, humanDistinct: humanIps.size,
     },
-    byDay, bySrc, refs, botUa, events,
+    byDay, bySrc, byArticle, byDevice, refs, botUa, events,
   };
 }
 
@@ -782,6 +808,28 @@ function render(d){
   h += '<section><h3>参照元 上位</h3><div class="wrap"><table><tr><th class="num">件数</th><th>Referer</th></tr>';
   for(const r of d.refs){ h += '<tr><td class="num">'+r.count+'</td><td class="ref">'+esc(r.ref)+'</td></tr>'; }
   if(!d.refs.length) h += '<tr><td class="muted" colspan="2">データなし</td></tr>';
+  h += '</table></div></section>';
+  h += '</div>';
+
+  // 6-2. 記事別のアプリ流入（utm_content）とデバイス別
+  h += '<div class="cols3">';
+  h += '<section><h3>記事別のアプリ流入 <small>LPのCTA経由（utm_content）。GA4の記事別PVで割るとCTRになる</small></h3>';
+  if(!d.byArticle || !d.byArticle.length){
+    h += '<p class="muted">まだありません。LPのCTAにutmを付けて配信した後、記事から実際にクリックされると出ます。</p>';
+  }else{
+    h += '<div class="wrap"><table><tr><th>記事</th><th class="num">クリック</th><th class="num">実人数</th></tr>';
+    for(const r of d.byArticle){ h += '<tr><td>'+esc(r.slug)+'</td><td class="num">'+r.count+'</td><td class="num muted">'+r.distinct+'</td></tr>'; }
+    h += '</table></div>';
+  }
+  h += '</section>';
+
+  h += '<section><h3>デバイス別 <small>人間の起動（UA判定）</small></h3><div class="wrap"><table><tr><th>デバイス</th><th class="num">起動</th><th class="num">実人数</th><th class="num">構成比</th></tr>';
+  const devTotal = (d.byDevice||[]).reduce((s,x)=>s+x.count,0);
+  for(const r of (d.byDevice||[])){
+    h += '<tr><td>'+esc(r.name)+'</td><td class="num">'+r.count+'</td><td class="num muted">'+r.distinct+'</td>'
+       + '<td class="num">'+(devTotal?(r.count/devTotal*100).toFixed(0)+'%':'—')+'</td></tr>';
+  }
+  if(!devTotal) h += '<tr><td class="muted" colspan="4">データなし</td></tr>';
   h += '</table></div></section>';
   h += '</div>';
 
