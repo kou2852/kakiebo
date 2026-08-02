@@ -21,6 +21,7 @@ const PROFILE = process.env.AWS_PROFILE || 'kakeibo-prod';
 const LOG_BUCKET = 'kakeibo-cf-logs-117953360790';
 const LOG_PREFIX = 'app/'; // app.kurofukubo.com のCloudFrontログ
 const USER_POOL_ID = 'ap-northeast-1_ddBDF3HKK'; // kakeibo-users-prod
+const TABLE = 'kakeibo-prod'; // DynamoDB（ご意見は固定PK 'FEEDBACK' 配下）
 const CACHE_DIR = join(__dirname, '.cache-cflogs');
 
 // analyze-cflogs.mjs と同一の判定ルール
@@ -77,6 +78,42 @@ function getRegisteredUsers() {
   if (r.status !== 0) return null; // 認証切れ等でも他の数字は出す
   const n = Number((r.stdout || '').trim());
   return Number.isFinite(n) ? n : null;
+}
+
+// アプリ内アンケートで送られたご意見。固定PK 'FEEDBACK' 配下を新しい順に取得する。
+// 匿名で保存されているため、誰が送ったかは分からない（userIdは常に 'guest'）。
+function getFeedback() {
+  const r = spawnSync('aws', [
+    'dynamodb', 'query',
+    '--table-name', TABLE,
+    '--key-condition-expression', 'PK = :pk',
+    '--expression-attribute-values', '{":pk":{"S":"FEEDBACK"}}',
+    '--no-scan-index-forward', // SKが FEEDBACK#<ISO日時>#<uuid> なので降順＝新しい順
+    '--output', 'json', '--profile', PROFILE, '--region', 'ap-northeast-1',
+  ], { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+  if (r.status !== 0) {
+    const err = (r.stderr || r.error?.message || '').trim();
+    const needLogin = /token|expired|sso|credential|Unable to locate/i.test(err);
+    throw new Error(needLogin
+      ? `AWS認証が切れています。ターミナルで実行してください:\n  aws sso login --profile ${PROFILE}`
+      : `ご意見の取得に失敗しました:\n${err.slice(0, 500)}`);
+  }
+  const items = (JSON.parse(r.stdout || '{}').Items || []).map((i) => ({
+    timestamp: i.timestamp?.S || '',
+    body: i.body?.S || '',
+  }));
+  // 月別の件数（どの回のアンケートで多く集まったかを見る）
+  const byMonth = {};
+  for (const it of items) {
+    const m = (it.timestamp || '').slice(0, 7);
+    if (m) byMonth[m] = (byMonth[m] || 0) + 1;
+  }
+  return {
+    total: items.length,
+    byMonth: Object.entries(byMonth).map(([month, count]) => ({ month, count })).sort((a, b) => b.month.localeCompare(a.month)),
+    items,
+    generatedAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+  };
 }
 
 // キャッシュ内の.gzを全パースし、直近days日で集計
@@ -211,12 +248,23 @@ const HTML = /* html */ `<!doctype html><html lang="ja"><head><meta charset="utf
   .err{background:rgba(224,85,106,.10);border:1px solid var(--red);color:#a3243a;padding:14px 16px;border-radius:12px;white-space:pre-wrap;font-size:13px}
   .wrap{overflow-x:auto}
   .ref{white-space:normal;word-break:break-all;color:var(--tx2);font-size:12px}
+  .tabs{display:flex;gap:4px}
+  .tabs button{border-radius:999px}
+  .tabs button.on{background:var(--acb);border-color:var(--ac);color:var(--ac);font-weight:700}
+  .fb{border-bottom:1px solid var(--bd);padding:12px 0}
+  .fb:last-child{border-bottom:0}
+  .fb .when{font-size:11px;color:var(--tx3);margin-bottom:4px}
+  .fb .body{white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.8}
 </style></head><body>
 <header>
   <h1>📊 kurofukubo 管理ダッシュボード</h1>
+  <span class="tabs">
+    <button id="tab-access" class="on">アクセス</button>
+    <button id="tab-feedback">ご意見</button>
+  </span>
   <span class="meta" id="period">—</span>
   <span class="grow"></span>
-  <label class="meta">期間
+  <label class="meta" id="period-picker">期間
     <select id="days">
       <option value="7">7日</option>
       <option value="14" selected>14日</option>
@@ -232,7 +280,58 @@ const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function kpi(n, l, s){ return '<div class="kpi"><div class="n">'+n+'</div><div class="l">'+l+'</div>'+(s?'<div class="s">'+s+'</div>':'')+'</div>'; }
 
+let tab = 'access';
+
+function setTab(t){
+  tab = t;
+  $('#tab-access').className = t==='access' ? 'on' : '';
+  $('#tab-feedback').className = t==='feedback' ? 'on' : '';
+  // 期間の切替はアクセスタブでしか意味がないため隠す
+  $('#period-picker').style.display = t==='access' ? '' : 'none';
+  $('#period').style.display = t==='access' ? '' : 'none';
+  load();
+}
+
+async function loadFeedback(){
+  $('#refresh').disabled = true; $('#refresh').textContent = '取得中…';
+  $('#root').innerHTML = '<p class="muted">DynamoDBから取得中…</p>';
+  try{
+    const r = await fetch('/api/feedback');
+    const d = await r.json();
+    if(!r.ok || d.error){ $('#root').innerHTML = '<div class="err">'+esc(d.error||'エラー')+'</div>'; return; }
+    renderFeedback(d);
+  }catch(e){ $('#root').innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
+  finally{ $('#refresh').disabled = false; $('#refresh').textContent = '更新'; }
+}
+
+function renderFeedback(d){
+  let h = '<div class="kpis">';
+  h += kpi(d.total, 'ご意見の総数', 'アプリ内アンケート');
+  h += kpi(d.byMonth[0] ? d.byMonth[0].count : 0, '今月分', d.byMonth[0] ? d.byMonth[0].month : '—');
+  h += '</div>';
+
+  if(d.byMonth.length){
+    h += '<section><h2>月別の件数</h2><div class="wrap"><table><tr><th>月</th><th class="num">件数</th></tr>';
+    for(const m of d.byMonth) h += '<tr><td>'+esc(m.month)+'</td><td class="num">'+m.count+'</td></tr>';
+    h += '</table></div></section>';
+  }
+
+  h += '<section><h2>ご意見（新しい順）</h2>';
+  if(!d.items.length){
+    h += '<p class="muted">まだ届いていません。</p>';
+  }else{
+    for(const it of d.items){
+      h += '<div class="fb"><div class="when">'+esc((it.timestamp||'').replace('T',' ').slice(0,16))+'</div>'
+         + '<div class="body">'+esc(it.body)+'</div></div>';
+    }
+  }
+  h += '</section>';
+  h += '<p class="muted" style="font-size:12px">匿名で保存されているため、送信者は特定できません。取得時刻: '+esc(d.generatedAt)+'</p>';
+  $('#root').innerHTML = h;
+}
+
 async function load(){
+  if(tab==='feedback') return loadFeedback();
   const days = $('#days').value;
   $('#refresh').disabled = true; $('#refresh').textContent = '取得中…';
   $('#root').innerHTML = '<p class="muted">S3からログを同期して集計中…（初回・長期間は少し時間がかかります）</p>';
@@ -302,6 +401,8 @@ function render(d){
 
 $('#refresh').addEventListener('click', load);
 $('#days').addEventListener('change', load);
+$('#tab-access').addEventListener('click', () => setTab('access'));
+$('#tab-feedback').addEventListener('click', () => setTab('feedback'));
 load();
 </script></body></html>`;
 
@@ -311,6 +412,16 @@ const server = createServer((req, res) => {
   if (url.pathname === '/' || url.pathname === '/index.html') {
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     res.end(HTML);
+    return;
+  }
+  if (url.pathname === '/api/feedback') {
+    try {
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(getFeedback()));
+    } catch (e) {
+      res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
     return;
   }
   if (url.pathname === '/api/stats') {
