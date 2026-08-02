@@ -200,10 +200,37 @@ function analyze(days) {
     ((evByDayMap[r.date] ||= {})[name] = (evByDayMap[r.date][name] || 0) + 1);
   }
   const gs = evTotal['guest_start'] || 0, ja = evTotal['journal_added'] || 0;
+  const n = (k) => evTotal[k] || 0;
+
+  // 獲得ファネル。各段はブラウザごとに1回だけ発火するイベント＝「人数」として読める。
+  // 起動(app_first)を分母に、どこで落ちているかを見る。
+  const funnel = [
+    { key: 'app_first', label: '起動（新規訪問）', count: n('app_first') },
+    { key: 'auth_view', label: 'ログイン画面を見た', count: n('auth_view') },
+    { key: 'guest_first', label: 'ゲスト開始', count: n('guest_first') },
+    { key: 'first_journal', label: '初回記帳', count: n('first_journal') },
+    { key: 'registered', label: '登録', count: n('registered') },
+  ];
+  const base = funnel[0].count;
+  for (const f of funnel) f.rate = base ? Number(((f.count / base) * 100).toFixed(1)) : null;
+  // ゲスト開始した人のうち記帳まで行った割合（入口を通過した後の詰まり具合）
+  const gf = n('guest_first');
+  const journalOfGuest = gf ? Number(((n('first_journal') / gf) * 100).toFixed(1)) : null;
+
+  // 継続。分母は「ゲスト開始した人」。d1 ≥ d7 ≥ d30 の絞り込みになる。
+  const retention = [
+    { key: 'retain_d1', label: '翌日以降に再訪', count: n('retain_d1') },
+    { key: 'retain_d7', label: '7日以降に再訪', count: n('retain_d7') },
+    { key: 'retain_d30', label: '30日以降に再訪', count: n('retain_d30') },
+  ];
+  for (const r of retention) r.rate = gf ? Number(((r.count / gf) * 100).toFixed(1)) : null;
+
   const events = {
     total: Object.entries(evTotal).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count })),
     activation: gs ? Number((ja / gs).toFixed(2)) : null,
     byDay: Object.entries(evByDayMap).sort().map(([date, m]) => ({ date, counts: m })),
+    funnel, journalOfGuest, retention,
+    appOpen: n('app_open'), guestReturn: n('guest_return'),
   };
 
   return {
@@ -261,6 +288,15 @@ const HTML = /* html */ `<!doctype html><html lang="ja"><head><meta charset="utf
   .fb:last-child{border-bottom:0}
   .fb .when{font-size:11px;color:var(--tx3);margin-bottom:4px}
   .fb .body{white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.8}
+  .fn{display:grid;gap:8px}
+  .fn-r{display:grid;grid-template-columns:150px 1fr 60px 60px;align-items:center;gap:10px}
+  .fn-l{font-size:13px;color:var(--tx2)}
+  .fn-b{background:var(--bg);border-radius:6px;height:22px;overflow:hidden}
+  .fn-b span{display:block;height:100%;background:var(--ac);border-radius:6px}
+  .fn-n,.fn-p{text-align:right;font-variant-numeric:tabular-nums;font-size:13px}
+  .fn-n{font-weight:700}
+  .fn-p{color:var(--tx3)}
+  @media(max-width:640px){.fn-r{grid-template-columns:110px 1fr 48px 52px;gap:6px}.fn-l{font-size:12px}}
 </style></head><body>
 <header>
   <h1>📊 kurofukubo 管理ダッシュボード</h1>
@@ -350,6 +386,47 @@ async function load(){
   finally{ $('#refresh').disabled = false; $('#refresh').textContent = '更新'; }
 }
 
+// 獲得ファネルと継続。人数は「ブラウザごとに1回だけ送るイベント」の数。
+function funnelSection(d){
+  const f = d.events.funnel || [];
+  const has = f.some(x => x.count > 0);
+  let h = '<section><h2>獲得ファネル（人数・起動を100%とした割合）</h2>';
+  if(!has){
+    h += '<p class="muted">計測イベントの配信直後です。数字が入るまで1日ほどお待ちください。'
+       + '（既存の利用者は初回起動が済んでいるため、しばらくは実態より少なく出ます）</p>';
+  }else{
+    const max = Math.max(...f.map(x=>x.count), 1);
+    h += '<div class="fn">';
+    for(const s of f){
+      const w = Math.round((s.count / max) * 100);
+      h += '<div class="fn-r"><div class="fn-l">'+esc(s.label)+'</div>'
+         + '<div class="fn-b"><span style="width:'+w+'%"></span></div>'
+         + '<div class="fn-n">'+s.count+'人</div>'
+         + '<div class="fn-p">'+(s.rate==null?'—':s.rate+'%')+'</div></div>';
+    }
+    h += '</div>';
+    if(d.events.journalOfGuest!=null){
+      h += '<p class="muted" style="font-size:12px;margin:10px 0 0">'
+         + 'ゲスト開始した人のうち記帳まで到達: <strong>'+d.events.journalOfGuest+'%</strong></p>';
+    }
+  }
+  h += '</section>';
+
+  const r = d.events.retention || [];
+  h += '<section><h2>継続（ゲスト開始した人を分母）</h2>';
+  if(!r.some(x=>x.count>0)){
+    h += '<p class="muted">まだ計測できていません。retain_d1 は配信の翌日以降、d7 は7日後以降に出はじめます。</p>';
+  }else{
+    h += '<div class="wrap"><table><tr><th>区分</th><th class="num">人数</th><th class="num">継続率</th></tr>';
+    for(const x of r) h += '<tr><td>'+esc(x.label)+'</td><td class="num">'+x.count+'</td><td class="num">'+(x.rate==null?'—':x.rate+'%')+'</td></tr>';
+    h += '</table></div>';
+  }
+  h += '<p class="muted" style="font-size:12px;margin:10px 0 0">'
+     + '起動回数(app_open) '+(d.events.appOpen||0)+' ／ 既存ゲストの再訪(guest_return) '+(d.events.guestReturn||0)+'</p>';
+  h += '</section>';
+  return h;
+}
+
 function render(d){
   $('#period').textContent = d.period.from ? (d.period.from+' 〜 '+d.period.to+'（直近'+d.period.days+'日）') : 'データなし';
   const o = d.opens;
@@ -363,6 +440,8 @@ function render(d){
   h += kpi(d.events.activation==null?'—':d.events.activation, 'アクティベーション', '記帳/ゲスト開始');
   h += kpi(o.bot, 'ボット', 'self(自分) '+o.self);
   h += '</div>';
+
+  h += funnelSection(d);
 
   // 日別オープン
   h += '<section><h2>日別オープン（人間 / bot / self）</h2><div class="wrap"><table><tr><th>日付</th><th class="num">人間</th><th class="num">bot</th><th class="num">self</th></tr>';

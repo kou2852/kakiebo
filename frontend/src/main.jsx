@@ -2,9 +2,16 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles/global.css';
+import { track, trackOnce, trackRetention } from './utils/track';
 
 // 保存済みテーマを復元（既定はライト）
 document.body.dataset.theme = localStorage.getItem('kk_theme') || 'light';
+
+// 起動の計測。JSを実行しないボットには発火しないため、CloudFrontのHTMLヒット数より
+// 実態に近い数字になる（ヒット数は6割がボット）。
+track('app_open');        // 起動回数
+trackOnce('app_first');   // このブラウザでの初回起動＝新規訪問者
+trackRetention();         // 初回から1日/7日/30日後に戻ってきたか
 
 // 開いたままのタブでデプロイが走ると、遅延読み込みのチャンクが取得できなくなる
 // （ファイル名にハッシュが付くため、古い名前は新しいビルドに存在しない）。

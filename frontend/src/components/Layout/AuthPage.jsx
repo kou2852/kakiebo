@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { trackOnce } from '../../utils/track';
 
 // Cognito の英語エラーを日本語化（前方一致）
 const ERROR_JA = [
@@ -34,6 +35,9 @@ export default function AuthPage() {
   const [code, setCode] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // ログイン画面に当たった人数。guest_first / registered との差が「入口での離脱」になる。
+  useEffect(() => { trackOnce('auth_view'); }, []);
 
   const go = (m) => { setMode(m); clearError(); setNotice(''); };
 

@@ -6,7 +6,7 @@ import { hasEncryption, loadEncrypted, saveEncrypted, enableEncryption as csEnab
 import { setupEncryption, unlock as cryptoUnlock, recover as cryptoRecover, changePassphrase as cryptoChangePass, regenerateRecovery as regenRecovery, seal as cryptoSeal, open as cryptoOpen } from '../utils/crypto';
 import { readBundle, writeBundle } from '../utils/cryptoStore';
 import { saveDek, loadDek, clearDek } from '../utils/dekStore';
-import { track } from '../utils/track';
+import { track, trackOnce } from '../utils/track';
 
 const DataContext = createContext(null);
 
@@ -178,6 +178,9 @@ export function DataProvider({ children }) {
   // ── Journals CRUD ──
   const addJournal = useCallback(async (data) => {
     const newJ = { id: uid(), ...data };
+    // 初回記帳は登録の有無にかかわらず計上する。journal_added は記帳のたびに出る
+    // 「回数」なので、何人が記帳に到達したかはこちらで見る。
+    trackOnce('first_journal');
     if (useLocal || encEnabled) {
       setJournals((prev) => [...prev, newJ]);
       if (guestMode) track('journal_added'); // ゲストの記帳はサーバに残らないため件数のみ計測

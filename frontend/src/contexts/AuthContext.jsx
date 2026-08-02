@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { setTokenProvider, account as accountApi } from '../api/client';
-import { track } from '../utils/track';
+import { track, trackOnce } from '../utils/track';
 import {
   OAUTH_ENABLED, loginWithGoogle, handleRedirectCallback,
   hasOAuthSession, getOAuthIdToken, logoutRedirect, clearOAuth,
@@ -65,9 +65,16 @@ export function AuthProvider({ children }) {
       setLoading(false);
       return;
     }
+    // この読み込みが始まった時点で既にゲストだったか。下の ?guest 処理でフラグを
+    // 立てた直後に restoreGuest が走るため、これが無いと新規を再訪として数えてしまう。
+    const hadGuestFlag = !!localStorage.getItem(GUEST_KEY);
+
     // ゲストモード復元（実セッションが無いときのフォールバックに使う）
     const restoreGuest = () => {
       if (localStorage.getItem(GUEST_KEY)) {
+        // 既にゲストとして使っている人の再訪。これが無いと「入口で帰った人」と
+        // 区別がつかず、どちらも「イベントなし」に見えてしまう。
+        if (hadGuestFlag) track('guest_return');
         setGuestMode(true);
         setUser({ guest: true });
         return true;
@@ -81,6 +88,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem(GUEST_KEY, '1');
       window.history.replaceState({}, '', window.location.pathname);
       track('guest_start');
+      trackOnce('guest_first');
     }
 
     (async () => {
@@ -91,6 +99,11 @@ export function AuthProvider({ children }) {
           const tok = await getOAuthIdToken();
           if (tok) {
             localStorage.removeItem(GUEST_KEY); // 実ログインしたらゲストフラグ解除
+            // Google経由の登録はメール確認を通らないため registered が発火せず、
+            // 獲得計測から丸ごと漏れていた。このブラウザで初回のみ計上する。
+            // 注: 同一人物が別端末でもログインすると二重に数える。正確な人数は
+            // Cognitoの登録ユーザー数（ダッシュボード上部）を正とすること。
+            if (handled) trackOnce('registered');
             setUser({ oauth: true }); setLoading(false); return;
           }
         }
@@ -215,6 +228,7 @@ export function AuthProvider({ children }) {
     localStorage.setItem(GUEST_KEY, '1');
     setGuestMode(true);
     track('guest_start');
+    trackOnce('guest_first');
     setUser({ guest: true });
     setError(null);
   }, []);

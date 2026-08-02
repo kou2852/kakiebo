@@ -9,3 +9,31 @@ export function track(event) {
     fetch('/_e/' + event, { method: 'GET', keepalive: true, cache: 'no-store' }).catch(() => {});
   } catch { /* localStorage 不可など計測不能環境は何もしない */ }
 }
+
+// このブラウザで一度だけ送る。回数ではなく「何人が到達したか」を数えるためのもの。
+export function trackOnce(event) {
+  try {
+    const key = 'kk_ev_' + event;
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, '1');
+    track(event);
+  } catch { /* 同上 */ }
+}
+
+const FIRST_SEEN_KEY = 'kk_first_seen';
+
+// 継続（リテンション）の計測。初回利用日をこの端末に持つだけで、サーバーへは
+// 「初回から1日/7日/30日以上たって戻ってきた」という事実しか送らない。
+// 個人を追跡できる識別子は一切送信しない。各段階は一度きり。
+// 10日目に戻った人は d1 と d7 の両方を満たすため、段階が絞り込みになる（d1 ≥ d7 ≥ d30）。
+export function trackRetention() {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const first = localStorage.getItem(FIRST_SEEN_KEY);
+    if (!first) { localStorage.setItem(FIRST_SEEN_KEY, today); return; }
+    const days = Math.floor((Date.parse(today) - Date.parse(first)) / 86400000);
+    if (days >= 1) trackOnce('retain_d1');
+    if (days >= 7) trackOnce('retain_d7');
+    if (days >= 30) trackOnce('retain_d30');
+  } catch { /* 同上 */ }
+}
