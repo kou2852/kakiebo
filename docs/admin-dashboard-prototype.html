@@ -1,0 +1,251 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>kurofukubo 管理ダッシュボード</title>
+<style>
+  /* kurofukubo ライトテーマ配色（frontend/src/styles/variables.css と同一） */
+  :root{--bg:#e8eaed;--bg1:#ffffff;--bg2:#ffffff;--bg3:#f8fafa;--bd:#e6ebec;--bd2:#d7dde0;--tx:#23262d;--tx2:#71767f;--tx3:#93a09e;--ac:#0d9488;--ac2:#0b7d72;--acb:rgba(13,148,136,.10);--actx:#ffffff;--grn:#15a06a;--red:#e0556a;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,"Segoe UI",sans-serif;background:var(--bg);color:var(--tx);font-size:14px;line-height:1.6}
+  header{position:sticky;top:0;display:flex;align-items:center;gap:14px;padding:14px 20px;background:var(--bg1);border-bottom:1px solid var(--bd);z-index:5}
+  header h1{font-size:16px;margin:0;font-weight:800}
+  header .meta{font-size:12px;color:var(--tx3)}
+  .grow{flex:1}
+  select,button{font-family:inherit;font-size:13px;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;cursor:pointer}
+  button.primary{background:var(--ac);color:var(--actx);border-color:var(--ac);font-weight:700}
+  button.primary:hover{background:var(--ac2);border-color:var(--ac2)}
+  button:disabled{opacity:.5;cursor:default}
+  main{padding:20px;max-width:1000px;margin:0 auto}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+  .kpi{background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:14px 16px;box-shadow:0 1px 2px rgba(20,24,40,.04),0 14px 30px -20px rgba(20,24,40,.20)}
+  .kpi .n{font-size:26px;font-weight:800;letter-spacing:-.02em;color:var(--tx)}
+  .kpi .l{font-size:12px;color:var(--tx2);margin-top:2px}
+  .kpi .s{font-size:11px;color:var(--tx3);margin-top:4px}
+  section{background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:16px 18px;margin-bottom:18px;box-shadow:0 1px 2px rgba(20,24,40,.04),0 14px 30px -20px rgba(20,24,40,.20)}
+  section h2{font-size:13px;margin:0 0 12px;color:var(--tx2);font-weight:700;letter-spacing:.03em}
+  table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+  th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--bd);white-space:nowrap}
+  th{color:var(--tx3);font-weight:600;font-size:12px}
+  td.num,th.num{text-align:right}
+  .bar{display:inline-block;height:8px;background:var(--ac);border-radius:4px;vertical-align:middle;margin-right:6px}
+  .muted{color:var(--tx3)}
+  .err{background:rgba(224,85,106,.10);border:1px solid var(--red);color:#a3243a;padding:14px 16px;border-radius:12px;white-space:pre-wrap;font-size:13px}
+  .wrap{overflow-x:auto}
+  .ref{white-space:normal;word-break:break-all;color:var(--tx2);font-size:12px}
+  .tabs{display:flex;gap:4px}
+  .tabs button{border-radius:999px}
+  .tabs button.on{background:var(--acb);border-color:var(--ac);color:var(--ac);font-weight:700}
+  .fb{border-bottom:1px solid var(--bd);padding:12px 0}
+  .fb:last-child{border-bottom:0}
+  .fb .when{font-size:11px;color:var(--tx3);margin-bottom:4px}
+  .fb .body{white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.8}
+  .fn{display:grid;gap:8px}
+  .fn-r{display:grid;grid-template-columns:150px 1fr 60px 60px;align-items:center;gap:10px}
+  .fn-l{font-size:13px;color:var(--tx2)}
+  .fn-b{background:var(--bg);border-radius:6px;height:22px;overflow:hidden}
+  .fn-b span{display:block;height:100%;background:var(--ac);border-radius:6px}
+  .fn-n,.fn-p{text-align:right;font-variant-numeric:tabular-nums;font-size:13px}
+  .fn-n{font-weight:700}
+  .fn-p{color:var(--tx3)}
+  @media(max-width:640px){.fn-r{grid-template-columns:110px 1fr 48px 52px;gap:6px}.fn-l{font-size:12px}}
+</style></head><body>
+<header>
+  <h1>📊 kurofukubo 管理ダッシュボード</h1>
+  <span class="tabs">
+    <button id="tab-access" class="on">アクセス</button>
+    <button id="tab-feedback">ご意見</button>
+  </span>
+  <span class="meta" id="period">—</span>
+  <span class="grow"></span>
+  <label class="meta" id="period-picker">期間
+    <select id="days">
+      <option value="7">7日</option>
+      <option value="14" selected>14日</option>
+      <option value="30">30日</option>
+      <option value="90">90日</option>
+    </select>
+  </label>
+  <button class="primary" id="refresh">更新</button>
+</header>
+<main id="root"><p class="muted">読み込み中…</p></main>
+<script>
+/* ── プロトタイプ用: サーバーの代わりに固定データを返す（本番コードには含めない） ── */
+const PROTO_STATS = {"generatedAt":"2026-08-02T02:25:03.594Z","period":{"from":"2026-07-20","to":"2026-08-02","days":14},"registeredUsers":6,"fileCount":1160,"totalRows":3710,"selfIps":["240d:f:a2c:6300:e9b5:8df3:4d53:b91b","240d:f:a2c:6300:5178:a2ce:82dd:defc","2001:268:985e:91b5:788d:6e56:5771:fb91","240d:f:a2c:6300:5114:cf4f:6752:2559","240d:f:a2c:6300:c978:2d95:c4a7:6a16","2001:268:9871:70bb:2061:b861:8332:d6fa","240d:f:a2c:6300:25ae:8f3a:ac46:c344","240d:f:a2c:6300:ad50:1e6e:daa5:a2e9","240d:f:a2c:6300:48c:80d4:8a38:67a1","240d:f:a2c:6300:6858:9732:e01c:49f2","2001:268:9963:4a8e:7c5c:8c4c:47d7:3cee","2001:268:98b4:13b6:4005:2eda:6c6d:f93e","240f:6e:e188:1:682e:13c5:b1fa:278e","240f:6e:e188:1:9403:30f8:cf29:30ed","114.19.168.8","240f:6e:e188:1:fde2:591f:b9b3:5c8f","240f:6e:e188:1:f16b:3db4:c7e8:c2d0"],"opens":{"total":798,"bot":626,"self":41,"human":131,"humanDistinct":100},"byDay":[{"date":"2026-07-20","human":15,"bot":24,"self":6},{"date":"2026-07-21","human":12,"bot":24,"self":0},{"date":"2026-07-22","human":10,"bot":376,"self":1},{"date":"2026-07-23","human":8,"bot":26,"self":7},{"date":"2026-07-24","human":2,"bot":15,"self":4},{"date":"2026-07-25","human":16,"bot":30,"self":1},{"date":"2026-07-26","human":10,"bot":16,"self":5},{"date":"2026-07-27","human":5,"bot":12,"self":2},{"date":"2026-07-28","human":11,"bot":15,"self":0},{"date":"2026-07-29","human":12,"bot":18,"self":1},{"date":"2026-07-30","human":3,"bot":14,"self":0},{"date":"2026-07-31","human":18,"bot":27,"self":4},{"date":"2026-08-01","human":9,"bot":17,"self":5},{"date":"2026-08-02","human":0,"bot":12,"self":5}],"bySrc":[{"src":"(utm無し・媒体不明)","count":118,"distinct":89},{"src":"zenn","count":7,"distinct":7},{"src":"x","count":3,"distinct":1},{"src":"guide","count":1,"distinct":1},{"src":"qiita","count":1,"distinct":1},{"src":"note","count":1,"distinct":1}],"refs":[{"ref":"(直接/なし)","count":73},{"ref":"https://kurofukubo.com/","count":35},{"ref":"https://app.kurofukubo.com","count":5},{"ref":"https://app.kurofukubo.com/","count":5},{"ref":"https://accounts.google.com/","count":3},{"ref":"https://www.google.com/","count":1},{"ref":"http://app.kurofukubo.com","count":1},{"ref":"https://duckduckgo.com/?q=zir2z","count":1}],"botUa":[{"ua":"Mozilla/5.0%20(Macintosh;%20Intel%20Mac%20OS%20X%2014.6;%20rv:132.0)%20Gecko/20100101%20Firefox/132.0","count":355},{"ua":"Mozilla/5.0%20(iPhone;%20CPU%20iPhone%20OS%2013_2_3%20like%20Mac%20OS%20X)%20AppleWebKit/605.1.15%20(KHTML,%20like%20Gecko)%20Version/13.0.3%20Mobile/15E148%20Safari/604.1","count":135},{"ua":"Hello%20from%20Palo%20Alto%20Networks,%20find%20out%20more%20about%20our%20scans%20in%20https://docs-cortex.paloaltonetworks.com/r/1/Cortex-Xpanse/Scanning-activity","count":28},{"ua":"Twitterbot/1.0","count":18},{"ua":"curl/8.19.0","count":18},{"ua":"Mozilla/5.0%20(Windows%20NT%2010.0;%20Win64;%20x64)%20AppleWebKit/537.36%20(KHTML,%20like%20Gecko)%20HeadlessChrome/148.0.7778.96%20Safari/537.36","count":13}],"events":{"total":[{"name":"tour_step_welcome","count":49},{"name":"guest_start","count":48},{"name":"tour_step_account-add","count":23},{"name":"tour_skip_welcome","count":9},{"name":"tour_step_networth","count":7},{"name":"tour_skip_account-add","count":6},{"name":"journal_added","count":5},{"name":"tour_step_done","count":4},{"name":"tour_sample","count":3},{"name":"tour_done_acted","count":2},{"name":"tour_done","count":1},{"name":"registered","count":1}],"activation":0.1,"byDay":[{"date":"2026-07-20","counts":{"tour_step_account-add":2,"guest_start":12,"tour_step_welcome":12,"tour_skip_account-add":1,"tour_skip_welcome":2}},{"date":"2026-07-21","counts":{"guest_start":7,"tour_step_welcome":7,"tour_step_account-add":3,"tour_skip_account-add":1,"tour_skip_welcome":2}},{"date":"2026-07-22","counts":{"tour_step_welcome":1,"tour_step_account-add":1,"guest_start":1}},{"date":"2026-07-23","counts":{"guest_start":4,"tour_step_welcome":4,"tour_step_account-add":1,"tour_sample":1,"tour_step_networth":1,"tour_skip_welcome":2}},{"date":"2026-07-24","counts":{"guest_start":1,"tour_step_welcome":2,"tour_step_account-add":2}},{"date":"2026-07-25","counts":{"guest_start":4,"tour_step_welcome":3,"tour_step_account-add":1,"tour_sample":1,"tour_step_networth":1,"tour_done_acted":1,"tour_step_done":1,"journal_added":1,"tour_skip_welcome":1}},{"date":"2026-07-26","counts":{"guest_start":7,"tour_step_welcome":7,"tour_step_networth":1,"tour_step_account-add":5,"tour_done":1,"tour_step_done":1,"tour_skip_account-add":1}},{"date":"2026-07-28","counts":{"tour_step_welcome":3,"guest_start":2,"tour_step_account-add":1}},{"date":"2026-07-29","counts":{"tour_step_welcome":5,"tour_skip_welcome":1,"tour_skip_account-add":2,"guest_start":4,"tour_step_account-add":4,"tour_done_acted":1,"tour_step_done":1,"journal_added":3,"tour_step_networth":1}},{"date":"2026-07-31","counts":{"guest_start":5,"tour_step_welcome":4,"tour_step_done":1,"journal_added":1,"tour_step_networth":3,"registered":1,"tour_step_account-add":3,"tour_skip_account-add":1,"tour_sample":1}},{"date":"2026-08-01","counts":{"tour_skip_welcome":1,"guest_start":1,"tour_step_welcome":1}}],"funnel":[{"key":"app_first","label":"起動（新規訪問）","count":96,"rate":100},{"key":"auth_view","label":"ログイン画面を見た","count":61,"rate":63.5},{"key":"guest_first","label":"ゲスト開始","count":41,"rate":42.7},{"key":"first_journal","label":"初回記帳","count":5,"rate":5.2},{"key":"registered","label":"登録","count":1,"rate":1}],"journalOfGuest":12.2,"retention":[{"key":"retain_d1","label":"翌日以降に再訪","count":9,"rate":22},{"key":"retain_d7","label":"7日以降に再訪","count":3,"rate":7.3},{"key":"retain_d30","label":"30日以降に再訪","count":0,"rate":0}],"appOpen":158,"guestReturn":27}};
+const PROTO_FEEDBACK = {"total":4,"byMonth":[{"month":"2026-08","count":3},{"month":"2026-07","count":1}],"items":[{"timestamp":"2026-08-02T09:15:00.000Z","body":"クレジットカードの締め日と引落日の設定が分かりにくいです。\nどちらがどっちか、入力欄に例が出ていると助かります。"},{"timestamp":"2026-08-01T22:03:00.000Z","body":"スマホで使いやすくなりました。ありがとうございます。"},{"timestamp":"2026-08-01T08:41:00.000Z","body":"複式簿記は初めてでしたが、ツアーのおかげで純資産の意味が分かりました。ふるさと納税の記帳例もあると嬉しいです。"},{"timestamp":"2026-07-30T19:20:00.000Z","body":"CSV取込でマネーフォワードの明細を入れたら費目の割り当てが面倒でした。前回の割り当てを覚えていてほしいです。"}],"generatedAt":"2026-08-02 11:30:00"};
+window.fetch = (url) => Promise.resolve({
+  ok: true,
+  json: () => Promise.resolve(String(url).includes('/api/feedback') ? PROTO_FEEDBACK : PROTO_STATS),
+});
+</script>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function kpi(n, l, s){ return '<div class="kpi"><div class="n">'+n+'</div><div class="l">'+l+'</div>'+(s?'<div class="s">'+s+'</div>':'')+'</div>'; }
+
+let tab = 'access';
+
+function setTab(t){
+  tab = t;
+  $('#tab-access').className = t==='access' ? 'on' : '';
+  $('#tab-feedback').className = t==='feedback' ? 'on' : '';
+  // 期間の切替はアクセスタブでしか意味がないため隠す
+  $('#period-picker').style.display = t==='access' ? '' : 'none';
+  $('#period').style.display = t==='access' ? '' : 'none';
+  load();
+}
+
+async function loadFeedback(){
+  $('#refresh').disabled = true; $('#refresh').textContent = '取得中…';
+  $('#root').innerHTML = '<p class="muted">DynamoDBから取得中…</p>';
+  try{
+    const r = await fetch('/api/feedback');
+    const d = await r.json();
+    if(!r.ok || d.error){ $('#root').innerHTML = '<div class="err">'+esc(d.error||'エラー')+'</div>'; return; }
+    renderFeedback(d);
+  }catch(e){ $('#root').innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
+  finally{ $('#refresh').disabled = false; $('#refresh').textContent = '更新'; }
+}
+
+function renderFeedback(d){
+  let h = '<div class="kpis">';
+  h += kpi(d.total, 'ご意見の総数', 'アプリ内アンケート');
+  h += kpi(d.byMonth[0] ? d.byMonth[0].count : 0, '今月分', d.byMonth[0] ? d.byMonth[0].month : '—');
+  h += '</div>';
+
+  if(d.byMonth.length){
+    h += '<section><h2>月別の件数</h2><div class="wrap"><table><tr><th>月</th><th class="num">件数</th></tr>';
+    for(const m of d.byMonth) h += '<tr><td>'+esc(m.month)+'</td><td class="num">'+m.count+'</td></tr>';
+    h += '</table></div></section>';
+  }
+
+  h += '<section><h2>ご意見（新しい順）</h2>';
+  if(!d.items.length){
+    h += '<p class="muted">まだ届いていません。</p>';
+  }else{
+    for(const it of d.items){
+      h += '<div class="fb"><div class="when">'+esc((it.timestamp||'').replace('T',' ').slice(0,16))+'</div>'
+         + '<div class="body">'+esc(it.body)+'</div></div>';
+    }
+  }
+  h += '</section>';
+  h += '<p class="muted" style="font-size:12px">匿名で保存されているため、送信者は特定できません。取得時刻: '+esc(d.generatedAt)+'</p>';
+  $('#root').innerHTML = h;
+}
+
+async function load(){
+  if(tab==='feedback') return loadFeedback();
+  const days = $('#days').value;
+  $('#refresh').disabled = true; $('#refresh').textContent = '取得中…';
+  $('#root').innerHTML = '<p class="muted">S3からログを同期して集計中…（初回・長期間は少し時間がかかります）</p>';
+  try{
+    const r = await fetch('/api/stats?days='+days);
+    const d = await r.json();
+    if(!r.ok || d.error){ $('#root').innerHTML = '<div class="err">'+esc(d.error||'エラー')+'</div>'; return; }
+    render(d);
+  }catch(e){ $('#root').innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
+  finally{ $('#refresh').disabled = false; $('#refresh').textContent = '更新'; }
+}
+
+// 獲得ファネルと継続。人数は「ブラウザごとに1回だけ送るイベント」の数。
+function funnelSection(d){
+  const f = d.events.funnel || [];
+  const has = f.some(x => x.count > 0);
+  let h = '<section><h2>獲得ファネル（人数・起動を100%とした割合）</h2>';
+  if(!has){
+    h += '<p class="muted">計測イベントの配信直後です。数字が入るまで1日ほどお待ちください。'
+       + '（既存の利用者は初回起動が済んでいるため、しばらくは実態より少なく出ます）</p>';
+  }else{
+    const max = Math.max(...f.map(x=>x.count), 1);
+    h += '<div class="fn">';
+    for(const s of f){
+      const w = Math.round((s.count / max) * 100);
+      h += '<div class="fn-r"><div class="fn-l">'+esc(s.label)+'</div>'
+         + '<div class="fn-b"><span style="width:'+w+'%"></span></div>'
+         + '<div class="fn-n">'+s.count+'人</div>'
+         + '<div class="fn-p">'+(s.rate==null?'—':s.rate+'%')+'</div></div>';
+    }
+    h += '</div>';
+    if(d.events.journalOfGuest!=null){
+      h += '<p class="muted" style="font-size:12px;margin:10px 0 0">'
+         + 'ゲスト開始した人のうち記帳まで到達: <strong>'+d.events.journalOfGuest+'%</strong></p>';
+    }
+  }
+  h += '</section>';
+
+  const r = d.events.retention || [];
+  h += '<section><h2>継続（ゲスト開始した人を分母）</h2>';
+  if(!r.some(x=>x.count>0)){
+    h += '<p class="muted">まだ計測できていません。retain_d1 は配信の翌日以降、d7 は7日後以降に出はじめます。</p>';
+  }else{
+    h += '<div class="wrap"><table><tr><th>区分</th><th class="num">人数</th><th class="num">継続率</th></tr>';
+    for(const x of r) h += '<tr><td>'+esc(x.label)+'</td><td class="num">'+x.count+'</td><td class="num">'+(x.rate==null?'—':x.rate+'%')+'</td></tr>';
+    h += '</table></div>';
+  }
+  h += '<p class="muted" style="font-size:12px;margin:10px 0 0">'
+     + '起動回数(app_open) '+(d.events.appOpen||0)+' ／ 既存ゲストの再訪(guest_return) '+(d.events.guestReturn||0)+'</p>';
+  h += '</section>';
+  return h;
+}
+
+function render(d){
+  $('#period').textContent = d.period.from ? (d.period.from+' 〜 '+d.period.to+'（直近'+d.period.days+'日）') : 'データなし';
+  const o = d.opens;
+  let h = '<div class="kpis">';
+  h += kpi(d.registeredUsers==null?'—':d.registeredUsers, '登録ユーザー数', 'Cognito（数日ラグあり）');
+  h += kpi(o.human, '人間の訪問（オープン）', '実人数(distinct IP) '+o.humanDistinct);
+  h += kpi(o.humanDistinct, '実人数', '重複IPを除いた人数');
+  const ev = Object.fromEntries(d.events.total.map(e=>[e.name,e.count]));
+  h += kpi(ev.guest_start||0, 'ゲスト開始', 'guest_start');
+  h += kpi(ev.journal_added||0, 'ゲスト記帳イベント', 'journal_added');
+  h += kpi(d.events.activation==null?'—':d.events.activation, 'アクティベーション', '記帳/ゲスト開始');
+  h += kpi(o.bot, 'ボット', 'self(自分) '+o.self);
+  h += '</div>';
+
+  h += funnelSection(d);
+
+  // 日別オープン
+  h += '<section><h2>日別オープン（人間 / bot / self）</h2><div class="wrap"><table><tr><th>日付</th><th class="num">人間</th><th class="num">bot</th><th class="num">self</th></tr>';
+  const maxH = Math.max(1, ...d.byDay.map(r=>r.human));
+  for(const r of d.byDay){ h += '<tr><td>'+r.date+'</td><td class="num"><span class="bar" style="width:'+Math.round(r.human/maxH*70)+'px"></span>'+r.human+'</td><td class="num muted">'+r.bot+'</td><td class="num muted">'+r.self+'</td></tr>'; }
+  if(!d.byDay.length) h += '<tr><td class="muted" colspan="4">データなし</td></tr>';
+  h += '</table></div></section>';
+
+  // 媒体別
+  h += '<section><h2>人間の流入 媒体別（utm_sourceのみ。タグ無しは媒体不明）</h2><div class="wrap"><table><tr><th>媒体</th><th class="num">件数</th><th class="num">実人数</th></tr>';
+  for(const r of d.bySrc){ h += '<tr><td>'+esc(r.src)+'</td><td class="num">'+r.count+'</td><td class="num muted">'+r.distinct+'</td></tr>'; }
+  if(!d.bySrc.length) h += '<tr><td class="muted" colspan="3">データなし</td></tr>';
+  h += '</table></div></section>';
+
+  // 自前イベント日別
+  h += '<section><h2>自前イベント計測 /_e/*（bot・self除外）</h2><div class="wrap"><table><tr><th>種別</th><th class="num">合計</th></tr>';
+  for(const e of d.events.total){ h += '<tr><td>'+esc(e.name)+'</td><td class="num">'+e.count+'</td></tr>'; }
+  if(!d.events.total.length) h += '<tr><td class="muted" colspan="2">まだイベントがありません</td></tr>';
+  h += '</table></div>';
+  if(d.events.byDay.length){
+    h += '<div class="wrap" style="margin-top:12px"><table><tr><th>日付</th><th>内訳</th></tr>';
+    for(const r of d.events.byDay){ h += '<tr><td>'+r.date+'</td><td class="muted">'+esc(Object.entries(r.counts).map(([n,c])=>n+'='+c).join('  '))+'</td></tr>'; }
+    h += '</table></div>';
+  }
+  h += '</section>';
+
+  // 参照元
+  h += '<section><h2>参照元 上位</h2><div class="wrap"><table><tr><th class="num">件数</th><th>Referer</th></tr>';
+  for(const r of d.refs){ h += '<tr><td class="num">'+r.count+'</td><td class="ref">'+esc(r.ref)+'</td></tr>'; }
+  if(!d.refs.length) h += '<tr><td class="muted" colspan="2">データなし</td></tr>';
+  h += '</table></div></section>';
+
+  // ボットUA
+  h += '<section><h2>ボットUA 上位（参考）</h2><div class="wrap"><table><tr><th class="num">件数</th><th>User-Agent</th></tr>';
+  for(const r of d.botUa){ h += '<tr><td class="num">'+r.count+'</td><td class="ref">'+esc(r.ua)+'</td></tr>'; }
+  if(!d.botUa.length) h += '<tr><td class="muted" colspan="2">データなし</td></tr>';
+  h += '</table></div></section>';
+
+  h += '<p class="muted" style="font-size:12px">集計時刻: '+esc(d.generatedAt)+' ／ 対象ログファイル '+d.fileCount+'件・'+d.totalRows+'行 ／ 自分IP: '+(d.selfIps.join(', ')||'なし')+'</p>';
+  $('#root').innerHTML = h;
+}
+
+$('#refresh').addEventListener('click', load);
+$('#days').addEventListener('change', load);
+$('#tab-access').addEventListener('click', () => setTab('access'));
+$('#tab-feedback').addEventListener('click', () => setTab('feedback'));
+load();
+</script></body></html>
