@@ -147,9 +147,24 @@ sam deploy --config-env prod    # 本番
 # frontend（prod）
 cd frontend
 npm run build                                   # .env.production を使用
-aws s3 sync dist s3://kakeibo-web-prod-117953360790 --delete --profile kakeibo-prod
+# ① 先にアセットだけ上げる（--delete は付けない。旧チャンクを残すため）
+aws s3 sync dist/assets s3://kakeibo-web-prod-117953360790/assets --profile kakeibo-prod
+# ② 次に index.html 等を上げる（この時点で参照先アセットは既に存在する）
+aws s3 sync dist s3://kakeibo-web-prod-117953360790 --exclude "assets/*" --profile kakeibo-prod
 aws cloudfront create-invalidation --distribution-id E32HZNCIT2MXUM --paths "/*" --profile kakeibo-prod
 ```
+
+**`--delete` を付けない理由**: アセット名にはハッシュが付くため、デプロイで旧ファイルを消すと、
+その時点でアプリを開いている利用者が遅延読み込みのチャンクを取りに行った際に404になる。
+旧ファイルを残せばこれが起きない。1ビルドあたり6ファイル・約1.2MBで、放置してもコストは無視できる。
+
+**アセット→index.html の順に上げる理由**: 逆順だと、新しい index.html を受け取った利用者が
+まだ存在しないアセットを要求する瞬間が生まれるため。
+
+古いアセットの掃除は、**日付ベースのライフサイクルルールを使ってはいけない**。
+`s3 sync` は内容が同じファイルを再アップロードしないので、長期間変わっていない
+現役のチャンクが「古いオブジェクト」と判定されて消える。掃除する場合は
+現在の `index.html` から参照をたどって、未参照のものだけを消すこと。
 
 ### 7.3 ドメイン/証明書
 - `app.kurofukubo.com` → CloudFront（Alias）。ACM(us-east-1)でDNS検証発行。手順は `DOMAIN_SETUP.md`。
