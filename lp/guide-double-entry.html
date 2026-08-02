@@ -37,6 +37,7 @@ th{color:var(--tx);background:var(--bg2)}
 .cta-box a:hover{background:var(--ac2)}
 .more{margin-top:28px;font-size:14px;color:var(--tx3)}
 footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--tx3);text-align:center}
+.fig{margin:20px 0}.fig img{width:100%;height:auto;border:1px solid var(--bd);border-radius:10px;display:block}.fig figcaption{font-size:12.5px;color:var(--tx3);margin-top:6px;text-align:center}
 </style>
 <meta property="og:type" content="article">
 <meta property="og:title" content="複式簿記の家計簿とは？単式との違いとメリットをやさしく解説 | kurofukubo">
@@ -45,10 +46,10 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
 <meta property="og:image" content="https://kurofukubo.com/ogp.png">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"複式簿記の家計簿とは？単式との違いとメリットをやさしく解説 | kurofukubo","description":"複式簿記と単式簿記の違いをやさしく解説。家計に複式簿記を取り入れると、支出だけでなく資産・負債の動きまで見えるようになります。そのメリットと始め方を紹介します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-double-entry.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"複式簿記の家計簿とは？単式との違いとメリットをやさしく解説 | kurofukubo","description":"複式簿記と単式簿記の違いをやさしく解説。家計に複式簿記を取り入れると、支出だけでなく資産・負債の動きまで見えるようになります。そのメリットと始め方を紹介します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-double-entry.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}},"author":{"@type":"Person","name":"ぱくぱく","url":"https://kurofukubo.com/about.html"},"datePublished":"2026-06-26","dateModified":"2026-07-11","mainEntityOfPage":{"@type":"WebPage","@id":"https://kurofukubo.com/guide-double-entry.html"}}</script>
   <script defer src="/analytics.js"></script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ホーム","item":"https://kurofukubo.com/"},{"@type":"ListItem","position":2,"name":"ガイド","item":"https://kurofukubo.com/guides.html"},{"@type":"ListItem","position":3,"name":"複式簿記の家計簿とは？","item":"https://kurofukubo.com/guide-double-entry.html"}]}</script>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"複式簿記の家計簿とは何ですか？","acceptedAnswer":{"@type":"Answer","text":"1つの取引を「借方」と「貸方」の両面で記録する方法です。支出だけでなく資産・負債の動きまで記録するため、純資産（資産−負債）が自動で分かります。"}},{"@type":"Question","name":"単式簿記と何が違いますか？","acceptedAnswer":{"@type":"Answer","text":"単式は「いくら使ったか」だけを記録します。複式は「お金がどこからどこへ動いたか」を記録するので、貯金・投資・借金の増減まで把握できます。"}},{"@type":"Question","name":"簿記の知識がなくても使えますか？","acceptedAnswer":{"@type":"Answer","text":"はい。kurofukuboは「食費 1200 現金」のような一行入力やかんたんモードで、裏側で複式仕訳に自動変換します。借方・貸方を意識しなくても記帳できます。"}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"複式簿記の家計簿とは何ですか？","acceptedAnswer":{"@type":"Answer","text":"1つの取引を「借方」と「貸方」の両面で記録する方法です。支出だけでなく資産・負債の動きまで記録するため、純資産（資産−負債）が自動で分かります。"}},{"@type":"Question","name":"単式簿記と何が違いますか？","acceptedAnswer":{"@type":"Answer","text":"単式は「いくら使ったか」だけを記録します。複式は「お金がどこからどこへ動いたか」を記録するので、貯金・投資・借金の増減まで把握できます。"}},{"@type":"Question","name":"簿記の知識がなくても使えますか？","acceptedAnswer":{"@type":"Answer","text":"はい。kurofukuboは「食費 1200 現金」のような一行入力やかんたんモードで、裏側で複式仕訳に自動変換します。借方・貸方を意識しなくても記帳できます。"}},{"@type":"Question","name":"振替（口座間のお金の移動）は支出になりますか？","acceptedAnswer":{"@type":"Answer","text":"なりません。資産の置き場所が変わっただけで、純資産は変化しません。複式簿記では借方・貸方の両方が資産科目の仕訳として記録されるため、支出とは自動的に区別されます。"}}]}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"HowTo","name":"複式簿記の家計簿の始め方","description":"家計簿アプリで複式簿記を始める3ステップ。口座（科目）を用意し、取引を一行で記帳すると複式仕訳に自動変換され、純資産とBS・PLで家計を振り返れます。","step":[{"@type":"HowToStep","position":1,"name":"口座（科目）を用意する","text":"現金・銀行口座・クレジットカードなど、お金が出入りする場所を登録します。"},{"@type":"HowToStep","position":2,"name":"取引を一行で記帳する","text":"「食費 1200 現金」のように入力すると、借方・貸方の複式仕訳に自動変換されます。"},{"@type":"HowToStep","position":3,"name":"純資産とBS・PLで振り返る","text":"資産−負債＝純資産が自動で計算され、貸借対照表・損益計算書で家計の全体像を確認できます。"}]}</script>
 </head>
 <body>
@@ -58,7 +59,10 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
   <div class="wrap">
     <nav class="bc" aria-label="パンくず" style="font-size:12.5px;color:var(--tx3);margin-bottom:14px"><a href="/">ホーム</a> › <a href="/guides.html">ガイド</a> › <span style="color:var(--tx2)">複式簿記の家計簿とは？</span></nav>
     <h1>複式簿記の家計簿とは？ — 単式との違いとメリット</h1>
+    <p class="byline" style="font-size:12.5px;color:var(--tx3);margin:6px 0 4px">公開: 2026/06/26 ・ 更新: 2026/07/11 ・ 執筆: <a href="/about.html" style="color:var(--tx3);text-decoration:underline">ぱくぱく（kurofukubo 開発者）</a></p>
     <p class="lead">多くの家計簿は「何にいくら使ったか」を記録する単式簿記です。一方で複式簿記は、ひとつの取引を「お金がどこから来て、どこへ行ったか」の両面で記録します。この違いが、家計管理にどんな価値をもたらすのかを解説します。</p>
+
+    <figure class="fig"><img src="/img/journal-form.webp" alt="借方と貸方を左右に並べたkurofukuboの仕訳入力フォーム" loading="lazy" width="1200" height="294"><figcaption>複式簿記の仕訳入力画面。借方（左）と貸方（右）で1つの取引を記録します（アプリ実画面）</figcaption></figure>
 
     <h2>単式簿記と複式簿記の違い</h2>
     <p>たとえば「10万円の貯金を取り崩して家電を買った」とき、単式簿記では「家電 10万円の支出」と記録するだけです。しかし実際には、預金が10万円減り、その分のお金がモノに変わっています。複式簿記なら、この「資産の中身が入れ替わった」動きまで記録できます。</p>
@@ -81,6 +85,29 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
       複式簿記は本来とっつきにくいものですが、kurofukubo は<strong>クイック入力</strong>や<strong>プリセット</strong>、<strong>自動分類ルール</strong>で仕訳づくりを自動化します。簿記の知識がなくても、入力に慣れていくうちに自然と複式の考え方が身につきます。
     </div>
 
+    <h2>よくある取引の仕訳例</h2>
+    <p>実際の家計でよくある取引を複式簿記で書くと、次のようになります。形に少し慣れると、家計のあらゆる動きが同じルールで記録できることが分かります。</p>
+    <table>
+      <tr><th>取引</th><th>借方（左）</th><th>貸方（右）</th></tr>
+      <tr><td>給料25万円が振り込まれた</td><td>普通預金 250,000</td><td>給与収入 250,000</td></tr>
+      <tr><td>食費1,200円を現金で払った</td><td>食費 1,200</td><td>現金 1,200</td></tr>
+      <tr><td>日用品5,000円をカードで買った</td><td>日用品 5,000</td><td>カード未払金 5,000</td></tr>
+      <tr><td>カード利用額3万円が引き落とされた</td><td>カード未払金 30,000</td><td>普通預金 30,000</td></tr>
+      <tr><td>ATMで2万円引き出した</td><td>現金 20,000</td><td>普通預金 20,000</td></tr>
+      <tr><td>NISAに3万円積み立てた</td><td>証券口座 30,000</td><td>普通預金 30,000</td></tr>
+    </table>
+    <p>どの仕訳も「お金がどこから来て（貸方）、どこへ行ったか（借方）」を書いているだけです。カード払いと引き落としの2つの仕訳を見比べると、「支出の発生」と「負債の精算」が別々に記録されているのが分かります。</p>
+
+    <h2>つまずきやすいポイント</h2>
+    <h3>「借方・貸方」という名前に意味はない</h3>
+    <p>「借りる」「貸す」という漢字から意味を推測すると混乱します。単に「左側」「右側」という置き場所の名前と割り切るのが理解の近道です。</p>
+    <p>英語でも debit（左）・credit（右）と呼ばれるだけの、慣習的な名前です。</p>
+    <h3>増えるか減るかは科目の種類で決まる</h3>
+    <p>資産と費用は借方（左）に置くと増え、負債・純資産・収益は貸方（右）に置くと増えます。最初は表を見ながらで大丈夫ですし、アプリを使う場合はそもそも意識する必要がありません。</p>
+    <h3>口座間の移動（振替）は支出ではない</h3>
+    <p>ATMの引き出しや証券口座への入金は、お金の置き場所が変わっただけで、家計が貧しくなったわけではありません。単式の家計簿ではここが「支出」に見えて集計が狂いがちですが、複式簿記なら資産内の移動として自然に区別されます。</p>
+    <p>仕訳の形は、覚えようとしなくても大丈夫です。上の仕訳例の表をチートシートのように手元に置いて写すだけで十分ですし、数週間も記帳すれば、よく使うパターンは自然に手に馴染みます。</p>
+
     <h2>複式簿記の家計簿の始め方（3ステップ）</h2>
     <p>複式簿記と聞くと身構えてしまいますが、家計簿アプリを使えば次の3ステップで始められます。</p>
     <ol>
@@ -96,6 +123,10 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
     <p>単式は「いくら使ったか」だけを記録します。複式は「お金がどこからどこへ動いたか」を記録するので、貯金・投資・借金の増減まで把握できます。</p>
     <h3>簿記の知識がなくても使えますか？</h3>
     <p>はい。kurofukuboは「食費 1200 現金」のような一行入力やかんたんモードで、裏側で複式仕訳に自動変換します。借方・貸方を意識しなくても記帳できます。</p>
+    <h3>振替（口座間のお金の移動）は支出になりますか？</h3>
+    <p>なりません。資産の置き場所が変わっただけで、純資産は変化しません。複式簿記では借方・貸方の両方が資産科目の仕訳として記録されるため、支出とは自動的に区別されます。</p>
+
+    <figure class="fig"><img src="/img/ledger.webp" alt="記帳した仕訳が日付順に並ぶ仕訳帳画面" loading="lazy" width="1040" height="600"><figcaption>記帳した取引は仕訳帳に日付順で残ります（アプリ実画面）</figcaption></figure>
 
     <div class="cta-box">
       <p>複式簿記の家計管理を、無料で試してみませんか？</p>

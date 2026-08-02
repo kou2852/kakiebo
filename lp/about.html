@@ -40,6 +40,7 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.88);backdrop-
 footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--tx3);text-align:center}
 </style>
 <script defer src="/analytics.js"></script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"ProfilePage","url":"https://kurofukubo.com/about.html","mainEntity":{"@type":"Person","name":"ぱくぱく","alternateName":"pakupaku_x_x_x","image":"https://kurofukubo.com/img/author-pakupaku.jpg","jobTitle":"ITエンジニア / kurofukubo 開発者","description":"複式家計簿アプリ kurofukubo を一人で企画・開発・運営する個人開発者。ITエンジニア（SE）6年目。","url":"https://kurofukubo.com/about.html","sameAs":["https://x.com/pakupaku_x_x_x","https://github.com/kou2852","https://zenn.dev/pakupaku_x","https://qiita.com/pakupaku_x_x_x","https://note.com/pakupaku_x_x"]}}</script>
 </head>
 <body>
 <nav><div class="nav-inner"><a href="/" class="nav-logo"><img src="/favicon.svg" alt="" width="22" height="22" style="border-radius:6px;vertical-align:middle;margin-right:8px">kurofukubo</a><div class="nav-r"><a href="/guides.html">ガイド</a><a href="https://app.kurofukubo.com/" class="cta">無料で始める</a></div></div></nav>
@@ -56,7 +57,14 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
     <p>複式簿記というと難しく聞こえますが、かんたん入力やクイック入力を用意しており、簿記の知識がなくても記録できます。銀行・クレジットカードとの自動連携は行わず、外部の金融機関APIには接続しません。アカウント登録なしの「ゲスト」でもすぐに試せます。</p>
 
     <h2>運営者</h2>
-    <p>本サービスは、日本の個人開発者が趣味・個人開発として運営しています。開発の様子や技術的な知見は、以下で発信しています。</p>
+    <div class="card" style="display:flex;gap:16px;align-items:center">
+      <img src="/img/author-pakupaku.jpg" alt="開発者ぱくぱくのアイコン" width="72" height="72" style="border-radius:50%;flex-shrink:0">
+      <div>
+        <p style="margin:0 0 4px;color:var(--tx)"><strong>ぱくぱく</strong>（kurofukubo 開発者）</p>
+        <p style="margin:0;font-size:13px">ITエンジニア（SE）6年目。kurofukubo の企画・設計・開発・運営をすべて一人で行っています。会計の専門家ではありません——むしろ簿記3級に落ちています（下記参照）。だからこそ「簿記を知らなくても複式簿記の恩恵を受けられる」ことにこだわって作っています。</p>
+      </div>
+    </div>
+    <p>開発の様子や技術的な知見は、以下で発信しています。</p>
     <div class="card">
       <ul style="margin-bottom:0">
         <li>GitHub: <a href="https://github.com/kou2852" target="_blank" rel="noopener">github.com/kou2852</a></li>
@@ -68,7 +76,14 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
     </div>
 
     <h2>なぜ作ったか</h2>
-    <p>市販の家計簿アプリの多くは支出管理が中心で、「結局、いま自分の純資産はいくらなのか」が見えにくいと感じていました。資産・負債・投資の評価額まで含めて“正味の財産”を一画面で追える家計簿が欲しくて、複式簿記をベースに自分で作ったのが kurofukubo です。同じように「純資産で家計を見たい」人に役立てばと思い、公開しています。</p>
+    <p>正直に書くと、私はこのアプリを作るまで家計簿をつけたことがありませんでした。支出を1件ずつ記録し続けるタイプの家計簿は自分には向いていない。それでも「いま自分の純資産がいくらで、増えているのか減っているのか」だけは知りたい——そう思って探したのは、<strong>複式簿記で純資産まで出せて、銀行連携がなく、家計簿に特化していて、無料</strong>のアプリでした。この4つを同時に満たすものが見つからなかったので、自分で作ることにしたのが kurofukubo です。</p>
+    <p>作るにあたって簿記の勉強もしましたが、白状すると<strong>簿記3級の試験には落ちました</strong>。ただこの経験は無駄ではなく、「簿記を知らない人がどこでつまずくか」を身をもって知ったことが、かんたん入力やクイック入力といった“簿記用語を知らなくても複式で記帳できるUI”の設計にそのまま活きています。同じように「純資産で家計を見たいが、簿記はよく分からない」という人に役立てばと思い、公開しています。</p>
+
+    <h2>銀行連携を入れなかった理由</h2>
+    <p>大手の家計・金融系サービスでも、ソースコードや認証情報の管理をめぐる流出・事故が話題になった時期がありました。金融機関のIDやパスワードを外部サービスに預ける方式には、開発者として不安が拭えず、kurofukubo では<strong>自動連携そのものを設計から外しました</strong>。連携がなければ、預かる情報も、漏れうる情報も最小になります。明細の入力はCSV取込と一行入力でカバーする方針です。</p>
+
+    <h2>自分でも使っています</h2>
+    <p>kurofukubo は私自身が毎月使っています。使い方はシンプルで、<strong>毎月末に口座残高を記帳して、純資産がどう動いたかを眺める</strong>——これだけです。細かい支出を毎日つけ続けなくても「家計が前に進んでいるか」は月末の純資産の推移で十分わかる。毎日の記帳が続かない人でも成立する家計管理のかたちがあることは、作って使ってみて実感したことです。</p>
 
     <h2>大切にしていること</h2>
     <ul>

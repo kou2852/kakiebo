@@ -1,0 +1,98 @@
+[
+  {
+    "out": "networth-hero.webp",
+    "w": 1200,
+    "h": 243,
+    "kb": 13
+  },
+  {
+    "out": "asset-breakdown.webp",
+    "w": 1200,
+    "h": 704,
+    "kb": 38
+  },
+  {
+    "out": "bs-screen.webp",
+    "w": 1200,
+    "h": 509,
+    "kb": 23
+  },
+  {
+    "out": "journal-form.webp",
+    "w": 1200,
+    "h": 294,
+    "kb": 6
+  },
+  {
+    "out": "credit-screen.webp",
+    "w": 1200,
+    "h": 1034,
+    "kb": 35
+  },
+  {
+    "out": "dashboard-full.webp",
+    "w": 1200,
+    "h": 1274,
+    "kb": 55
+  },
+  {
+    "out": "dashboard-mobile.webp",
+    "w": 640,
+    "h": 1444,
+    "kb": 36
+  },
+  {
+    "out": "quick-entry.webp",
+    "w": 1040,
+    "h": 600,
+    "kb": 24
+  },
+  {
+    "out": "ledger.webp",
+    "w": 1040,
+    "h": 600,
+    "kb": 32
+  },
+  {
+    "out": "dashboard-simple.webp",
+    "w": 1040,
+    "h": 600,
+    "kb": 33
+  },
+  {
+    "out": "dashboard-teal.webp",
+    "w": 1200,
+    "h": 844,
+    "kb": 38
+  },
+  {
+    "out": "journal-page.webp",
+    "w": 1200,
+    "h": 844,
+    "kb": 29
+  },
+  {
+    "out": "journal-modal.webp",
+    "w": 1200,
+    "h": 844,
+    "kb": 16
+  },
+  {
+    "out": "pl-screen.webp",
+    "w": 1200,
+    "h": 844,
+    "kb": 24
+  },
+  {
+    "out": "networth-trend.webp",
+    "w": 1200,
+    "h": 747,
+    "kb": 24
+  },
+  {
+    "out": "e2e-unlock.webp",
+    "w": 1200,
+    "h": 806,
+    "kb": 5
+  }
+]

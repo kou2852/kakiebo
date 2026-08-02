@@ -1,0 +1,47 @@
+# kurofukubo（黒福簿）
+
+> 複式簿記ベースの無料家計簿・資産管理Webアプリ。銀行連携なし・登録なしで使え、資産−負債＝純資産まで自動計算する。家計データを外部に送信しない設計で、運営者にも中身が見えないE2E（ゼロ知識）暗号化に対応。
+
+- 対象: 日本の個人・世帯の家計管理
+- 料金: 無料（ベータ期間中は全機能無料）
+- 特徴: 一行入力（例「食費 1200 現金」）で複式仕訳を自動生成。簿記の知識は不要
+- 出力: 貸借対照表（BS）・損益計算書（PL）・キャッシュフロー・純資産推移グラフを自動作成
+- 取込: 銀行・カード明細CSV、マネーフォワード/ZaimのCSVに対応
+- アプリ本体: https://app.kurofukubo.com/ （登録なしのゲストモードあり）
+
+## 基本ガイド
+
+- [はじめての複式家計簿 — 使い方ガイド](https://kurofukubo.com/guide-start.html): 口座の登録、最初の記帳、ダッシュボードの見方を3ステップで解説
+- [複式簿記の家計簿とは？単式との違いとメリット](https://kurofukubo.com/guide-double-entry.html): 複式簿記と単式簿記の違い、家計に複式を使う利点
+- [家計の「純資産」とは？](https://kurofukubo.com/guide-net-worth.html): 収支より大事な純資産の見方と増やし方
+- [家計のバランスシート（BS）・損益計算書（PL）の作り方と読み方](https://kurofukubo.com/guide-bs-pl.html): 家計版の財務諸表の読み方
+- [家計の予算の立て方](https://kurofukubo.com/guide-budget.html): 固定費と変動費を分けた続く予算の作り方
+- [貯蓄率の計算方法と目安](https://kurofukubo.com/guide-savings-rate.html): 手取りの何割を貯めればいいか
+
+## 純資産の深掘り
+
+- [純資産はいくらあれば安心？年代・年収別の目安](https://kurofukubo.com/guide-networth-howmuch.html): 自分の必要額の出し方
+- [純資産の平均・中央値は？](https://kurofukubo.com/guide-networth-average.html): 平均と中央値の違いと自分の位置の測り方
+- [NISA・iDeCo・証券・ローンを含めた「本当の純資産」の出し方](https://kurofukubo.com/guide-networth-investments.html): 投資・負債込みの純資産計算
+- [純資産推移グラフの作り方と見方](https://kurofukubo.com/guide-networth-trend.html): 毎月の増減を1本の線で追う方法
+- [家族のバランスシート（BS）の作り方](https://kurofukubo.com/guide-family-bs.html): 世帯の純資産を一枚にまとめる
+
+## 記帳の実務
+
+- [クレジットカードの帳簿の付け方](https://kurofukubo.com/guide-credit-card.html): 利用時と引き落とし時を分けて二重計上を防ぐ仕訳
+- [ふるさと納税 家計簿のつけ方](https://kurofukubo.com/guide-furusato.html): 寄附・返礼品・控除の勘定科目、立替金方式、ワンストップ特例と確定申告の違い
+- [医療費控除の計算方法と家計簿での管理](https://kurofukubo.com/guide-medical-expense.html): 医療費控除の計算式と記録のしかた
+- [銀行・カードのCSVを家計簿に取り込む手順](https://kurofukubo.com/guide-csv.html): CSV取込と自動分類のコツ
+
+## 状況別
+
+- [共働き夫婦の家計管理](https://kurofukubo.com/guide-dual-income.html): 財布は分ける？ペアローンとの付き合い方
+- [生活防衛資金は何ヶ月分必要？](https://kurofukubo.com/guide-emergency-fund.html): 世帯別の目安と貯め方
+- [マネーフォワードの乗り換え先は？](https://kurofukubo.com/guide-moneyforward.html): 無料・連携なしの家計簿への移行手順
+- [家計簿のデータは誰が見られる？](https://kurofukubo.com/guide-privacy.html): 連携なし・ゼロ知識(E2E)暗号化の考え方
+
+## サイト情報
+
+- [kurofukubo について（運営者情報）](https://kurofukubo.com/about.html): 開発者「ぱくぱく」（ITエンジニア）による個人運営。開発の経緯・方針と問い合わせ先
+- [セキュリティとプライバシー](https://kurofukubo.com/security.html): データの取り扱い・暗号化の詳細
+- [ガイド一覧](https://kurofukubo.com/guides.html): 全記事のインデックス

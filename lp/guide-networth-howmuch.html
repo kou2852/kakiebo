@@ -38,6 +38,7 @@ th{color:var(--tx);background:var(--bg2)}
 .more{margin-top:28px;font-size:14px;color:var(--tx3)}
 .note{font-size:13px;color:var(--tx3);margin-top:24px;border-top:1px solid var(--bd);padding-top:14px}
 footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--tx3);text-align:center}
+.fig{margin:20px 0}.fig img{width:100%;height:auto;border:1px solid var(--bd);border-radius:10px;display:block}.fig figcaption{font-size:12.5px;color:var(--tx3);margin-top:6px;text-align:center}
 </style>
 <meta property="og:type" content="article">
 <meta property="og:title" content="純資産はいくらあれば安心？ 年代・年収別の目安と自分の必要額の出し方 | kurofukubo">
@@ -46,7 +47,7 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
 <meta property="og:image" content="https://kurofukubo.com/ogp-networth.png">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"純資産はいくらあれば安心？ 年代・年収別の目安と自分の必要額の出し方 | kurofukubo","description":"純資産はいくらあれば安心なのか。万人共通の正解はありませんが、生活防衛資金・年代別の目安・老後の必要額という3つの考え方と、自分にとっての必要額を出す手順をやさしく解説します。","image":"https://kurofukubo.com/ogp-networth.png","url":"https://kurofukubo.com/guide-networth-howmuch.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"純資産はいくらあれば安心？ 年代・年収別の目安と自分の必要額の出し方 | kurofukubo","description":"純資産はいくらあれば安心なのか。万人共通の正解はありませんが、生活防衛資金・年代別の目安・老後の必要額という3つの考え方と、自分にとっての必要額を出す手順をやさしく解説します。","image":"https://kurofukubo.com/ogp-networth.png","url":"https://kurofukubo.com/guide-networth-howmuch.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}},"author":{"@type":"Person","name":"ぱくぱく","url":"https://kurofukubo.com/about.html"},"datePublished":"2026-06-26","dateModified":"2026-07-15","mainEntityOfPage":{"@type":"WebPage","@id":"https://kurofukubo.com/guide-networth-howmuch.html"}}</script>
   <script defer src="/analytics.js"></script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ホーム","item":"https://kurofukubo.com/"},{"@type":"ListItem","position":2,"name":"ガイド","item":"https://kurofukubo.com/guides.html"},{"@type":"ListItem","position":3,"name":"純資産はいくらあれば安心？","item":"https://kurofukubo.com/guide-networth-howmuch.html"}]}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"純資産はいくらあれば安心ですか？","acceptedAnswer":{"@type":"Answer","text":"万人共通の正解はありません。まず生活防衛資金（生活費の3〜6か月分）を土台に、年代別の目安や老後の必要額から逆算します。大切なのは絶対額より「純資産が増えているか」です。"}},{"@type":"Question","name":"30代・40代の純資産の目安は？","acceptedAnswer":{"@type":"Answer","text":"経験則では手取り年収に対して30代で0.5〜1倍、40代で1〜2倍が一つの目安です。生活費や家族構成で上下するため、参考程度に考えてください。"}},{"@type":"Question","name":"老後はいくら必要ですか？","acceptedAnswer":{"@type":"Answer","text":"「年間生活費 × 老後の年数 − 受け取れる公的年金」で不足分を見積もります。よく聞く2,000万円は試算の一例で、生活水準や年金額しだいで大きく変わります。"}}]}</script>
@@ -58,7 +59,19 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
   <div class="wrap">
     <nav class="bc" aria-label="パンくず" style="font-size:12.5px;color:var(--tx3);margin-bottom:14px"><a href="/">ホーム</a> › <a href="/guides.html">ガイド</a> › <span style="color:var(--tx2)">純資産はいくらあれば安心？</span></nav>
     <h1>純資産はいくらあれば安心？ — 年代・年収別の目安と「自分の必要額」の出し方</h1>
+    <p class="byline" style="font-size:12.5px;color:var(--tx3);margin:6px 0 4px">公開: 2026/06/26 ・ 更新: 2026/07/15 ・ 執筆: <a href="/about.html" style="color:var(--tx3);text-decoration:underline">ぱくぱく（kurofukubo 開発者）</a></p>
     <p class="lead">「純資産っていくらあれば安心なの？」は、お金のことを考え始めると誰もが気になる問いです。正直にお伝えすると、<strong>万人共通の正解はありません</strong>。必要な金額は生活費・家族構成・住まい方で大きく変わるからです。それでも、目安の立て方と「自分にとっての必要額」を計算する方法はあります。この記事では、よくある目安の考え方と、自分の数字に落とし込む手順を解説します。</p>
+
+    <div class="callout" style="border-left-width:4px">
+      <strong>この記事の要点</strong>
+      <ul style="margin:8px 0 0 1.2em">
+        <li>まずは<strong>生活防衛資金＝生活費の3〜6か月分</strong>（収入が不安定なら6〜12か月分）を土台に。</li>
+        <li>年代別の経験則は<strong>手取り年収に対して30代で0.5〜1倍、40代で1〜2倍</strong>が一つの目安（生活費・家族構成で上下）。</li>
+        <li>絶対額より<strong>「純資産が毎月増えているか」</strong>を見ることが本質。老後資金は「年間支出×年数−年金」で自分の前提から逆算する。</li>
+      </ul>
+    </div>
+
+    <figure class="fig"><img src="/img/dashboard-simple.webp" alt="記帳が純資産に反映されたダッシュボード画面" loading="lazy" width="1040" height="600"><figcaption>まず自分の純資産の現在地を知ることが、必要額を考える出発点です（アプリ実画面）</figcaption></figure>
 
     <h2>大前提：「いくらあれば安心」は人によって違う</h2>
     <p>同じ1,000万円の純資産でも、毎月の生活費が15万円の人と35万円の人とでは、安心できる年数がまったく違います。持ち家か賃貸か、子どもの教育費がこれからか終わったか、収入が安定しているかどうかでも変わります。だからこそ「平均はいくら」よりも、<strong>自分の暮らしに必要な金額</strong>を基準にするのが正解です。とはいえ、ゼロから考えるのは難しいので、まずは次の3つの目安を出発点にしましょう。</p>

@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1494837719359912" crossorigin="anonymous"></script>
-<title>家計簿のデータは誰が見られる？ 連携なし・ゼロ知識(E2E)で使う家計簿 | kurofukubo</title>
-<meta name="description" content="家計簿アプリのデータは誰が見られるのか。銀行連携のリスク、運営者にも中身が読めないゼロ知識（E2E）暗号化の仕組み、連携なし＝認証情報を預けない安全な家計管理の考え方をやさしく解説します。">
+<title>家計簿データは誰が見られる？E2E暗号化なら運営者も読めない</title>
+<meta name="description" content="家計簿データは誰が見られる？kurofukuboは銀行自動連携をせず、認証情報を預かりません。E2E暗号化をONにすると端末で暗号化され、運営者も中身を復号できません。暗号化OFF・ゲスト利用を含む保存場所の違いも解説します。">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://kurofukubo.com/guide-privacy.html">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -36,15 +36,18 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.88);backdrop-
 .more{margin-top:28px;font-size:14px;color:var(--tx3)}
 .note{font-size:13px;color:var(--tx3);margin-top:24px;border-top:1px solid var(--bd);padding-top:14px}
 footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--tx3);text-align:center}
+.fig{margin:20px 0}.fig img{width:100%;height:auto;border:1px solid var(--bd);border-radius:10px;display:block}.fig figcaption{font-size:12.5px;color:var(--tx3);margin-top:6px;text-align:center}
 </style>
 <meta property="og:type" content="article">
-<meta property="og:title" content="家計簿のデータは誰が見られる？ 連携なし・ゼロ知識(E2E)で使う家計簿 | kurofukubo">
-<meta property="og:description" content="家計簿アプリのデータは誰が見られるのか。銀行連携のリスク、運営者にも中身が読めないゼロ知識（E2E）暗号化の仕組み、連携なし＝認証情報を預けない安全な家計管理の考え方をやさしく解説します。">
+<meta property="og:title" content="家計簿データは誰が見られる？E2E暗号化なら運営者も読めない">
+<meta property="og:description" content="家計簿データは誰が見られる？kurofukuboは銀行自動連携をせず、認証情報を預かりません。E2E暗号化をONにすると端末で暗号化され、運営者も中身を復号できません。暗号化OFF・ゲスト利用を含む保存場所の違いも解説します。">
 <meta property="og:url" content="https://kurofukubo.com/guide-privacy.html">
 <meta property="og:image" content="https://kurofukubo.com/ogp.png">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"家計簿のデータは誰が見られる？ 連携なし・ゼロ知識(E2E)で使う家計簿 | kurofukubo","description":"家計簿アプリのデータは誰が見られるのか。銀行連携のリスク、運営者にも中身が読めないゼロ知識（E2E）暗号化の仕組み、連携なし＝認証情報を預けない安全な家計管理の考え方をやさしく解説します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-privacy.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}}}</script>
+<meta name="twitter:title" content="家計簿データは誰が見られる？E2E暗号化なら運営者も読めない">
+<meta name="twitter:description" content="家計簿データは誰が見られる？kurofukuboは銀行自動連携をせず、認証情報を預かりません。E2E暗号化をONにすると端末で暗号化され、運営者も中身を復号できません。暗号化OFF・ゲスト利用を含む保存場所の違いも解説します。">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"家計簿データは誰が見られる？E2E暗号化なら運営者も読めない","description":"家計簿データは誰が見られる？kurofukuboは銀行自動連携をせず、認証情報を預かりません。E2E暗号化をONにすると端末で暗号化され、運営者も中身を復号できません。暗号化OFF・ゲスト利用を含む保存場所の違いも解説します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-privacy.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}},"author":{"@type":"Person","name":"ぱくぱく","url":"https://kurofukubo.com/about.html"},"datePublished":"2026-06-26","dateModified":"2026-08-01","mainEntityOfPage":{"@type":"WebPage","@id":"https://kurofukubo.com/guide-privacy.html"}}</script>
   <script defer src="/analytics.js"></script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ホーム","item":"https://kurofukubo.com/"},{"@type":"ListItem","position":2,"name":"ガイド","item":"https://kurofukubo.com/guides.html"},{"@type":"ListItem","position":3,"name":"家計簿のデータは誰が見られる？","item":"https://kurofukubo.com/guide-privacy.html"}]}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"暗号化を有効にすると使い勝手は落ちますか？","acceptedAnswer":{"@type":"Answer","text":"ほとんど変わりません。暗号化・復号は端末内で自動的に行われます。ただしパスフレーズを忘れると復元できないため、発行されるリカバリーキーは必ず保管してください。"}},{"@type":"Question","name":"暗号化しない場合、運営者にデータを見られますか？","acceptedAnswer":{"@type":"Answer","text":"暗号化OFFのデータはアカウントごとに分離して保存されますが、技術的には運営者が閲覧できる状態です。運営方針として個別ユーザーの家計データは閲覧しませんが、より強く守りたい場合は暗号化ONを推奨します。"}},{"@type":"Question","name":"家計データを外部に持ち出せますか？","acceptedAnswer":{"@type":"Answer","text":"いつでもJSON形式でエクスポートできます。データの所有権はあなたにあり、他サービスへの移行やバックアップも自由です。"}}]}</script>
@@ -56,7 +59,10 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
   <div class="wrap">
     <nav class="bc" aria-label="パンくず" style="font-size:12.5px;color:var(--tx3);margin-bottom:14px"><a href="/">ホーム</a> › <a href="/guides.html">ガイド</a> › <span style="color:var(--tx2)">家計簿のデータは誰が見られる？</span></nav>
     <h1>家計簿のデータは誰が見られる？ — 連携なし・ゼロ知識(E2E)で使う家計簿</h1>
+    <p class="byline" style="font-size:12.5px;color:var(--tx3);margin:6px 0 4px">公開: 2026/06/26 ・ 更新: 2026/08/01 ・ 執筆: <a href="/about.html" style="color:var(--tx3);text-decoration:underline">ぱくぱく（kurofukubo 開発者）</a></p>
     <p class="lead">家計簿には、収入・資産・借金といった、最も人に見られたくない情報が集まります。では、そのデータは<strong>誰が見られる</strong>のでしょうか。この記事では、よくある「銀行連携型」家計簿の仕組みと、運営者にも中身が読めない<strong>ゼロ知識（E2E）暗号化</strong>という考え方を、やさしく解説します。</p>
+
+    <figure class="fig"><img src="/img/e2e-unlock.webp" alt="E2E暗号化データの解錠画面。パスフレーズの入力を求めている" loading="lazy" width="1200" height="806"><figcaption>E2E暗号化を有効にすると、鍵を持つ端末だけがデータを開けます（アプリ実画面）</figcaption></figure>
 
     <h2>「銀行連携」家計簿のしくみとリスク</h2>
     <p>多くの家計簿アプリは、銀行・カード・証券のIDやトークンを預かって明細を自動取得します。便利な一方で、(1)金融機関の認証情報を第三者に預ける、(2)取得した明細がサービス側のサーバーに平文で蓄積される、という構造的なリスクがあります。「運営者は見ない」と言われても、技術的には<strong>見られる状態</strong>であることが多いのです。</p>

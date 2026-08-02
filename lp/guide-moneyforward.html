@@ -42,6 +42,7 @@ nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.88);backdrop-
 .more{margin-top:28px;font-size:14px;color:var(--tx3)}
 .note{font-size:13px;color:var(--tx3);margin-top:24px;border-top:1px solid var(--bd);padding-top:14px}
 footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--tx3);text-align:center}
+.fig{margin:20px 0}.fig img{width:100%;height:auto;border:1px solid var(--bd);border-radius:10px;display:block}.fig figcaption{font-size:12.5px;color:var(--tx3);margin-top:6px;text-align:center}
 </style>
 <meta property="og:type" content="article">
 <meta property="og:title" content="マネーフォワード(MoneyForward)の乗り換え先は？ 無料・連携なし・純資産が見える家計簿 | kurofukubo">
@@ -50,7 +51,7 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
 <meta property="og:image" content="https://kurofukubo.com/ogp-compare.png">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"マネーフォワード(MoneyForward)の乗り換え先は？ 無料・連携なし・純資産が見える家計簿 | kurofukubo","description":"マネーフォワードの無料プランの制限や有料化で乗り換え先を探している方へ。完全無料・銀行連携なし・運営者にも見えないE2E対応で、純資産や貸借対照表まで見える家計簿 kurofukubo を、長所も短所も正直に比較します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-moneyforward.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"マネーフォワード(MoneyForward)の乗り換え先は？ 無料・連携なし・純資産が見える家計簿 | kurofukubo","description":"マネーフォワードの無料プランの制限や有料化で乗り換え先を探している方へ。完全無料・銀行連携なし・運営者にも見えないE2E対応で、純資産や貸借対照表まで見える家計簿 kurofukubo を、長所も短所も正直に比較します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-moneyforward.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}},"author":{"@type":"Person","name":"ぱくぱく","url":"https://kurofukubo.com/about.html"},"datePublished":"2026-06-26","dateModified":"2026-07-01","mainEntityOfPage":{"@type":"WebPage","@id":"https://kurofukubo.com/guide-moneyforward.html"}}</script>
   <script defer src="/analytics.js"></script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ホーム","item":"https://kurofukubo.com/"},{"@type":"ListItem","position":2,"name":"ガイド","item":"https://kurofukubo.com/guides.html"},{"@type":"ListItem","position":3,"name":"マネーフォワードからの乗り換え先を探している人へ","item":"https://kurofukubo.com/guide-moneyforward.html"}]}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"マネーフォワード無料版の制限は何ですか？","acceptedAnswer":{"@type":"Answer","text":"無料会員は金融機関の連携が4件までに制限されています。連携数を増やすには有料プラン（月額約500円）が必要です。"}},{"@type":"Question","name":"乗り換え先はどこがいいですか？","acceptedAnswer":{"@type":"Answer","text":"連携の多さを重視するならZaim（無料で連携無制限）、連携をやめても純資産やプライバシーを重視したいならkurofukubo、というように目的で選ぶのがおすすめです。"}},{"@type":"Question","name":"マネーフォワードのデータは移行できますか？","acceptedAnswer":{"@type":"Answer","text":"kurofukuboはマネーフォワード／ZaimのCSVを自動判定して取り込めます（エクスポート→CSV取込→費目・口座を科目に割当→取込）。振替が2行に分かれるなどの調整余地は残ります。"}}]}</script>
@@ -62,7 +63,10 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
   <div class="wrap">
     <nav class="bc" aria-label="パンくず" style="font-size:12.5px;color:var(--tx3);margin-bottom:14px"><a href="/">ホーム</a> › <a href="/guides.html">ガイド</a> › <span style="color:var(--tx2)">マネーフォワードからの乗り換え先を探している人へ</span></nav>
     <h1>マネーフォワードからの乗り換え先を探している人へ</h1>
+    <p class="byline" style="font-size:12.5px;color:var(--tx3);margin:6px 0 4px">公開: 2026/06/26 ・ 更新: 2026/07/01 ・ 執筆: <a href="/about.html" style="color:var(--tx3);text-decoration:underline">ぱくぱく（kurofukubo 開発者）</a></p>
     <p class="lead">「無料プランの制限が増えた」「有料にするか迷っている」——そんな理由で家計簿アプリの乗り換え先を探す人が増えています。この記事では、その選択肢のひとつとして <strong>kurofukubo（黒福簿）</strong> を、<strong>長所だけでなく短所も正直に</strong>比較します。結論から言うと、向き・不向きがはっきり分かれます。</p>
+
+    <figure class="fig"><img src="/img/dashboard-teal.webp" alt="kurofukuboのダッシュボード全体。純資産・資産・負債と内訳グラフ" loading="lazy" width="1200" height="844"><figcaption>kurofukuboのダッシュボード。連携なしでも純資産までここまで見えます（アプリ実画面）</figcaption></figure>
 
     <h2>なぜ「乗り換え先」を探す人が増えているのか</h2>
     <p>マネーフォワード ME のような銀行連携型の家計簿は、口座やカードを自動で取り込めるのが大きな魅力です。一方で、無料プランには<strong>連携できる口座数や過去データの閲覧範囲などの制限</strong>があり、すべての機能を使うには有料プランが必要になります。「便利だけど、無料で続けるには物足りない」と感じて乗り換えを検討する、という流れです。</p>

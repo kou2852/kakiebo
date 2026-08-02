@@ -39,6 +39,7 @@ th{color:var(--tx);background:var(--bg2)}
 .more{margin-top:28px;font-size:14px;color:var(--tx3)}
 .note{font-size:13px;color:var(--tx3);margin-top:24px;border-top:1px solid var(--bd);padding-top:14px}
 footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--tx3);text-align:center}
+.fig{margin:20px 0}.fig img{width:100%;height:auto;border:1px solid var(--bd);border-radius:10px;display:block}.fig figcaption{font-size:12.5px;color:var(--tx3);margin-top:6px;text-align:center}
 </style>
 <meta property="og:type" content="article">
 <meta property="og:title" content="NISA・iDeCo・証券・ローンを含めた「本当の純資産」の出し方 | kurofukubo">
@@ -47,7 +48,7 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
 <meta property="og:image" content="https://kurofukubo.com/ogp-networth.png">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"NISA・iDeCo・証券・ローンを含めた「本当の純資産」の出し方 | kurofukubo","description":"預金だけでなく、NISA・iDeCo・証券・保険、そして住宅ローンやクレカ負債まで含めた“本当の純資産”の計算方法を解説。投資の評価額の扱いや更新ペース、家計簿アプリでの一元管理のコツも紹介します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-networth-investments.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"NISA・iDeCo・証券・ローンを含めた「本当の純資産」の出し方 | kurofukubo","description":"預金だけでなく、NISA・iDeCo・証券・保険、そして住宅ローンやクレカ負債まで含めた“本当の純資産”の計算方法を解説。投資の評価額の扱いや更新ペース、家計簿アプリでの一元管理のコツも紹介します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-networth-investments.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}},"author":{"@type":"Person","name":"ぱくぱく","url":"https://kurofukubo.com/about.html"},"datePublished":"2026-06-26","dateModified":"2026-07-01","mainEntityOfPage":{"@type":"WebPage","@id":"https://kurofukubo.com/guide-networth-investments.html"}}</script>
   <script defer src="/analytics.js"></script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ホーム","item":"https://kurofukubo.com/"},{"@type":"ListItem","position":2,"name":"ガイド","item":"https://kurofukubo.com/guides.html"},{"@type":"ListItem","position":3,"name":"NISA・iDeCo・証券・ローンを含めた「本当の純資産」の出し方","item":"https://kurofukubo.com/guide-networth-investments.html"}]}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"投資は取得額と評価額のどちらで入れますか？","acceptedAnswer":{"@type":"Answer","text":"評価額（時価）で入れます。含み益・含み損も純資産に反映させたいからです。取得額のままだと増減が見えません。"}},{"@type":"Question","name":"iDeCoは引き出せないのに資産に入れていいの？","acceptedAnswer":{"@type":"Answer","text":"入れて構いません。当面使えなくても将来の自分の財産であることは事実なので、全体像を正しく把握するには含めるのが自然です。科目を分けてすぐ使える資産と区別することもできます。"}},{"@type":"Question","name":"銀行や証券と自動連携できますか？","acceptedAnswer":{"@type":"Answer","text":"kurofukubo は方針として自動連携を行いません。手入力は月1回の残高更新だけで、口座情報やパスワードを外部に預けずに済みます。"}}]}</script>
@@ -59,7 +60,10 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
   <div class="wrap">
     <nav class="bc" aria-label="パンくず" style="font-size:12.5px;color:var(--tx3);margin-bottom:14px"><a href="/">ホーム</a> › <a href="/guides.html">ガイド</a> › <span style="color:var(--tx2)">NISA・iDeCo・証券・ローンを含めた「本当の純資産」の出し方</span></nav>
     <h1>NISA・iDeCo・証券・ローンを含めた「本当の純資産」の出し方</h1>
+    <p class="byline" style="font-size:12.5px;color:var(--tx3);margin:6px 0 4px">公開: 2026/06/26 ・ 更新: 2026/07/01 ・ 執筆: <a href="/about.html" style="color:var(--tx3);text-decoration:underline">ぱくぱく（kurofukubo 開発者）</a></p>
     <p class="lead">「預金は◯◯万円」——でも、それは家計の一部にすぎません。NISAやiDeCo、証券、保険といった<strong>投資資産</strong>と、住宅ローンやクレカといった<strong>負債</strong>まで含めて初めて、家計の“本当の純資産”が分かります。この記事では、投資も負債も漏れなく含めた純資産の出し方を解説します。</p>
+
+    <figure class="fig"><img src="/img/asset-breakdown.webp" alt="現金・証券・NISAなど資産の内訳を示すドーナツグラフ" loading="lazy" width="1200" height="704"><figcaption>証券・NISA・iDeCoも科目として登録すれば、内訳ごと純資産に含められます（アプリ実画面）</figcaption></figure>
 
     <h2>純資産＝「すべての資産」－「すべての負債」</h2>
     <p>純資産は、預金だけでなく投資も、そして負債も含めて計算します。投資が増えていても、見えない負債が膨らんでいれば純資産は伸びません。逆に、ローンを着実に返していれば、預金が増えなくても純資産は育ちます。</p>

@@ -38,6 +38,7 @@ th{color:var(--tx);background:var(--bg2)}
 .cta-box a:hover{background:var(--ac2)}
 .more{margin-top:28px;font-size:14px;color:var(--tx3)}
 footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--tx3);text-align:center}
+.fig{margin:20px 0}.fig img{width:100%;height:auto;border:1px solid var(--bd);border-radius:10px;display:block}.fig figcaption{font-size:12.5px;color:var(--tx3);margin-top:6px;text-align:center}
 </style>
 <meta property="og:type" content="article">
 <meta property="og:title" content="貯蓄率の計算方法と目安 — 手取りの何割を貯めればいい？ | kurofukubo">
@@ -46,9 +47,10 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
 <meta property="og:image" content="https://kurofukubo.com/ogp.png">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"貯蓄率の計算方法と目安 — 手取りの何割を貯めればいい？ | kurofukubo","description":"貯蓄率は家計の健全さを測る基本指標です。計算式、手取りの何割を貯めるべきかの目安、貯蓄率を上げる順番（固定費→変動費）、純資産ベースで正確に測る方法までやさしく解説します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-savings-rate.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"貯蓄率の計算方法と目安 — 手取りの何割を貯めればいい？ | kurofukubo","description":"貯蓄率は家計の健全さを測る基本指標です。計算式、手取りの何割を貯めるべきかの目安、貯蓄率を上げる順番（固定費→変動費）、純資産ベースで正確に測る方法までやさしく解説します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-savings-rate.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}},"author":{"@type":"Person","name":"ぱくぱく","url":"https://kurofukubo.com/about.html"},"datePublished":"2026-06-26","dateModified":"2026-07-11","mainEntityOfPage":{"@type":"WebPage","@id":"https://kurofukubo.com/guide-savings-rate.html"}}</script>
   <script defer src="/analytics.js"></script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ホーム","item":"https://kurofukubo.com/"},{"@type":"ListItem","position":2,"name":"ガイド","item":"https://kurofukubo.com/guides.html"},{"@type":"ListItem","position":3,"name":"貯蓄率の計算方法と目安","item":"https://kurofukubo.com/guide-savings-rate.html"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"ボーナスは貯蓄率の計算に含めますか？","acceptedAnswer":{"@type":"Answer","text":"年間の貯蓄率を見るなら含めます。ただしボーナス頼みの家計は支給が減ったときに崩れやすいため、「月の貯蓄率」だけでも黒字を保てているかを別に確認するのがおすすめです。"}},{"@type":"Question","name":"NISAやiDeCoへの積立は貯蓄に含めますか？","acceptedAnswer":{"@type":"Answer","text":"含めます。支出ではなく資産への移動だからです。ただし評価額の値上がり分は「自分で貯めた額」ではないので、貯蓄率の計算からは除きます。"}},{"@type":"Question","name":"平均的な貯蓄率はどのくらいですか？","acceptedAnswer":{"@type":"Answer","text":"調査によって対象も定義も異なり、数字には幅があります。他人の平均と比べるより、自分の貯蓄率を毎月記録して「先月・去年の自分」と比べるほうが家計の改善には直結します。"}}]}</script>
 </head>
 <body>
 <nav><div class="nav-inner"><a href="/" class="nav-logo"><img src="/favicon.svg" alt="" width="22" height="22" style="border-radius:6px;vertical-align:middle;margin-right:8px">kurofukubo</a><div class="nav-r"><a href="/guides.html">ガイド</a><a href="https://app.kurofukubo.com/" class="cta">無料で始める</a></div></div></nav>
@@ -57,7 +59,10 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
   <div class="wrap">
     <nav class="bc" aria-label="パンくず" style="font-size:12.5px;color:var(--tx3);margin-bottom:14px"><a href="/">ホーム</a> › <a href="/guides.html">ガイド</a> › <span style="color:var(--tx2)">貯蓄率の計算方法と目安</span></nav>
     <h1>貯蓄率の計算方法と目安 — 手取りの何割を貯めればいい？</h1>
+    <p class="byline" style="font-size:12.5px;color:var(--tx3);margin:6px 0 4px">公開: 2026/06/26 ・ 更新: 2026/07/11 ・ 執筆: <a href="/about.html" style="color:var(--tx3);text-decoration:underline">ぱくぱく（kurofukubo 開発者）</a></p>
     <p class="lead">「毎月そこそこ貯めているつもりだけど、ペースとして適切なの？」——この疑問に答えてくれるのが<strong>貯蓄率</strong>です。貯蓄率は手取り収入のうち何割を貯められたかを表すシンプルな指標で、家計の健全さを一目で測れます。この記事では、貯蓄率の計算方法、目安、そして貯蓄率を効率よく上げるコツを解説します。</p>
+
+    <figure class="fig"><img src="/img/networth-trend.webp" alt="純資産推移グラフ。毎月の増減が折れ線で表示されている" loading="lazy" width="1200" height="747"><figcaption>貯蓄率の答え合わせは純資産推移で。毎月の伸びが実質の貯蓄です（アプリ実画面）</figcaption></figure>
 
     <h2>貯蓄率とは（計算式）</h2>
     <p>貯蓄率は、手取り収入のうち使わずに残せた割合です。</p>
@@ -73,6 +78,7 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
       <tr><td>子育て世帯</td><td>10〜15％でも十分なことが多い</td></tr>
     </table>
     <p>大切なのは他人と比べることではなく、<strong>去年の自分より貯蓄率が上がっているか</strong>という視点です。まずは現状の貯蓄率を把握し、そこから1〜2ポイントずつ改善するのが現実的です。</p>
+    <p>なお、手取りが少ないうちは「率」より「貯める習慣」を優先して構いません。手取り18万円の10%（1.8万円）と手取り40万円の10%（4万円）では金額がまったく違いますが、収入が増えたときに貯蓄率を保てるかどうかは、少額の時期に作った習慣でほぼ決まります。貯蓄率は家計の健全さを測るための物差しであって、他人と競うための点数ではありません。</p>
 
     <h2>貯蓄率を上げる順番：固定費 → 変動費</h2>
     <p>貯蓄率を上げようとすると、つい食費や娯楽を我慢しがちですが、効率がいいのは<strong>固定費の見直しが先</strong>です。</p>
@@ -81,6 +87,26 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
       <li><strong>変動費（食費・娯楽）：</strong>毎月の我慢が必要でストレスになりやすく、続きにくい。固定費を削ったあとの仕上げと考えましょう。</li>
     </ul>
     <p>「貯める前に使ってしまう」のを防ぐには、給料が入ったらすぐ一定額を別口座へ移す<strong>先取り貯蓄</strong>も効果的です。残ったお金で生活すれば、貯蓄率が自然と安定します。</p>
+    <p>先取りの金額は、最初は「これなら絶対に苦しくない」と思える額（手取りの5〜10%）から始めるのが長続きのコツです。その額で3ヶ月問題なく生活できたら1〜2ポイント上げる、を繰り返すほうが、最初から高い目標を立てて挫折するより1年後の貯蓄率は高くなります。</p>
+
+    <h2>「貯蓄額」に何を含める？</h2>
+    <p>貯蓄率の分子である「貯蓄額」には、預金の増加だけでなく、使わずに資産へ回したお金を広く含めて考えます。</p>
+    <table>
+      <tr><th>含める</th><th>含めない</th></tr>
+      <tr><td>預金の増加額<br>NISA・iDeCo・投資信託への拠出（支出ではなく資産への移動）<br>住宅ローンなど負債の元本返済（純資産を増やす）</td><td>ローンの利息・手数料（純粋な支出）<br>株価の値上がりなど評価益（自分で貯めたお金ではない）</td></tr>
+    </table>
+    <p>投資への拠出を「支出」として扱うと、実際より貯蓄率が低く見えます。逆に、値上がりで資産が増えた分まで貯蓄に数えると家計の実力を過大評価します。<strong>自分の手で資産に回した額だけを数える</strong>のがコツです。</p>
+
+    <h2>貯蓄率でどれだけ変わる？ 簡単シミュレーション</h2>
+    <p>手取り月25万円の場合、貯蓄率ごとの累計は次のようになります（運用益は考えない単純な積み上げです）。</p>
+    <table>
+      <tr><th>貯蓄率</th><th>月の貯蓄</th><th>1年</th><th>10年</th></tr>
+      <tr><td>10%</td><td>25,000円</td><td>30万円</td><td>300万円</td></tr>
+      <tr><td>20%</td><td>50,000円</td><td>60万円</td><td>600万円</td></tr>
+      <tr><td>30%</td><td>75,000円</td><td>90万円</td><td>900万円</td></tr>
+    </table>
+    <p>貯蓄率が10ポイント違うと、10年で300万円の差になります。数ポイントの改善でも、長期では<a href="/guide-emergency-fund.html">生活防衛資金</a>や住宅の頭金に相当する差が生まれます。</p>
+    <p>逆に言えば、焦って一気に30%を目指す必要はありません。10%→12%→15%と階段を上るように上げていけば、同じ地点に無理なくたどり着けます。</p>
 
     <h2>家計簿で貯蓄率を正しく測るには</h2>
     <p>貯蓄率を正確に測るうえで見落としがちなのが、<strong>借金の返済や負債の増減</strong>です。預金が5万円増えても、同じ月にカードの未払いが5万円増えていたら、正味では貯められていません。そこで役立つのが、純資産の増減で見る考え方です。月初から月末で<strong>純資産がいくら増えたか</strong>を手取りで割れば、負債も織り込んだ「ほんとうの貯蓄率」が分かります。</p>
@@ -89,12 +115,20 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
       kurofukubo は複式簿記で記帳するため、預金などの資産だけでなく負債の増減も自動で反映され、<strong>純資産の推移</strong>がグラフで確認できます。これを手取りと合わせて見れば、見かけだけでない実質的な貯蓄ペースを把握できます。
     </div>
 
+    <h2>よくある質問</h2>
+    <h3>ボーナスは貯蓄率の計算に含めますか？</h3>
+    <p>年間の貯蓄率を見るなら含めます。ただしボーナス頼みの家計は支給が減ったときに崩れやすいため、「月の貯蓄率」だけでも黒字を保てているかを別に確認するのがおすすめです。</p>
+    <h3>NISAやiDeCoへの積立は貯蓄に含めますか？</h3>
+    <p>含めます。支出ではなく資産への移動だからです。ただし評価額の値上がり分は「自分で貯めた額」ではないので、貯蓄率の計算からは除きます。</p>
+    <h3>平均的な貯蓄率はどのくらいですか？</h3>
+    <p>調査によって対象も定義も異なり、数字には幅があります。他人の平均と比べるより、自分の貯蓄率を毎月記録して「先月・去年の自分」と比べるほうが家計の改善には直結します。</p>
+
     <div class="cta-box">
       <p>純資産ベースで「ほんとうの貯蓄ペース」を可視化。無料で始められます。</p>
       <a href="https://app.kurofukubo.com/">無料で始める</a>
     </div>
 
-    <p class="more">関連記事：<a href="/guide-net-worth.html">家計の純資産とは？</a> ／ <a href="/guide-budget.html">続く予算の立て方</a> ／ <a href="/guides.html">ガイド一覧へ</a></p>
+    <p class="more">関連記事：<a href="/guide-net-worth.html">家計の純資産とは？</a> ／ <a href="/guide-budget.html">続く予算の立て方</a> ／ <a href="/guide-emergency-fund.html">生活防衛資金の目安</a> ／ <a href="/guides.html">ガイド一覧へ</a></p>
   </div>
 </section>
 

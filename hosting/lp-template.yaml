@@ -76,6 +76,16 @@ Resources:
           CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
           # Managed-SecurityHeadersPolicy (HSTS / nosniff / X-Frame-Options / Referrer-Policy)
           ResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03
+        CustomErrorResponses:
+          # S3(OAC)は存在しないキーに403を返すため、正しく404ページとして返す
+          - ErrorCode: 403
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+            ErrorCachingMinTTL: 300
+          - ErrorCode: 404
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+            ErrorCachingMinTTL: 300
 
   BucketPolicy:
     Type: AWS::S3::BucketPolicy
