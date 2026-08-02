@@ -1,17 +1,20 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useData } from '../../contexts/DataContext';
+import { useUI } from '../../contexts/UIContext';
 import { fa, esc, ACCOUNT_TYPES, BADGE_CLASSES } from '../../utils/format';
 import { filterByPeriod, getPeriodRange } from '../../utils/bookkeeping';
 import PeriodBar from '../Dashboard/PeriodBar';
 import JournalModal from './JournalModal';
 import CSVModal from './CSVModal';
 import QuickEntry from './QuickEntry';
+import CheatSheetModal from './CheatSheetModal';
 import EmptyState from '../Common/EmptyState';
 import Modal from '../Common/Modal';
 import { useToast } from '../Common/Toast';
 
 export default function JournalPage() {
   const { journals, accounts, wallets, presets, tags, deleteJournal, updateJournal, addJournal, loading } = useData();
+  const { journalEntryRequested, consumeJournalEntryRequest } = useUI();
   const toast = useToast();
   const [period, setPeriod] = useState('month');
   const [custom, setCustom] = useState({ start: '', end: '' });
@@ -30,6 +33,7 @@ export default function JournalPage() {
   const [bulkCr, setBulkCr] = useState('');
   const [selectMode, setSelectMode] = useState(false);
   const [tagFilter, setTagFilter] = useState('');
+  const [cheatOpen, setCheatOpen] = useState(false);
 
   const sortedAccounts = useMemo(() => [...accounts].sort((a, b) => (a.code || '').localeCompare(b.code || '')), [accounts]);
 
@@ -37,6 +41,12 @@ export default function JournalPage() {
   const openNew = () => { setEditId(null); setPresetData(null); setModalOpen(true); };
   const applyPreset = (p) => { setEditId(null); setPresetData(p); setModalOpen(true); };
   const closeModal = () => { setModalOpen(false); setPresetData(null); };
+
+  useEffect(() => {
+    if (!journalEntryRequested) return;
+    openNew();
+    consumeJournalEntryRequest();
+  }, [journalEntryRequested, consumeJournalEntryRequest]);
 
   const { start, end } = useMemo(() => getPeriodRange(period, custom), [period, custom]);
 
@@ -172,6 +182,7 @@ export default function JournalPage() {
             onClick={() => toast('AI仕分けは準備中です（近日公開予定）')}>
             🤖 AI仕分け（準備中）
           </button>
+          <button className="btn btn-g" onClick={() => setCheatOpen(true)}>📖 チートシート</button>
           <button className="btn btn-g" data-tour="csv-btn" onClick={() => setCsvOpen(true)}>CSV取込</button>
           <button className="btn btn-p" onClick={openNew}>＋ 新規仕訳</button>
         </div>
@@ -301,6 +312,7 @@ export default function JournalPage() {
 
       <JournalModal open={modalOpen} onClose={closeModal} editId={editId} preset={presetData} />
       <CSVModal open={csvOpen} onClose={() => setCsvOpen(false)} />
+      <CheatSheetModal open={cheatOpen} onClose={() => setCheatOpen(false)} />
 
       <Modal
         open={bulkOpen}

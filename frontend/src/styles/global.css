@@ -3,6 +3,11 @@
 /* ── リセット・ベース ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* iOS Safariはbody単体のoverflow-x:hiddenを無視することがあるため、htmlにも同じ指定が必要 */
+html {
+  overflow-x: hidden;
+}
+
 body {
   font-family: 'Manrope', 'Noto Sans JP', sans-serif;
   background: var(--bg0);
@@ -11,6 +16,8 @@ body {
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  /* iOS Safariの端でのラバーバンド横スワイプ誤爆を防止（横スクロール自体は元々不要な画面） */
+  overscroll-behavior-x: none;
 }
 ::selection { background: var(--ac); color: var(--ac-tx); }
 ::-webkit-scrollbar { width: 11px; height: 11px; }
@@ -85,12 +92,22 @@ th.sortable.desc .sa::after { content: '▼'; }
 .btn-d { background: transparent; color: var(--red); border: 1.5px solid var(--bd2); }
 .btn-d:hover { background: rgba(208,96,96,.1); border-color: var(--red); }
 .btn-s { padding: 4px 10px; font-size: 12px; }
+.journal-fab { display: none; }
 
 /* ── フォーム ── */
-.fg { display: flex; flex-direction: column; gap: 4px; }
+.fg { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .fl { font-size: 11px; color: var(--tx2); letter-spacing: .04em; font-weight: 500; }
-.fc { background: var(--fc-bg); border: 1.5px solid var(--fc-bd); border-radius: 8px; color: var(--tx); font-family: inherit; font-size: 13.5px; padding: 8px 11px; outline: none; transition: border .15s, box-shadow .15s; width: 100%; }
+.fc { background: var(--fc-bg); border: 1.5px solid var(--fc-bd); border-radius: 8px; color: var(--tx); font-family: inherit; font-size: 13.5px; padding: 8px 11px; outline: none; transition: border .15s, box-shadow .15s; width: 100%; max-width: 100%; }
 .fc:hover { border-color: var(--fc-hover); }
+/* iOS/iPadOSのネイティブ日付コントロールは -webkit-appearance を残したままだと固有の最小幅を保持し、
+   min-width/width/padding を無視して横に広がる。appearance:none で通常のボックス扱いにし、
+   値の表示を左寄せ・カレンダーアイコンを右端に寄せて、コンテナ幅にきちんと収まるようにする。 */
+input[type="date"].fc {
+  min-width: 0; max-width: 100%;
+  -webkit-appearance: none; appearance: none;
+}
+input[type="date"].fc::-webkit-date-and-time-value { text-align: left; margin: 0; }
+input[type="date"].fc::-webkit-calendar-picker-indicator { margin-left: auto; padding-left: 4px; }
 .fc:focus { border-color: var(--ac); box-shadow: 0 0 0 3px var(--acb); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
@@ -99,7 +116,10 @@ th.sortable.desc .sa::after { content: '▼'; }
 .mo.open { display: flex; }
 .md { background: var(--bg2); border: 1px solid var(--bd2); border-radius: 16px; padding: 22px; width: 92%; max-width: 660px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 60px -20px rgba(20,24,40,.45); }
 .md-w { max-width: 1040px; width: 96%; }
-.md-t { font-family: inherit; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 18px; color: var(--tx); }
+.md-handle { display: none; }
+.md-t { font-family: inherit; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 18px; color: var(--tx); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.md-x { flex-shrink: 0; min-width: 32px; min-height: 32px; margin: -6px -6px 0 0; padding: 0; background: none; border: 0; font-size: 24px; line-height: 1; font-weight: 400; color: var(--tx3); cursor: pointer; }
+.md-x:hover { color: var(--tx); }
 .md-f { display: flex; justify-content: flex-end; gap: 7px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--bd); }
 
 /* ── ページヘッダー ── */
@@ -154,7 +174,7 @@ svg .bar-hover:hover { opacity: 1; filter: brightness(1.2); cursor: pointer; }
 .page.active { display: block; }
 
 /* ── 期間バー ── */
-.pbar { display: inline-flex; gap: 3px; align-items: center; background: var(--bg3); padding: 4px; border-radius: 999px; flex-wrap: wrap; max-width: 100%; }
+.pbar { display: inline-flex; gap: 3px; align-items: center; background: var(--bg3); padding: 4px; border-radius: 16px; flex-wrap: wrap; max-width: 100%; }
 .pbtn { padding: 7px 14px; border-radius: 999px; font-size: 12.5px; cursor: pointer; background: transparent; border: none; color: var(--tx2); font-weight: 600; transition: .12s; user-select: none; }
 .pbtn:hover { color: var(--tx); }
 .pbtn.on { background: var(--bg1); color: var(--tx); font-weight: 700; box-shadow: 0 1px 2px rgba(20,24,40,.10); }
@@ -271,7 +291,20 @@ svg .bar-hover:hover { opacity: 1; filter: brightness(1.2); cursor: pointer; }
 .hamburger:hover { background: var(--bg3); }
 .s-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 95; }
 
+/* iPad等タブレット幅(769-1024px): 3列グリッドは凡例(min-width:170px)がカード幅を超えて溢れるため2列に */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .g3 { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+
 @media (max-width: 768px) {
+  .mo { align-items: flex-end; }
+  .md { width: 100%; max-width: none; max-height: 90vh; max-height: 90dvh; border-radius: 16px 16px 0 0; border-bottom: 0; padding: 10px 18px calc(18px + env(safe-area-inset-bottom, 0px)); }
+  .md-handle { display: block; width: 38px; height: 4px; margin: 0 auto 14px; border-radius: 999px; background: var(--bd2); }
+  .journal-fab { position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 80; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 52px; padding: 0 18px; border: 1px solid var(--ac2); border-radius: 999px; background: var(--ac); color: var(--ac-tx); box-shadow: var(--csh); font: inherit; font-weight: 700; cursor: pointer; }
+  /* iOS Safari/Chromeはinputのfont-sizeが16px未満だとフォーカス時に自動ズームし、画面がずれたように見える。モバイルのみ16px以上に引き上げて防止 */
+  .fc { font-size: 16px; }
+  /* iOSネイティブ日付ピッカーは内部の値表示(太字・中央寄せ)をCSSで完全制御できないため、余白を詰めて箱を引き締める */
+  input[type="date"].fc { padding: 5px 8px; }
   .m-header { display: flex; align-items: center; gap: 10px; position: fixed; top: 0; left: 0; right: 0; height: 48px; padding: 0 12px; background: var(--bg1); border-bottom: 1px solid var(--bd); z-index: 90; }
   .sidebar { transform: translateX(-100%); transition: transform .2s; }
   .sidebar.open { transform: translateX(0); }

@@ -91,6 +91,7 @@ export default function EncryptionPanel() {
       <Modal
         open={open}
         onClose={() => { if (step !== 'recovery') setOpen(false); }}
+        hideClose={step === 'recovery'}
         title={step === 'recovery' ? '🔑 リカバリキーを保存' : step === 'change' ? 'パスフレーズの変更' : '端末データの暗号化'}
         footer={
           step === 'recovery'

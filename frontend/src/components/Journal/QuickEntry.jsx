@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { fa, today } from '../../utils/format';
 import { useToast } from '../Common/Toast';
@@ -35,7 +35,8 @@ function parse(input, accounts, rules) {
   let drAcct = null, crAcct = null;
   if (resolved.length >= 2) {
     const a = resolved[0], b = resolved[1];
-    if (a.type === 'expense' || a.type === 'asset') { drAcct = a; crAcct = b; }
+    if ((a.type === 'liability' && b.type === 'asset') || (a.type === 'asset' && b.type === 'liability')) { drAcct = a; crAcct = b; }
+    else if (a.type === 'expense' || a.type === 'asset') { drAcct = a; crAcct = b; }
     else if (b.type === 'expense' || b.type === 'asset') { drAcct = b; crAcct = a; }
     else { drAcct = a; crAcct = b; }
   } else if (resolved.length === 1) {
@@ -71,6 +72,12 @@ export default function QuickEntry() {
 
   // ── 一行入力（クイック） ──
   const [text, setText] = useState('');
+  // ツアーの「入力例を自動入力」から例文を受け取る
+  useEffect(() => {
+    const h = (e) => { if (typeof e.detail === 'string') setText(e.detail); };
+    window.addEventListener('kk:tour-prefill', h);
+    return () => window.removeEventListener('kk:tour-prefill', h);
+  }, []);
   const preview = useMemo(() => parse(text, accounts, rules), [text, accounts, rules]);
   const quickSubmit = async () => {
     const r = parse(text, accounts, rules);
@@ -117,6 +124,12 @@ export default function QuickEntry() {
   // ── かんたんモード（支出/収入/振替・借方貸方を見せず裏で複式に変換）──
   const [mode, setMode] = useState(() => localStorage.getItem('kk_entry_mode') || 'detail');
   const setModeP = (m) => { setMode(m); try { localStorage.setItem('kk_entry_mode', m); } catch {} };
+  // ツアーの「今日の支出を記録」ステップから、かんたんモードへ強制切替
+  useEffect(() => {
+    const h = (e) => setModeP(e.detail);
+    window.addEventListener('kk:tour-mode', h);
+    return () => window.removeEventListener('kk:tour-mode', h);
+  }, []);
 
   const expenseAccts = useMemo(() => accounts.filter((a) => a.type === 'expense'), [accounts]);
   const incomeAccts = useMemo(() => accounts.filter((a) => a.type === 'income'), [accounts]);
@@ -224,7 +237,7 @@ export default function QuickEntry() {
 
           <div className="form-row">
             <div className="fg"><label className="fl">日付</label><input type="date" className="fc" value={sDate} onChange={(e) => setSDate(e.target.value)} /></div>
-            <div className="fg"><label className="fl">金額</label><input type="text" inputMode="numeric" className="fc" value={sAmt} placeholder="0" onChange={(e) => setSAmt(e.target.value)} style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }} /></div>
+            <div className="fg"><label className="fl">金額</label><input type="text" inputMode="numeric" className="fc" data-tour="simple-amount" value={sAmt} placeholder="0" onChange={(e) => setSAmt(e.target.value)} style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }} /></div>
           </div>
 
           {kind === 'out' && (
@@ -254,7 +267,7 @@ export default function QuickEntry() {
               {' / '}
               <span style={{ color: 'var(--red)' }}>貸方 {accounts.find((a) => a.id === simpleDrCr().cr)?.name || '—'}</span>
             </span>
-            <button className="btn btn-p" onClick={submitSimple}>記帳する</button>
+            <button className="btn btn-p" data-tour="simple-submit" onClick={submitSimple}>記帳する</button>
           </div>
         </div>
       )}
@@ -267,12 +280,12 @@ export default function QuickEntry() {
           <div className="fg"><label className="fl">摘要</label><input type="text" className="fc" value={desc} placeholder="例）スーパーで食料品を購入" onChange={(e) => setDesc(e.target.value)} /></div>
         </div>
 
-        <div className="je-dc">
+        <div className="je-dc" data-tour="detail-entry">
           <div style={boxStyle}>
             <div style={{ ...sideLabel, color: 'var(--ac)' }}>借方 — DEBIT<InfoTip text="借方(かりかた)は左側＝お金の使い道や増えた財産、貸方(かしかた)は右側＝お金の出どころ。例: 現金で食費を払う→借方:食費／貸方:現金。" /></div>
             <label className="fl">勘定科目</label><AcctSelect value={drId} onChange={setDrId} />
             <label className="fl" style={{ marginTop: 6 }}>金額</label>
-            <input type="text" inputMode="numeric" className="fc" value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value)} style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }} />
+            <input type="text" inputMode="numeric" className="fc" data-tour="detail-amount" value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value)} style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }} />
           </div>
           <div className="je-arrow">→</div>
           <div style={boxStyle}>
@@ -284,7 +297,7 @@ export default function QuickEntry() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderTop: '1px solid var(--bd)', paddingTop: 14, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div data-tour="entry-tags" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--tx2)' }}>タグ</span>
             {tags.length === 0 && <span style={{ fontSize: 12, color: 'var(--tx3)' }}>（未設定）</span>}
             {tags.map((t) => {
@@ -301,7 +314,7 @@ export default function QuickEntry() {
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="btn btn-g" onClick={clearForm}>クリア</button>
-            <button className="btn btn-p" onClick={submitForm}>記帳する</button>
+            <button className="btn btn-p" data-tour="detail-submit" onClick={submitForm}>記帳する</button>
           </div>
         </div>
       </div>

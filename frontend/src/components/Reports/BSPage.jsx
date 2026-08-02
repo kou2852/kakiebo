@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
 import { useData } from '../../contexts/DataContext';
-import { fa } from '../../utils/format';
+import { fa, faBal } from '../../utils/format';
 import { calcBalances, accountBalance, getPeriodRange } from '../../utils/bookkeeping';
 import PeriodBar from '../Dashboard/PeriodBar';
 import InfoTip from '../Common/InfoTip';
@@ -11,10 +11,12 @@ import { downloadElementPDF } from '../../utils/pdf';
 
 function ReportRow({ label, amount, indent, sub, grand, color }) {
   const cls = grand ? 'rr gt' : sub ? 'rr sub' : indent ? 'rr ind' : 'rr';
+  // マイナス残高（返済しすぎ・元金未登録など）は赤字で符号付き表示し、絶対値で隠さない
+  const amtColor = amount < 0 ? 'var(--red)' : color;
   return (
     <div className={cls} style={color ? { color } : undefined}>
       <span>{label}</span>
-      <span className="ra" style={color ? { color } : undefined}>{fa(amount)}</span>
+      <span className="ra" style={amtColor ? { color: amtColor } : undefined}>{faBal(amount)}</span>
     </div>
   );
 }
@@ -46,24 +48,35 @@ export default function BSPage() {
   }, [start]);
   const prevBal = useMemo(() => calcBalances(journals.filter((j) => j.date <= prevEnd), accounts), [journals, accounts, prevEnd]);
 
-  const renderSection = (type, title) => {
+  // extra: 科目残高に加えて合計に含める行（純資産の部の累積損益など）。null なら従来どおり。
+  const renderSection = (type, title, extra) => {
     const accts = accounts
       .filter((a) => a.type === type)
       .sort((a, b) => accountBalance(b.id, accounts, bal) - accountBalance(a.id, accounts, bal))
       .filter((a) => Math.abs(accountBalance(a.id, accounts, bal)) > 0.01);
-    const total = accounts.filter((a) => a.type === type).reduce((s, a) => s + accountBalance(a.id, accounts, bal), 0);
+    const acctTotal = accounts.filter((a) => a.type === type).reduce((s, a) => s + accountBalance(a.id, accounts, bal), 0);
+    const total = acctTotal + (extra ? extra.amount : 0);
 
-    return { accts, total, el: (
+    return { accts, total, extra, el: (
       <>
-        {accts.map((a) => (
-          <div key={a.id} className="rr ind">
-            <span>
-              {a.name}
-              <DiffBadge current={accountBalance(a.id, accounts, bal)} previous={accountBalance(a.id, accounts, prevBal)} />
-            </span>
-            <span className="ra">{fa(accountBalance(a.id, accounts, bal))}</span>
+        {accts.map((a) => {
+          const v = accountBalance(a.id, accounts, bal);
+          return (
+            <div key={a.id} className="rr ind">
+              <span>
+                {a.name}
+                <DiffBadge current={v} previous={accountBalance(a.id, accounts, prevBal)} />
+              </span>
+              <span className="ra" style={v < 0 ? { color: 'var(--red)' } : undefined}>{faBal(v)}</span>
+            </div>
+          );
+        })}
+        {extra && (
+          <div className="rr ind">
+            <span>{extra.label}</span>
+            <span className="ra" style={extra.amount < 0 ? { color: 'var(--red)' } : undefined}>{faBal(extra.amount)}</span>
           </div>
-        ))}
+        )}
         <ReportRow label={title} amount={total} grand color="var(--ac)" />
       </>
     )};
@@ -73,9 +86,15 @@ export default function BSPage() {
 
   if (loading) return <p className="nd">読み込み中...</p>;
 
+  // 収益・費用の累計＝累積損益。これを純資産の部に含めないと「資産 = 負債 + 純資産」が一致しない
+  // （複式簿記の恒等式: 資産 = 負債 + 純資産 + 収益 − 費用）。BSは期末時点の累計なので損益も累計で取る。
+  const sumType = (t) => accounts.filter((a) => a.type === t).reduce((s, a) => s + accountBalance(a.id, accounts, bal), 0);
+  const cumProfit = sumType('income') - sumType('expense');
+
   const asset = renderSection('asset', '資産合計');
   const liability = renderSection('liability', '負債合計');
-  const equity = renderSection('equity', '純資産合計');
+  const equity = renderSection('equity', '純資産合計',
+    Math.abs(cumProfit) > 0.01 ? { label: '累積損益（収益−費用）', amount: cumProfit } : null);
 
   const balOf = (id) => Math.round(accountBalance(id, accounts, bal));
   const exportCSV = () => {
@@ -85,6 +104,7 @@ export default function BSPage() {
     liability.accts.forEach((a) => rows.push(['負債', a.name, balOf(a.id)]));
     rows.push(['負債', '負債合計', Math.round(liability.total)]);
     equity.accts.forEach((a) => rows.push(['純資産', a.name, balOf(a.id)]));
+    if (equity.extra) rows.push(['純資産', equity.extra.label, Math.round(equity.extra.amount)]);
     rows.push(['純資産', '純資産合計', Math.round(equity.total)]);
     rows.push(['', '負債・純資産合計', Math.round(liability.total + equity.total)]);
     downloadCSV(`kurofukubo_貸借対照表_${end}.csv`, rows);

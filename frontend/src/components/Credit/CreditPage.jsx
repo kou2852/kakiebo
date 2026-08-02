@@ -4,11 +4,13 @@ import { useUI } from '../../contexts/UIContext';
 import { fa, PIE_COLORS } from '../../utils/format';
 import { calcBalances, accountBalance, getPeriodRange } from '../../utils/bookkeeping';
 import { isCreditCard, creditCardCycles, creditUsageByCategory, todayYmd } from '../../utils/creditCard';
+import { pendingCC } from '../../utils/autoGen';
 import PieChart from '../Dashboard/PieChart';
 import PeriodBar from '../Dashboard/PeriodBar';
 import CycleBars from './CycleBars';
 import InfoTip from '../Common/InfoTip';
 import EmptyState from '../Common/EmptyState';
+import CCSettleModal from './CCSettleModal';
 
 const STATUS = {
   open: { label: '利用中（締め前）', color: 'var(--tx3)' },
@@ -24,8 +26,10 @@ export default function CreditPage() {
   const [expanded, setExpanded] = useState({});
   const [period, setPeriod] = useState('year');
   const [custom, setCustom] = useState({ start: '', end: '' });
+  const [settleCardId, setSettleCardId] = useState(null);
 
   const cards = useMemo(() => accounts.filter(isCreditCard), [accounts]);
+  const pending = useMemo(() => pendingCC(accounts, journals), [accounts, journals]);
   const allBal = useMemo(() => calcBalances(journals, accounts), [journals, accounts]);
   const acctName = (id) => accounts.find((a) => a.id === id)?.name || '(不明)';
   const today = todayYmd();
@@ -100,7 +104,24 @@ export default function CreditPage() {
                 </div>
               </div>
 
-              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--bd)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+              {(() => {
+                const cardPending = pending.filter((x) => x.card.id === c.id);
+                const dueCount = cardPending.filter((x) => x.due).length;
+                return (
+                  <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
+                    <button className={`btn btn-s ${cardPending.length ? 'btn-p' : 'btn-g'}`}
+                      disabled={!cardPending.length}
+                      title={cardPending.length ? undefined : '記帳対象の締め済みサイクルはありません'}
+                      onClick={() => setSettleCardId(c.id)}>
+                      {cardPending.length
+                        ? `このカードの返済を記帳${dueCount ? `（引落日到来 ${dueCount}件）` : `（予定 ${cardPending.length}件）`}`
+                        : 'このカードの返済を記帳（対象なし）'}
+                    </button>
+                  </div>
+                );
+              })()}
+
+              <div style={{ marginTop: 14, paddingTop: 16, borderTop: '1px solid var(--bd)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
                   <div>
                     <div className="card-title">サイクル別 利用額（締め月）</div>
                     <CycleBars cycles={cycles} />
@@ -171,7 +192,7 @@ export default function CreditPage() {
                 </div>
                 )}
                 <p style={{ fontSize: 11, color: 'var(--tx3)', margin: '8px 4px 0' }}>
-                  ※ 行をタップすると、その締め期間の利用明細を表示します。引落仕訳の自動生成は「勘定科目・口座」画面から行えます。
+                  ※ 行をタップすると、その締め期間の利用明細を表示します。引落仕訳は上の「このカードの返済を記帳」、または「勘定科目・口座」画面からまとめて記帳できます。
                 </p>
               </div>
             </div>
@@ -179,6 +200,7 @@ export default function CreditPage() {
         })}
         </>
       )}
+      <CCSettleModal open={!!settleCardId} onClose={() => setSettleCardId(null)} cardId={settleCardId} />
     </div>
   );
 }

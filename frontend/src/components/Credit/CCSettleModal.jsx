@@ -9,10 +9,15 @@ const md = (s) => { const p = s.split('-'); return `${+p[1]}/${+p[2]}`; };
 
 // クレカ返済の確認＆記帳モーダル。締め済み・未引落のサイクルを一覧し、チェックで選択して記帳する。
 // 引落前のサイクルも選択すれば「予定」として先に記帳できる（引落日到来分は初期選択）。
-export default function CCSettleModal({ open, onClose }) {
+// cardId を渡すと、そのカードの分だけに絞り込む（クレジット画面のカード別ボタンから利用）。
+export default function CCSettleModal({ open, onClose, cardId }) {
   const { accounts, journals, addJournal } = useData();
   const toast = useToast();
-  const items = useMemo(() => (open ? pendingCC(accounts, journals) : []), [open, accounts, journals]);
+  const items = useMemo(() => {
+    if (!open) return [];
+    const all = pendingCC(accounts, journals);
+    return cardId ? all.filter((x) => x.card.id === cardId) : all;
+  }, [open, accounts, journals, cardId]);
   const [sel, setSel] = useState(() => new Set());
   const [busy, setBusy] = useState(false);
 
@@ -43,8 +48,10 @@ export default function CCSettleModal({ open, onClose }) {
     } catch { toast('記帳に失敗しました'); } finally { setBusy(false); }
   };
 
+  const cardName = cardId ? accounts.find((a) => a.id === cardId)?.name : null;
+
   return (
-    <Modal open={open} onClose={onClose} title="クレカ返済を記帳" wide
+    <Modal open={open} onClose={onClose} title={cardName ? `${cardName} の返済を記帳` : 'クレカ返済を記帳'} wide
       footer={
         <>
           <button className="btn btn-g" onClick={onClose} disabled={busy}>キャンセル</button>
@@ -64,13 +71,14 @@ export default function CCSettleModal({ open, onClose }) {
             <table>
               <thead><tr>
                 <th style={{ width: 28 }}><input type="checkbox" checked={allSel} onChange={toggleAll} aria-label="全選択" /></th>
-                <th>カード</th><th>利用期間</th><th className="text-r">利用額</th><th>引落予定日</th><th>区分</th>
+                {!cardId && <th>カード</th>}
+                <th>利用期間</th><th className="text-r">利用額</th><th>引落予定日</th><th>区分</th>
               </tr></thead>
               <tbody>
                 {items.map((x) => (
                   <tr key={x.key} onClick={() => toggle(x.key)} style={{ cursor: 'pointer', ...(sel.has(x.key) ? { background: 'var(--acb)' } : {}) }}>
                     <td style={{ textAlign: 'center' }}><input type="checkbox" checked={sel.has(x.key)} readOnly aria-label="選択" /></td>
-                    <td>{x.card.name}</td>
+                    {!cardId && <td>{x.card.name}</td>}
                     <td>{md(x.cycle.periodStart)}〜{md(x.cycle.periodEnd)}</td>
                     <td className="text-r mono">{fa(x.cycle.usage)}</td>
                     <td className="text-m" style={{ whiteSpace: 'nowrap' }}>{x.cycle.settleDate}</td>

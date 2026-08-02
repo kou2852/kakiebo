@@ -5,7 +5,7 @@ import { useToast } from '../Common/Toast';
 import Modal from '../Common/Modal';
 
 export default function RuleModal({ open, onClose, editId }) {
-  const { accounts, tags, rules, setRules } = useData();
+  const { accounts, tags, rules, saveRules } = useData();
   const toast = useToast();
 
   const [keyword, setKeyword] = useState('');
@@ -32,9 +32,9 @@ export default function RuleModal({ open, onClose, editId }) {
     if (!keyword.trim()) { toast('キーワードを入力してください'); return; }
     const data = { keyword: keyword.trim(), drAccountId, crAccountId, tagId: tagId || '' };
     if (editId) {
-      setRules((prev) => prev.map((r) => r.id === editId ? { ...r, ...data } : r));
+      saveRules(rules.map((r) => r.id === editId ? { ...r, ...data } : r));
     } else {
-      setRules((prev) => [...prev, { id: uid(), ...data }]);
+      saveRules([...rules, { id: uid(), ...data }]);
     }
     toast('保存しました');
     onClose();

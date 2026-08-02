@@ -3,6 +3,7 @@ import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { fa, esc, ACCOUNT_TYPES, BADGE_CLASSES } from '../../utils/format';
 import { calcBalances, accountBalance } from '../../utils/bookkeeping';
+import { EQUITY_ID, nextCode } from '../../utils/accountCode';
 import CCSettleModal from '../Credit/CCSettleModal';
 import { useToast } from '../Common/Toast';
 import InfoTip from '../Common/InfoTip';
@@ -25,8 +26,15 @@ const ACCOUNT_TEMPLATES = [
   { name: '奨学金', type: 'liability', code: '2213' },
 ];
 
+const QUICK_ACCOUNT_TYPES = [
+  { label: '🏦 銀行口座', name: '銀行口座', type: 'asset' },
+  { label: '💳 クレジットカード', name: 'クレジットカード', type: 'liability' },
+  { label: '💰 現金', name: '現金', type: 'asset' },
+  { label: '📈 NISA口座', name: 'NISA口座', type: 'asset' },
+];
+
 export default function AccountsPage() {
-  const { accounts, journals, wallets, presets, rules, budgets, allocs, addJournal, updateAccount, deleteAccount, saveWallets, setPresets, setRules, loading } = useData();
+  const { accounts, journals, wallets, presets, rules, budgets, allocs, addAccount, addJournal, updateAccount, deleteAccount, saveWallets, savePresets, saveRules, loading } = useData();
   const { guestMode } = useAuth();
   const toast = useToast();
 
@@ -72,6 +80,61 @@ export default function AccountsPage() {
   const [presetEditId, setPresetEditId] = useState(null);
   const [presetWalletId, setPresetWalletId] = useState(null);
   const [presetType, setPresetType] = useState('out');
+  const [quickAccount, setQuickAccount] = useState(QUICK_ACCOUNT_TYPES[0]);
+  const [quickName, setQuickName] = useState(QUICK_ACCOUNT_TYPES[0].name);
+  const [quickBalance, setQuickBalance] = useState('');
+  const [quickCcClose, setQuickCcClose] = useState('15');
+  const [quickCcDay, setQuickCcDay] = useState('27');
+  const [quickCcDelay, setQuickCcDelay] = useState('1');
+  const [quickCcFrom, setQuickCcFrom] = useState('');
+  const quickAssetAccounts = useMemo(() => accounts.filter((a) => a.type === 'asset'), [accounts]);
+
+  const defaultQuickCcFrom = () => quickAssetAccounts.find((a) => a.name === '普通預金')?.id || quickAssetAccounts[0]?.id || '';
+
+  const selectQuickAccount = (option) => {
+    setQuickAccount(option);
+    setQuickName(option.name);
+    setQuickBalance('');
+    setQuickCcClose('15');
+    setQuickCcDay('27');
+    setQuickCcDelay('1');
+    setQuickCcFrom(defaultQuickCcFrom());
+  };
+
+  const saveQuickAccount = async () => {
+    if (guestMode && accounts.filter((a) => !a.sys).length >= GUEST_LIMITS.accounts) {
+      toast(`ゲストは追加科目を${GUEST_LIMITS.accounts}件まで作成できます。アカウント登録で解除されます`);
+      return;
+    }
+    const name = quickName.trim();
+    if (!name) { toast('科目名を入力してください'); return; }
+    if (quickAccount.type === 'liability' && !quickCcFrom) { toast('引落口座を選択してください'); return; }
+    try {
+      const data = { name, type: quickAccount.type, code: nextCode(accounts, quickAccount.type), note: '' };
+      if (quickAccount.type === 'liability') {
+        data.ccClose = parseInt(quickCcClose) || 0;
+        data.ccDay = parseInt(quickCcDay) || 0;
+        data.ccDelay = parseInt(quickCcDelay) || 1;
+        data.ccFrom = quickCcFrom || '';
+      }
+      const created = await addAccount(data);
+      const balance = Math.round(parseFloat(String(quickBalance).replace(/[¥,，]/g, '')) || 0);
+      if (balance > 0) {
+        const lines = quickAccount.type === 'asset'
+          ? [{ accountId: created.id, side: 'dr', amount: balance, taxRate: 0 }, { accountId: EQUITY_ID, side: 'cr', amount: balance, taxRate: 0 }]
+          : [{ accountId: EQUITY_ID, side: 'dr', amount: balance, taxRate: 0 }, { accountId: created.id, side: 'cr', amount: balance, taxRate: 0 }];
+        await addJournal({ date: new Date().toISOString().slice(0, 10), desc: `開始残高（${name}）`, lines });
+      }
+      setQuickAccount(QUICK_ACCOUNT_TYPES[0]);
+      setQuickName(QUICK_ACCOUNT_TYPES[0].name);
+      setQuickBalance('');
+      setQuickCcClose('15');
+      setQuickCcDay('27');
+      setQuickCcDelay('1');
+      setQuickCcFrom(defaultQuickCcFrom());
+      toast('登録しました');
+    } catch { toast('登録に失敗しました'); }
+  };
 
   const acctName = (id) => accounts.find((a) => a.id === id)?.name || '(不明)';
 
@@ -124,13 +187,13 @@ export default function AccountsPage() {
 
   const handleDeletePreset = (id) => {
     if (!confirm('削除しますか？')) return;
-    setPresets((prev) => prev.filter((p) => p.id !== id));
+    savePresets(presets.filter((p) => p.id !== id));
     toast('削除しました');
   };
 
   const handleDeleteRule = (id) => {
     if (!confirm('削除しますか？')) return;
-    setRules((prev) => prev.filter((r) => r.id !== id));
+    saveRules(rules.filter((r) => r.id !== id));
     toast('削除しました');
   };
 
@@ -166,8 +229,55 @@ export default function AccountsPage() {
         ))}
       </div>
 
+      <div className="card" data-tour="quick-account" style={{ marginBottom: 14, padding: '12px 16px' }}>
+        <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 8 }}>かんたん登録</div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div className="fg" style={{ flex: '1 1 100%', minWidth: 0 }}>
+            <label className="fl">種別</label>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {QUICK_ACCOUNT_TYPES.map((option) => (
+                <button key={option.label} type="button" className={`btn btn-s ${quickAccount.label === option.label ? 'btn-p' : 'btn-g'}`} onClick={() => selectQuickAccount(option)}>
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="fg" style={{ flex: '1 1 180px', minWidth: 0 }}>
+            <label className="fl">名前</label>
+            <input type="text" className="fc" maxLength={50} value={quickName} onChange={(e) => setQuickName(e.target.value)} />
+          </div>
+          <div className="fg" style={{ flex: '1 1 140px', minWidth: 0 }}>
+            <label className="fl">{quickAccount.name === 'NISA口座' ? '評価額（任意）' : quickAccount.type === 'liability' ? '未払残高（任意）' : '残高（任意）'}</label>
+            <input type="text" inputMode="numeric" className="fc" placeholder="0" value={quickBalance} onChange={(e) => setQuickBalance(e.target.value)} />
+          </div>
+          <button className="btn btn-p" style={{ flex: '0 0 auto' }} onClick={saveQuickAccount}>登録する</button>
+          {quickAccount.type === 'liability' && (
+            <div style={{ flex: '1 1 100%', minWidth: 0, marginTop: 14, padding: 12, border: '1px solid var(--bd)', borderRadius: 6 }}>
+              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--ac)', marginBottom: 10 }}>CC設定</div>
+              <div className="form-row">
+                <div className="fg"><label className="fl">締め日（毎月）</label><input type="number" className="fc" min="1" max="31" placeholder="15" value={quickCcClose} onChange={(e) => setQuickCcClose(e.target.value)} /></div>
+                <div className="fg"><label className="fl">引落日（毎月）</label><input type="number" className="fc" min="1" max="31" placeholder="27" value={quickCcDay} onChange={(e) => setQuickCcDay(e.target.value)} /></div>
+              </div>
+              <div className="form-row mt-6">
+                <div className="fg"><label className="fl">引落月ずれ</label>
+                  <select className="fc" value={quickCcDelay} onChange={(e) => setQuickCcDelay(e.target.value)}>
+                    <option value="1">翌月</option><option value="2">翌々月</option>
+                  </select>
+                </div>
+                <div className="fg"><label className="fl">引落口座</label>
+                  <select className="fc" value={quickCcFrom} onChange={(e) => setQuickCcFrom(e.target.value)}>
+                    <option value="">— 選択 —</option>
+                    {quickAssetAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* 純資産テンプレ（NISA/iDeCo/証券/ローン）。クリックで内容を編集してから追加。再追加できるよう常に表示。 */}
-      <div className="card" style={{ marginBottom: 14, padding: '12px 16px' }}>
+      <div className="card" data-tour="acct-templates" style={{ marginBottom: 14, padding: '12px 16px' }}>
         <div style={{ fontSize: 12, color: 'var(--tx3)', marginBottom: 8 }}>
           💡 口座・カード・投資・ローンをテンプレから追加（クリックで内容を編集してから保存）
         </div>

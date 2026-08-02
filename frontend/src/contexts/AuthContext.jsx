@@ -128,6 +128,7 @@ export function AuthProvider({ children }) {
     return new Promise((resolve, reject) => {
       cognitoUser.confirmRegistration(code, true, (err, result) => {
         if (err) { setError(err.message); return reject(err); }
+        track('registered'); // 本登録完了（メール確認完了の瞬間=一意）。離脱計測と対になる獲得計測
         resolve(result);
       });
     });
@@ -199,8 +200,8 @@ export function AuthProvider({ children }) {
   }, [devMode, guestMode]);
 
   // アカウント削除: サーバーで全データ+Cognitoユーザーを削除し、ローカルセッションも破棄
-  const deleteAccount = useCallback(async () => {
-    await accountApi.remove();
+  const deleteAccount = useCallback(async (reason) => {
+    await accountApi.remove(reason);
     clearOAuth();
     const cur = userPool?.getCurrentUser();
     if (cur) cur.signOut();

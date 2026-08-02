@@ -130,6 +130,11 @@ export function DataProvider({ children }) {
 
   // 初回ロード
   useEffect(() => {
+    // ユーザー切り替え時、前ユーザーのデータ/復号鍵が新セッションの取得完了まで残らないよう即座に破棄する
+    setLoading(true);
+    applyDataset({});
+    setDek(null); setEncEnabled(false); setEncLocked(false); setEncBundle(null);
+
     if (!isAuthenticated) { setLoading(false); return; }
     if (guestMode) { loadLocalEncAware(GUEST_KEY); return; }
     if (devMode) { loadLocalEncAware(STORAGE_KEY); return; }
@@ -201,6 +206,22 @@ export function DataProvider({ children }) {
     setRecurring(newRecurring);
   }, [useLocal, encEnabled]);
 
+  // ── Presets（プリセット: サーバー保存付き。useLocal時はlocalStorageへ） ──
+  const savePresets = useCallback(async (newPresets) => {
+    if (!useLocal && !encEnabled) {
+      try { await api.presets.save(newPresets); } catch (e) { console.warn('presets save failed:', e?.message); }
+    }
+    setPresets(newPresets);
+  }, [useLocal, encEnabled]);
+
+  // ── Rules（自動仕訳ルール: サーバー保存付き。useLocal時はlocalStorageへ） ──
+  const saveRules = useCallback(async (newRules) => {
+    if (!useLocal && !encEnabled) {
+      try { await api.rules.save(newRules); } catch (e) { console.warn('rules save failed:', e?.message); }
+    }
+    setRules(newRules);
+  }, [useLocal, encEnabled]);
+
   const deleteJournal = useCallback(async (id) => {
     const removed = journals.find((j) => j.id === id);
     if (useLocal || encEnabled) { setJournals((prev) => prev.filter((j) => j.id !== id)); }
@@ -254,6 +275,34 @@ export function DataProvider({ children }) {
     await api.budgets.save(newBudgets);
     setBudgets(newBudgets);
   }, [useLocal, encEnabled]);
+
+  // ── サンプルデータ（ゲスト/ローカル体験用。sample:1 フラグ付き＝まとめて削除可能） ──
+  const loadSampleData = useCallback(() => {
+    const today = new Date();
+    const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const mAgo = (n, day) => fmt(new Date(today.getFullYear(), today.getMonth() - n, n === 0 ? Math.min(day, today.getDate()) : day));
+    const J = (date, desc, dr, cr, amount) => ({
+      id: uid(), date, desc: `【サンプル】${desc}`, sample: 1,
+      lines: [{ accountId: dr, side: 'dr', amount, taxRate: 0 }, { accountId: cr, side: 'cr', amount, taxRate: 0 }],
+    });
+    const list = [
+      J(mAgo(3, 25), '開始残高（普通預金）', 'a02', 'c01', 1250000),
+      J(mAgo(2, 25), '給与', 'a02', 'd01', 285000),
+      J(mAgo(2, 27), '家賃', 'e09', 'a02', 78000),
+      J(mAgo(2, 28), '食費まとめ（カード）', 'e01', 'b03', 42000),
+      J(mAgo(1, 5), '電気・ガス', 'e03', 'a02', 11800),
+      J(mAgo(1, 10), 'カード引き落とし', 'b03', 'a02', 42000),
+      J(mAgo(1, 25), '給与', 'a02', 'd01', 285000),
+      J(mAgo(1, 27), '家賃', 'e09', 'a02', 78000),
+      J(mAgo(0, 3), '食費まとめ（カード）', 'e01', 'b03', 38000),
+      J(mAgo(0, 5), '外食・レジャー', 'e07', 'a01', 6800),
+    ];
+    setJournals((prev) => [...prev.filter((j) => !j.sample), ...list]);
+  }, []);
+
+  const clearSampleData = useCallback(() => {
+    setJournals((prev) => prev.filter((j) => !j.sample));
+  }, []);
 
   // ── Export / Import ──
   const exportAll = useCallback(async () => {
@@ -380,7 +429,10 @@ export function DataProvider({ children }) {
     addAccount, updateAccount, deleteAccount,
     saveTags, saveWallets, saveBudgets,
     exportAll, importAll,
-    setPresets, setRecurring, setRules, setAllocs, saveRecurring,
+    setPresets, setRecurring, setRules, setAllocs, saveRecurring, savePresets, saveRules,
+    loadSampleData, clearSampleData,
+    sampleAvailable: useLocal,
+    hasSampleData: journals.some((j) => j.sample),
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

@@ -19,6 +19,7 @@ export function UIProvider({ children }) {
   const [hiddenNav, setHiddenNav] = useState(loadHidden);
   const [tourId, setTourId] = useState(null);      // 起動中のツアーID（null=なし）
   const [menuOpen, setMenuOpen] = useState(false); // チュートリアル選択メニュー
+  const [journalEntryRequested, setJournalEntryRequested] = useState(false);
 
   useEffect(() => {
     try { localStorage.setItem(HIDDEN_KEY, JSON.stringify(hiddenNav)); } catch {}
@@ -43,6 +44,8 @@ export function UIProvider({ children }) {
   }, []);
   const openMenu = useCallback(() => setMenuOpen(true), []);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
+  const requestJournalEntry = useCallback(() => setJournalEntryRequested(true), []);
+  const consumeJournalEntryRequest = useCallback(() => setJournalEntryRequested(false), []);
 
   const value = {
     currentPage, navigate,
@@ -51,6 +54,7 @@ export function UIProvider({ children }) {
     toggleNav,
     tourId, startTour, endTour,
     menuOpen, openMenu, closeMenu,
+    journalEntryRequested, requestJournalEntry, consumeJournalEntryRequest,
   };
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
 }

@@ -8,7 +8,7 @@ const emptyLine = (side = 'dr') => ({ accountId: '', side, amount: 0, tagId: '' 
 
 // プリセット編集（kakeibo.html の openPE/savePE を踏襲）
 export default function PresetModal({ open, onClose, editId, walletId, type }) {
-  const { accounts, tags, wallets, presets, setPresets } = useData();
+  const { accounts, tags, wallets, presets, savePresets } = useData();
   const toast = useToast();
 
   const [wlt, setWlt] = useState('');
@@ -61,9 +61,9 @@ export default function PresetModal({ open, onClose, editId, walletId, type }) {
     if (validLines.length < 1) { toast('少なくとも1行入力してください'); return; }
     const data = { walletId: wlt, type: ptype, name: name.trim(), desc: desc.trim(), lines: validLines };
     if (editId) {
-      setPresets((prev) => prev.map((p) => p.id === editId ? { ...p, ...data } : p));
+      savePresets(presets.map((p) => p.id === editId ? { ...p, ...data } : p));
     } else {
-      setPresets((prev) => [...prev, { id: uid(), ...data }]);
+      savePresets([...presets, { id: uid(), ...data }]);
     }
     toast('保存しました');
     onClose();

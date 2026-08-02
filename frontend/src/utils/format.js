@@ -3,6 +3,15 @@ export function fa(n) {
   return '¥' + Math.round(Math.abs(n)).toLocaleString('ja-JP');
 }
 
+/**
+ * 残高表示用。負のときだけ符号を付ける (¥1,234 / −¥1,234)。
+ * fa() は絶対値表示（仕訳帳の借方/貸方金額列などはそれが正しい）なので、
+ * BS・ダッシュボードの「残高」「合計」ではこちらを使い、マイナス残高を隠さない。
+ */
+export function faBal(n) {
+  return n < 0 ? '−' + fa(n) : fa(n);
+}
+
 /** 符号付き金額 (+¥1,234 / −¥1,234) */
 export function fas(n) {
   return n >= 0

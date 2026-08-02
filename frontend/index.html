@@ -25,7 +25,20 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body data-theme="light">
-  <div id="root"></div>
+  <div id="root">
+    <!-- 静的フォールバック：JS読込前・クローラ・非JS環境向け。Reactマウント時に置き換わる -->
+    <div style="max-width:640px;margin:0 auto;padding:48px 24px;font-family:'Manrope','Noto Sans JP',sans-serif;color:#14201f;line-height:1.9">
+      <h1 style="font-size:24px;margin-bottom:12px">kurofukubo — 純資産まで見える複式簿記の家計簿</h1>
+      <p style="color:#5d6b6a;margin-bottom:16px">kurofukubo（黒福簿）は、現金・預金・証券・NISA/iDeCo・ローンまで記録して、資産−負債＝<strong>純資産</strong>を自動で見える化する無料の家計簿アプリです。複式簿記がベースですが、「食費 1200 現金」のような一行入力・かんたんモードで、簿記の知識がなくても記帳できます。</p>
+      <ul style="color:#5d6b6a;margin:0 0 16px 1.4em">
+        <li>銀行・カードとの自動連携なし — 家計データを外部に渡さない設計</li>
+        <li>貸借対照表（BS）・損益計算書（PL）・純資産の推移グラフを自動作成</li>
+        <li>アカウント登録なしの「ゲスト」ですぐに試せます</li>
+      </ul>
+      <p style="color:#5d6b6a;margin-bottom:16px">このページはアプリ本体です。読み込みが完了すると自動で画面が表示されます。JavaScriptが無効の場合は有効にしてください。</p>
+      <p style="font-size:13px;color:#93a09e">サービス紹介・使い方ガイドは <a href="https://kurofukubo.com/" style="color:#0d9488">kurofukubo.com</a> ／ <a href="https://kurofukubo.com/guides.html" style="color:#0d9488">ガイド一覧</a> ／ <a href="https://kurofukubo.com/about.html" style="color:#0d9488">運営者について</a> ／ <a href="https://kurofukubo.com/privacy.html" style="color:#0d9488">プライバシーポリシー</a></p>
+    </div>
+  </div>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

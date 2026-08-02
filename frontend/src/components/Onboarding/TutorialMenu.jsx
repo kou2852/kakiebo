@@ -3,10 +3,11 @@ import Modal from '../Common/Modal';
 // 「はじめかた」のチュートリアル選択メニュー（A〜F）。
 const CATALOG = [
   { cat: 'はじめる', items: [
-    { id: 'firstRun', name: 'はじめてのツアー', desc: '残高入力→記帳→純資産まで30秒で体験' },
+    { id: 'firstRun', name: 'はじめてのツアー', desc: '口座登録→記帳→純資産まで30秒で体験' },
     { id: 'guestReg', name: 'ゲストから登録（データ引き継ぎ）', desc: '体験データを失わず登録する' },
   ] },
   { cat: '記帳を覚える', items: [
+    { id: 'journalDetail', name: '仕訳入力を詳しく見る', desc: '一行入力・かんたん/詳細・プリセット・タグまで一通り' },
     { id: 'simple', name: 'かんたんモードで記録', desc: '支出/収入/振替を選ぶだけ' },
     { id: 'preset', name: 'プリセットでワンタップ記帳', desc: 'よく使う取引を一発入力' },
     { id: 'credit', name: 'クレジットカードの記帳', desc: '利用→引落、二重計上を防ぐ' },

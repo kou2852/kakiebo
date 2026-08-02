@@ -9,7 +9,7 @@ import EmptyState from '../Common/EmptyState';
 import TagModal from './TagModal';
 
 export default function TagsPage() {
-  const { accounts, journals, tags, allocs, wallets, loading } = useData();
+  const { accounts, journals, tags, allocs, wallets, saveTags, loading } = useData();
   const { guestMode } = useAuth();
   const toast = useToast();
 
@@ -19,6 +19,14 @@ export default function TagsPage() {
       return;
     }
     setTagEditId(null); setTagModalOpen(true);
+  };
+  const openEditTag = (id) => { setTagEditId(id); setTagModalOpen(true); };
+  const deleteTag = async (t) => {
+    if (!confirm(`タグ「${t.name}」を削除しますか？`)) return;
+    try {
+      await saveTags(tags.filter((x) => x.id !== t.id));
+      toast('削除しました');
+    } catch { toast('削除に失敗しました'); }
   };
   const [sortKey, setSortKey] = useState('name');
   const [sortDir, setSortDir] = useState('asc');
@@ -119,8 +127,8 @@ export default function TagsPage() {
                       <td className="text-m">{t.note || ''}</td>
                       <td className="text-r mono">{fa(Math.max(0, tagTotals[t.id] || 0))}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>
-                        <button className="btn btn-g btn-s">編集</button>
-                        <button className="btn btn-d btn-s" style={{ marginLeft: 4 }}>削除</button>
+                        <button className="btn btn-g btn-s" onClick={() => openEditTag(t.id)}>編集</button>
+                        <button className="btn btn-d btn-s" style={{ marginLeft: 4 }} onClick={() => deleteTag(t)}>削除</button>
                       </td>
                     </tr>
                   ))}
@@ -159,7 +167,6 @@ export default function TagsPage() {
                     {d.defaultTag}: <span className="mono">{fa(d.free)}</span>
                   </div>
                 )}
-                <button className="btn btn-g btn-s mt-6">手動配分</button>
               </div>
             ))
           )}

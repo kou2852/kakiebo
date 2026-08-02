@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { useToast } from '../Common/Toast';
 import { HIDEABLE_NAV } from '../../config/nav';
+import { track } from '../../utils/track';
 import EncryptionPanel from './EncryptionPanel';
 
 export default function SettingsPage() {
@@ -15,12 +16,14 @@ export default function SettingsPage() {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [confirmText, setConfirmText] = useState('');
+  const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
 
   const handleDeleteAccount = async () => {
     setDeleting(true);
+    track('account_deleted'); // 離脱計測。イベント名のみ・理由はここに含めない（家計データではない自由記述は別途サーバーへ）
     try {
-      await deleteAccount();
+      await deleteAccount(deleteReason.trim() || undefined);
       // 成功すると未認証状態になりログイン画面へ自動遷移する
     } catch (err) {
       toast('削除に失敗しました: ' + (err.message || ''));
@@ -130,6 +133,12 @@ export default function SettingsPage() {
             <button className="btn btn-d" onClick={() => setConfirming(true)}>アカウントを削除</button>
           ) : (
             <div style={{ display: 'grid', gap: 10 }}>
+              <div>
+                <label className="fl" style={{ fontSize: 12, color: 'var(--tx2)' }}>削除の理由（任意・改善の参考にします）</label>
+                <textarea className="fc" value={deleteReason} onChange={(e) => setDeleteReason(e.target.value)}
+                  maxLength={500} rows={3} placeholder="よろしければ理由を教えてください"
+                  style={{ resize: 'vertical', fontFamily: 'inherit' }} />
+              </div>
               <p style={{ fontSize: 12, color: 'var(--tx2)' }}>
                 確認のため <strong>削除</strong> と入力してください。
               </p>
@@ -137,7 +146,7 @@ export default function SettingsPage() {
                 placeholder="削除" style={{ maxWidth: 200 }} />
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn btn-g" disabled={deleting}
-                  onClick={() => { setConfirming(false); setConfirmText(''); }}>キャンセル</button>
+                  onClick={() => { setConfirming(false); setConfirmText(''); setDeleteReason(''); }}>キャンセル</button>
                 <button className="btn btn-d" disabled={deleting || confirmText !== '削除'}
                   onClick={handleDeleteAccount}>
                   {deleting ? '削除中...' : '完全に削除する'}

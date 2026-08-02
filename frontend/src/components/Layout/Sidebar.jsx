@@ -112,6 +112,11 @@ export default function Sidebar({ currentPage, onNavigate, open, onClose, tier, 
       <div style={AD_CONFIG[tier]?.sidebar
         ? { borderTop: '1px solid var(--bd)', padding: '10px 0' }
         : { marginTop: 'auto', borderTop: '1px solid var(--bd)', padding: '10px 0' }}>
+        <a className="s-item" href="https://forms.gle/bWjXVifk6tQbEXpQ7" target="_blank" rel="noopener"
+          style={{ textDecoration: 'none' }}>
+          <span style={{ width: 16, textAlign: 'center', flexShrink: 0 }}>💬</span>
+          ご意見・お問い合わせ
+        </a>
         <div className="theme-toggle" onClick={handleThemeToggle}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="12" cy="12" r="5" />

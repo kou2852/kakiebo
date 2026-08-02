@@ -8,6 +8,7 @@ const PROMO_KEY = 'kk_guest_promo';
 // 上部に常時表示するゲスト誘導バナー
 export function GuestBanner() {
   const { exitGuest } = useAuth();
+  const { hasSampleData, clearSampleData } = useData();
   return (
     <div style={{
       position: 'sticky', top: 0, zIndex: 60, marginBottom: 12,
@@ -18,6 +19,7 @@ export function GuestBanner() {
       <span style={{ flex: 1, minWidth: 200 }}>
         🔒 ゲストモード — データはこの端末にのみ保存されます。
       </span>
+      {hasSampleData && <button className="btn btn-g btn-s" onClick={clearSampleData}>サンプルデータを削除</button>}
       <button className="btn btn-p btn-s" data-tour="register" onClick={exitGuest}>無料で登録 →</button>
     </div>
   );

@@ -50,6 +50,11 @@ export const tags = {
   save: (data) => request('/api/tags', { method: 'POST', body: JSON.stringify(data) }),
 };
 
+// ── Feedback ──
+export const feedback = {
+  send: (body) => request('/api/feedback', { method: 'POST', body: JSON.stringify({ body }) }),
+};
+
 // ── Wallets ──
 export const wallets = {
   list: () => request('/api/wallets'),
@@ -67,6 +72,16 @@ export const recurring = {
   save: (data) => request('/api/recurring', { method: 'POST', body: JSON.stringify(data) }),
 };
 
+// ── Presets（プリセット。全置換保存） ──
+export const presets = {
+  save: (data) => request('/api/presets', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ── Rules（自動仕訳ルール。全置換保存） ──
+export const rules = {
+  save: (data) => request('/api/rules', { method: 'POST', body: JSON.stringify(data) }),
+};
+
 // ── E2E暗号化データ（方式A: データセット全体を1ブロブ。bundle=鍵バンドル, ct=暗号文） ──
 export const encdata = {
   get: () => request('/api/encdata'),
@@ -81,5 +96,5 @@ export const data = {
 
 // ── Account (自分のアカウント削除) ──
 export const account = {
-  remove: () => request('/api/account', { method: 'DELETE' }),
+  remove: (reason) => request('/api/account', { method: 'DELETE', ...(reason ? { body: JSON.stringify({ reason }) } : {}) }),
 };

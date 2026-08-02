@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { fa, fas, PIE_COLORS } from '../../utils/format';
+import { fa, fas, faBal, PIE_COLORS } from '../../utils/format';
 import { calcBalances, accountBalance, filterByPeriod, getPeriodRange, monthlyTrend, netWorthTrend } from '../../utils/bookkeeping';
 import { pendingCounts, generateRecurring } from '../../utils/autoGen';
 import { useToast } from '../Common/Toast';
@@ -154,7 +154,7 @@ export default function Dashboard() {
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,.78)', fontWeight: 600, letterSpacing: '.04em' }}>純資産 — {periodNote}</div>
             <button className="tg-hero" onClick={() => setVis((v) => ({ ...v, net: !v.net }))}>{vis.net ? '非表示' : '表示'}</button>
           </div>
-          <div style={{ fontSize: 'clamp(26px,7vw,40px)', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', marginTop: 8, fontVariantNumeric: 'tabular-nums', wordBreak: 'break-all' }}>{mask(fa(netWorth), vis.net)}</div>
+          <div style={{ fontSize: 'clamp(26px,7vw,40px)', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', marginTop: 8, fontVariantNumeric: 'tabular-nums', wordBreak: 'break-all' }}>{mask(faBal(netWorth), vis.net)}</div>
           <div style={{ fontSize: 12.5, color: '#c8f5e9', marginTop: 6, fontWeight: 700 }}>前月末比　{mask(fas(nwDelta), vis.net)}</div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', flex: '2 1 300px' }}>
@@ -171,7 +171,7 @@ export default function Dashboard() {
             <div style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600 }}>総資産</div>
             <button className="tg-pill" onClick={() => setVis((v) => ({ ...v, assets: !v.assets }))}>{vis.assets ? '非表示' : '表示'}</button>
           </div>
-          <div style={{ fontSize: 23, fontWeight: 800, color: 'var(--tx)', marginTop: 7, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{mask(fa(totalAsset), vis.assets)}</div>
+          <div style={{ fontSize: 23, fontWeight: 800, color: 'var(--tx)', marginTop: 7, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{mask(faBal(totalAsset), vis.assets)}</div>
           <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 4 }}>資産合計</div>
         </div>
         <div style={statCard}>
@@ -179,7 +179,7 @@ export default function Dashboard() {
             <div style={{ fontSize: 11.5, color: 'var(--tx2)', fontWeight: 600 }}>負債</div>
             <button className="tg-pill" onClick={() => setVis((v) => ({ ...v, liab: !v.liab }))}>{vis.liab ? '非表示' : '表示'}</button>
           </div>
-          <div style={{ fontSize: 23, fontWeight: 800, color: 'var(--red)', marginTop: 7, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{mask(fa(totalLiability), vis.liab)}</div>
+          <div style={{ fontSize: 23, fontWeight: 800, color: 'var(--red)', marginTop: 7, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{mask(faBal(totalLiability), vis.liab)}</div>
           <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 4 }}>借入金・カード</div>
         </div>
       </div>
