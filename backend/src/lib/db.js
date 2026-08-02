@@ -29,6 +29,14 @@ export async function putItem(userId, sk, data, gsi1sk) {
   return item;
 }
 
+/** 固定PK配下にアイテム1件保存（ユーザー横断でのクエリ用） */
+export async function putGroupedItem(pk, sk, data) {
+  const { PK, SK, GSI1SK, ...safe } = data || {};
+  const item = { ...safe, PK: pk, SK: sk };
+  await ddb.send(new PutCommand({ TableName: TABLE, Item: item }));
+  return item;
+}
+
 /** アイテム1件削除 */
 export async function deleteItem(userId, sk) {
   await ddb.send(new DeleteCommand({

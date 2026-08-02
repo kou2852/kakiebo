@@ -4,7 +4,7 @@ Description: Kakeibo SaaS Backend
 
 Globals:
   Function:
-    Runtime: nodejs20.x
+    Runtime: nodejs24.x
     Timeout: 10
     MemorySize: 256
     Environment:
@@ -187,6 +187,10 @@ Resources:
           HttpMethod: "*"
           ThrottlingRateLimit: 25
           ThrottlingBurstLimit: 50
+        - ResourcePath: "/~1api~1feedback"
+          HttpMethod: POST
+          ThrottlingRateLimit: 2
+          ThrottlingBurstLimit: 5
       # CORS はゲートウェイ MOCK ではなく Lambda 側で ALLOWED_ORIGIN 環境変数から返す
       # （MOCK だと AllowedOrigin 変更が再デプロイで反映されない問題を回避）。
       # 各関数に Authorizer: NONE の OPTIONS イベントを定義してプリフライトを通す。
@@ -288,6 +292,30 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref KakeiboTable
 
+  FeedbackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/feedback.handler
+      CodeUri: .
+      Events:
+        SaveFeedback:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/feedback
+            Method: POST
+            Auth: { Authorizer: NONE }
+        OptionsFeedback:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/feedback
+            Method: OPTIONS
+            Auth: { Authorizer: NONE }
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref KakeiboTable
+
   SettingsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -335,6 +363,18 @@ Resources:
           Properties:
             RestApiId: !Ref KakeiboApi
             Path: /api/recurring
+            Method: POST
+        SavePresets:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/presets
+            Method: POST
+        SaveRules:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/rules
             Method: POST
         GetEncData:
           Type: Api
@@ -399,6 +439,20 @@ Resources:
           Properties:
             RestApiId: !Ref KakeiboApi
             Path: /api/recurring
+            Method: OPTIONS
+            Auth: { Authorizer: NONE }
+        OptionsPresets:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/presets
+            Method: OPTIONS
+            Auth: { Authorizer: NONE }
+        OptionsRules:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/rules
             Method: OPTIONS
             Auth: { Authorizer: NONE }
         OptionsEncData:

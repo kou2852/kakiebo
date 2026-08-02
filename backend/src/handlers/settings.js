@@ -108,6 +108,52 @@ export async function handler(event) {
     return created(items.map(strip));
   }
 
+  // ── Presets（プリセット: 全置換保存。削除・編集を反映） ──
+  if (path === '/api/presets' && method === 'POST') {
+    const body = parseBody(event);
+    if (!body) return badRequest('Invalid JSON');
+    const list = Array.isArray(body) ? body : [body];
+    for (const p of list) {
+      if (tooLong(p.name, 100)) return badRequest('名前は100文字以内です');
+      if (tooLong(p.desc, 200)) return badRequest('摘要は200文字以内です');
+    }
+    const existing = await queryByPrefix(userId, 'PRESET#');
+    if (existing.length) await batchDelete(userId, existing.map((x) => x.SK));
+    const items = list.map((p) => ({
+      SK: `PRESET#${p.id || uuid()}`,
+      id: p.id || uuid(),
+      walletId: p.walletId || '',
+      type: p.type || 'out',
+      name: p.name,
+      desc: p.desc || '',
+      lines: p.lines || [],
+    }));
+    if (items.length) await batchPut(userId, items);
+    return created(items.map(strip));
+  }
+
+  // ── Rules（自動仕訳ルール: 全置換保存。削除・編集を反映） ──
+  if (path === '/api/rules' && method === 'POST') {
+    const body = parseBody(event);
+    if (!body) return badRequest('Invalid JSON');
+    const list = Array.isArray(body) ? body : [body];
+    for (const r of list) {
+      if (tooLong(r.keyword, 100)) return badRequest('キーワードは100文字以内です');
+    }
+    const existing = await queryByPrefix(userId, 'RULE#');
+    if (existing.length) await batchDelete(userId, existing.map((x) => x.SK));
+    const items = list.map((r) => ({
+      SK: `RULE#${r.id || uuid()}`,
+      id: r.id || uuid(),
+      keyword: r.keyword,
+      drAccountId: r.drAccountId || '',
+      crAccountId: r.crAccountId || '',
+      tagId: r.tagId || '',
+    }));
+    if (items.length) await batchPut(userId, items);
+    return created(items.map(strip));
+  }
+
   // ── E2E暗号化データ（方式A: データセット全体を1ブロブで保管。鍵バンドルは平文鍵を含まない） ──
   if (path === '/api/encdata' && method === 'GET') {
     const item = await getItem(userId, 'ENCDATA');
@@ -192,6 +238,13 @@ export async function handler(event) {
 
   // ── アカウント削除（全データ削除 + Cognitoユーザー削除）──
   if (path === '/api/account' && method === 'DELETE') {
+    // 任意の退会理由。家計データではない自由記述のみ＝CloudWatch Logsに残すだけで外部送信はしない。
+    // データ削除前に記録する（削除後はユーザーに紐づく情報が残らないため）。
+    const body = parseBody(event);
+    if (body?.reason && typeof body.reason === 'string' && body.reason.trim()) {
+      console.log('ACCOUNT_DELETE_REASON', JSON.stringify({ reason: body.reason.trim().slice(0, 500) }));
+    }
+
     // 1. このユーザーの DynamoDB 全アイテムを削除
     const all = await queryAll(userId);
     if (all.length) await batchDelete(userId, all.map((i) => i.SK));
