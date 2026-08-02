@@ -1,5 +1,10 @@
 # Claude Design 用プロンプト — 管理ダッシュボードの見た目を整える
 
+> **2026-08-02 対応済み。** 下記の指摘はすべて `scripts/admin/server.mjs` へ反映済みで、
+> 未解決の課題ではない。プロトタイプ（`admin-dashboard-prototype.html`）も刷新前の状態のまま。
+> 次に見た目を直すときは、現行の `server.mjs` から作り直すこと。
+
+
 `docs/admin-dashboard-prototype.html` を添付して、以下をそのまま渡す。
 
 ---

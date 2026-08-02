@@ -257,26 +257,127 @@ const HTML = /* html */ `<!doctype html><html lang="ja"><head><meta charset="utf
   /* kurofukubo ライトテーマ配色（frontend/src/styles/variables.css と同一） */
   :root{--bg:#e8eaed;--bg1:#ffffff;--bg2:#ffffff;--bg3:#f8fafa;--bd:#e6ebec;--bd2:#d7dde0;--tx:#23262d;--tx2:#71767f;--tx3:#93a09e;--ac:#0d9488;--ac2:#0b7d72;--acb:rgba(13,148,136,.10);--actx:#ffffff;--grn:#15a06a;--red:#e0556a;}
   *{box-sizing:border-box}
-  body{margin:0;font-family:system-ui,"Segoe UI",sans-serif;background:var(--bg);color:var(--tx);font-size:14px;line-height:1.6}
-  header{position:sticky;top:0;display:flex;align-items:center;gap:14px;padding:14px 20px;background:var(--bg1);border-bottom:1px solid var(--bd);z-index:5}
-  header h1{font-size:16px;margin:0;font-weight:800}
+  body{margin:0;font-family:system-ui,"Segoe UI",sans-serif;background:var(--bg);color:var(--tx);font-size:14px;line-height:1.6;-webkit-text-size-adjust:100%}
+  header{position:sticky;top:0;display:flex;align-items:center;flex-wrap:wrap;gap:10px 14px;padding:12px 20px;background:var(--bg1);border-bottom:1px solid var(--bd);z-index:5}
+  header h1{font-size:15px;margin:0;font-weight:800;letter-spacing:-.01em}
   header .meta{font-size:12px;color:var(--tx3)}
   .grow{flex:1}
   select,button{font-family:inherit;font-size:13px;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:7px 12px;cursor:pointer}
   button.primary{background:var(--ac);color:var(--actx);border-color:var(--ac);font-weight:700}
   button.primary:hover{background:var(--ac2);border-color:var(--ac2)}
   button:disabled{opacity:.5;cursor:default}
-  main{padding:20px;max-width:1000px;margin:0 auto}
-  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
-  .kpi{background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:14px 16px;box-shadow:0 1px 2px rgba(20,24,40,.04),0 14px 30px -20px rgba(20,24,40,.20)}
-  .kpi .n{font-size:26px;font-weight:800;letter-spacing:-.02em;color:var(--tx)}
-  .kpi .l{font-size:12px;color:var(--tx2);margin-top:2px}
-  .kpi .s{font-size:11px;color:var(--tx3);margin-top:4px}
-  section{background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:16px 18px;margin-bottom:18px;box-shadow:0 1px 2px rgba(20,24,40,.04),0 14px 30px -20px rgba(20,24,40,.20)}
-  section h2{font-size:13px;margin:0 0 12px;color:var(--tx2);font-weight:700;letter-spacing:.03em}
+  main{padding:20px 20px 60px;max-width:1180px;margin:0 auto}
+
+  /* ── 見出し階層 ── */
+  .band{display:flex;align-items:baseline;gap:10px;margin:30px 2px 12px}
+  .band:first-child{margin-top:4px}
+  .band h2{font-size:12px;margin:0;color:var(--tx2);font-weight:800;letter-spacing:.12em}
+  .band .hint{font-size:11px;color:var(--tx3)}
+  section{background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:16px 18px;margin-bottom:14px;box-shadow:0 1px 2px rgba(20,24,40,.04),0 14px 30px -20px rgba(20,24,40,.20)}
+  section h3{font-size:12px;margin:0 0 12px;color:var(--tx2);font-weight:700;letter-spacing:.04em;display:flex;align-items:baseline;gap:8px}
+  section h3 small{font-weight:500;color:var(--tx3);letter-spacing:0}
+
+  /* ── 主要KPI ── */
+  .lead{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
+  .lead .kpi{background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:16px 18px;box-shadow:0 1px 2px rgba(20,24,40,.04),0 14px 30px -20px rgba(20,24,40,.20)}
+  .lead .kpi .l{font-size:12px;color:var(--tx2);font-weight:700}
+  .lead .kpi .n{font-size:40px;font-weight:800;letter-spacing:-.03em;line-height:1.15;margin-top:2px;font-variant-numeric:tabular-nums}
+  .lead .kpi .n u{font-size:15px;font-weight:700;text-decoration:none;color:var(--tx2);margin-left:3px}
+  .lead .kpi .s{font-size:11px;color:var(--tx3);margin-top:2px}
+  .lead .kpi.acc{border-color:var(--ac);box-shadow:0 1px 2px rgba(13,148,136,.10),0 14px 30px -20px rgba(13,148,136,.5)}
+  .lead .kpi.acc .n{color:var(--ac)}
+
+  /* 副次（小さく端に） */
+  .sub{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:baseline;padding:9px 16px;border:1px dashed var(--bd2);border-radius:10px;background:var(--bg3);margin-bottom:6px}
+  .sub .t{font-size:11px;color:var(--tx3);letter-spacing:.06em;font-weight:700}
+  .sub .i{font-size:12px;color:var(--tx2)}
+  .sub .i b{font-variant-numeric:tabular-nums;font-size:13px;color:var(--tx)}
+
+  /* ── 2カラム ── */
+  .cols{display:grid;grid-template-columns:1.35fr 1fr;gap:14px;align-items:start}
+  .cols3{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+
+  /* ── ファネル ── */
+  .fn{display:grid;gap:9px}
+  .fn-r{display:grid;grid-template-columns:132px minmax(120px,1fr) 74px 58px 96px;align-items:center;gap:10px}
+  .fn-l{font-size:13px;color:var(--tx);font-weight:600}
+  .fn-b{background:var(--bg);border-radius:6px;height:26px;overflow:hidden}
+  .fn-b span{display:block;height:100%;background:var(--ac);border-radius:6px}
+  .fn-n,.fn-p{text-align:right;font-variant-numeric:tabular-nums;font-size:13px}
+  .fn-n{font-weight:800}
+  .fn-n u{text-decoration:none;font-weight:600;font-size:11px;color:var(--tx3);margin-left:2px}
+  .fn-p{color:var(--tx2);font-weight:700}
+  .fn-hd{display:grid;grid-template-columns:132px minmax(120px,1fr) 74px 58px 96px;gap:10px;font-size:11px;color:var(--tx3);margin-bottom:2px}
+  .fn-hd div:nth-child(3),.fn-hd div:nth-child(4),.fn-hd div:nth-child(5){text-align:right}
+  .fn-s{text-align:right;font-variant-numeric:tabular-nums;font-size:13px;font-weight:700;color:var(--tx2)}
+  .fn-s u{display:block;text-decoration:none;font-size:10px;font-weight:600;color:var(--red);margin-top:-3px}
+  .fn-s.first{color:var(--tx3);font-weight:500}
+  .headline{display:flex;align-items:baseline;gap:8px 16px;margin:14px 0 0;padding-top:12px;border-top:1px solid var(--bd);flex-wrap:wrap}
+  .pair{display:inline-flex;align-items:baseline;gap:6px;white-space:nowrap}
+  .headline .k{font-size:12px;color:var(--tx2)}
+  .headline .v{font-size:26px;font-weight:800;color:var(--ac);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .headline .f{font-size:11px;color:var(--tx3);font-variant-numeric:tabular-nums}
+
+  /* ── 継続 ── */
+  .ret{display:grid;gap:10px}
+  .ret-r{display:grid;grid-template-columns:110px 1fr 76px;gap:10px;align-items:center}
+  .ret-l{font-size:13px;color:var(--tx)}
+  .ret-b{background:var(--bg);border-radius:6px;height:10px;overflow:hidden}
+  .ret-b span{display:block;height:100%;background:var(--grn);border-radius:6px}
+  .ret-v{text-align:right;font-variant-numeric:tabular-nums;font-size:13px;font-weight:700}
+  .ret-v u{text-decoration:none;font-weight:500;color:var(--tx3);font-size:11px;margin-left:4px}
+
+  /* ── 日別チャート ── */
+  .chart{display:flex;align-items:flex-end;gap:3px}
+  .col{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px}
+  .col .v{font-size:10px;color:var(--tx2);font-variant-numeric:tabular-nums;height:13px}
+  .col .track{width:100%;height:104px;display:flex;align-items:flex-end}
+  .col .b{width:100%;background:var(--ac);border-radius:3px 3px 0 0;min-height:2px}
+  .col .b.bot{background:var(--bd2);border-radius:2px 2px 0 0}
+  .col .x{font-size:9px;color:var(--tx3);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .chart.mini .track{height:34px}
+  .chart.rate .track{height:56px;position:relative}
+  .chart.rate .b{background:var(--bd2);position:relative;display:flex;align-items:flex-end}
+  .chart.rate .b i{display:block;width:100%;background:var(--ac);border-radius:3px 3px 0 0;min-height:2px}
+  .chart.rate .v{color:var(--ac);font-weight:700}
+  .chart.rate .v.zero{color:var(--tx3);font-weight:400}
+  .chart.mini .v{font-size:9px;color:var(--tx3)}
+  .peak{color:var(--red)!important;font-weight:700}
+  .legend{display:flex;gap:14px;font-size:11px;color:var(--tx3);margin-top:10px;flex-wrap:wrap}
+  .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;background:var(--ac);margin-right:5px}
+  .legend i.g{background:var(--bd2)}
+
+  /* ── イベント一覧 ── */
+  .grp{margin-bottom:14px}
+  .grp:last-child{margin-bottom:0}
+  .grp .gt{font-size:11px;font-weight:800;color:var(--ac);letter-spacing:.08em;padding-bottom:5px;border-bottom:1px solid var(--bd);margin-bottom:6px}
+  .ev{display:grid;grid-template-columns:1fr auto 62px;gap:10px;align-items:baseline;padding:4px 0}
+  .ev .n{font-size:13px}
+  .ev .n code{font-size:11px;color:var(--tx3);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin-left:6px;word-break:break-all}
+  .ev .u{font-size:10px;color:var(--tx3);border:1px solid var(--bd2);border-radius:999px;padding:0 6px;white-space:nowrap}
+  .ev .c{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;font-size:14px}
+  .ev .c em{font-style:normal;font-size:10px;color:var(--tx3);font-weight:500;margin-left:2px}
+
+  /* ── 日別の内訳（チップ） ── */
+  .day{display:grid;grid-template-columns:64px 1fr;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd)}
+  .day:last-child{border-bottom:0}
+  .day .d{font-size:12px;color:var(--tx2);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .chips{display:flex;flex-wrap:wrap;gap:5px}
+  .chip{display:inline-flex;align-items:baseline;gap:5px;background:var(--bg3);border:1px solid var(--bd);border-radius:999px;padding:1px 9px;font-size:12px;color:var(--tx2);max-width:100%}
+  .chip b{font-variant-numeric:tabular-nums;color:var(--tx)}
+  .chip.k{background:var(--acb);border-color:rgba(13,148,136,.25);color:var(--ac2)}
+  .chip.k b{color:var(--ac2)}
+  details.tour{border:0;background:none;margin:0;display:inline-block}
+  details.tour>summary{padding:1px 9px;border:1px dashed var(--bd2);border-radius:999px;background:transparent;font-size:12px;color:var(--tx3);font-weight:500;display:inline-flex;gap:5px;align-items:baseline}
+  details.tour>summary::before{font-size:9px}
+  details.tour>summary b{font-variant-numeric:tabular-nums;color:var(--tx2)}
+  details.tour .chips{margin-top:5px}
+
+  /* ── テーブル ── */
   table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
   th,td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--bd);white-space:nowrap}
-  th{color:var(--tx3);font-weight:600;font-size:12px}
+  tr:last-child td{border-bottom:0}
+  th{color:var(--tx3);font-weight:600;font-size:11px;letter-spacing:.04em}
   td.num,th.num{text-align:right}
   .bar{display:inline-block;height:8px;background:var(--ac);border-radius:4px;vertical-align:middle;margin-right:6px}
   .muted{color:var(--tx3)}
@@ -286,22 +387,57 @@ const HTML = /* html */ `<!doctype html><html lang="ja"><head><meta charset="utf
   .tabs{display:flex;gap:4px}
   .tabs button{border-radius:999px}
   .tabs button.on{background:var(--acb);border-color:var(--ac);color:var(--ac);font-weight:700}
-  .fb{border-bottom:1px solid var(--bd);padding:12px 0}
-  .fb:last-child{border-bottom:0}
-  .fb .when{font-size:11px;color:var(--tx3);margin-bottom:4px}
-  .fb .body{white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.8}
-  .fn{display:grid;gap:8px}
-  .fn-r{display:grid;grid-template-columns:150px 1fr 60px 60px;align-items:center;gap:10px}
-  .fn-l{font-size:13px;color:var(--tx2)}
-  .fn-b{background:var(--bg);border-radius:6px;height:22px;overflow:hidden}
-  .fn-b span{display:block;height:100%;background:var(--ac);border-radius:6px}
-  .fn-n,.fn-p{text-align:right;font-variant-numeric:tabular-nums;font-size:13px}
-  .fn-n{font-weight:700}
-  .fn-p{color:var(--tx3)}
-  @media(max-width:640px){.fn-r{grid-template-columns:110px 1fr 48px 52px;gap:6px}.fn-l{font-size:12px}}
+
+  /* ── 折りたたみ ── */
+  details{border:1px solid var(--bd);border-radius:12px;background:var(--bg2);margin-bottom:10px}
+  details summary{cursor:pointer;list-style:none;padding:11px 16px;font-size:12px;color:var(--tx2);font-weight:700;display:flex;align-items:center;gap:8px}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"▸";color:var(--tx3);font-size:10px}
+  details[open] summary::before{content:"▾"}
+  details summary span{font-weight:500;color:var(--tx3)}
+  details .in{padding:0 16px 14px}
+  .iplist{display:flex;flex-wrap:wrap;gap:4px 6px;font-size:11px;color:var(--tx2);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all}
+  .iplist span{background:var(--bg3);border:1px solid var(--bd);border-radius:6px;padding:1px 6px}
+  .foot{font-size:11px;color:var(--tx3);margin:14px 2px 0;display:flex;flex-wrap:wrap;gap:4px 18px}
+
+  /* ── ご意見 ── */
+  .fb{border:1px solid var(--bd);border-left:3px solid var(--acb);border-radius:12px;background:var(--bg2);padding:14px 18px;margin-bottom:10px}
+  .fb .when{font-size:11px;color:var(--tx3);margin-bottom:6px;font-variant-numeric:tabular-nums}
+  .fb .body{white-space:pre-wrap;word-break:break-word;font-size:15px;line-height:1.95;max-width:64ch;text-wrap:pretty}
+  .months{display:flex;flex-wrap:wrap;gap:8px}
+  .month{border:1px solid var(--bd);border-radius:10px;padding:8px 14px;background:var(--bg3);font-size:12px;color:var(--tx2)}
+  .month b{display:block;font-size:20px;font-weight:800;color:var(--tx);font-variant-numeric:tabular-nums;line-height:1.2}
+
+  @media(max-width:1180px){
+    .fn-r,.fn-hd{grid-template-columns:112px minmax(120px,1fr) 64px 88px}
+    .fn-p,.fn-hd div:nth-child(4){display:none}
+  }
+  @media(max-width:900px){
+    .cols,.cols3{grid-template-columns:1fr}
+    .lead{grid-template-columns:1fr 1fr}
+    .fn-r,.fn-hd{grid-template-columns:132px minmax(120px,1fr) 74px 58px 96px}
+    .fn-p,.fn-hd div:nth-child(4){display:block}
+  }
+  @media(max-width:640px){
+    main{padding:14px 12px 48px}
+    header{padding:10px 12px}
+    .lead{grid-template-columns:1fr;gap:10px}
+    .lead .kpi{padding:12px 14px}
+    .lead .kpi .n{font-size:32px}
+    .fn-r,.fn-hd{grid-template-columns:84px minmax(60px,1fr) 52px 84px;gap:6px}
+    .fn-p,.fn-hd div:nth-child(4){display:none}
+    .fn-l{font-size:12px}
+    .ret-r{grid-template-columns:92px 1fr 66px}
+    .col .v{display:none}
+    .col .x{font-size:8px}
+    .day{grid-template-columns:1fr;gap:4px}
+    .ev{grid-template-columns:1fr auto 52px}
+    .ev .n code{display:none}
+    section{padding:14px}
+  }
 </style></head><body>
 <header>
-  <h1>📊 kurofukubo 管理ダッシュボード</h1>
+  <h1>kurofukubo 管理ダッシュボード</h1>
   <span class="tabs">
     <button id="tab-access" class="on">アクセス</button>
     <button id="tab-feedback">ご意見</button>
@@ -322,7 +458,51 @@ const HTML = /* html */ `<!doctype html><html lang="ja"><head><meta charset="utf
 <script>
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function kpi(n, l, s){ return '<div class="kpi"><div class="n">'+n+'</div><div class="l">'+l+'</div>'+(s?'<div class="s">'+s+'</div>':'')+'</div>'; }
+
+// 主要KPI（大きく出す用）。unit は数字の後ろに付く小さい単位。
+function lead(n, unit, l, s, accent){
+  return '<div class="kpi'+(accent?' acc':'')+'"><div class="l">'+l+'</div>'
+       + '<div class="n">'+n+(unit?'<u>'+unit+'</u>':'')+'</div>'
+       + (s?'<div class="s">'+s+'</div>':'')+'</div>';
+}
+
+/* ── 自前イベント識別子の日本語化 ────────────────────────
+   unit: '人' = ブラウザごとに1回だけ送るイベント / '回' = 毎回送るイベント */
+const TOUR_STEP = {'welcome':'ようこそ','account-add':'口座の追加','networth':'純資産','done':'完了','sample':'サンプル'};
+const EV_MAP = {
+  app_open:        {g:'獲得',    ja:'起動',                   u:'回'},
+  app_first:       {g:'獲得',    ja:'初回起動（新規訪問者）', u:'人'},
+  auth_view:       {g:'獲得',    ja:'ログイン画面を見た',     u:'人'},
+  guest_start:     {g:'獲得',    ja:'ゲスト開始',             u:'回'},
+  guest_first:     {g:'獲得',    ja:'ゲスト開始',             u:'人'},
+  guest_return:    {g:'継続',    ja:'既存ゲストの再訪',       u:'回'},
+  journal_added:   {g:'獲得',    ja:'ゲストの記帳',           u:'回'},
+  first_journal:   {g:'獲得',    ja:'初回記帳',               u:'人'},
+  registered:      {g:'獲得',    ja:'登録',                   u:'人'},
+  retain_d1:       {g:'継続',    ja:'1日後に再訪',            u:'人'},
+  retain_d7:       {g:'継続',    ja:'7日後に再訪',            u:'人'},
+  retain_d30:      {g:'継続',    ja:'30日後に再訪',           u:'人'},
+  account_deleted: {g:'継続',    ja:'退会',                   u:'人'},
+  feedback_shown:  {g:'アンケート', ja:'アンケート表示',      u:'回'},
+  feedback_shown_monthly:{g:'アンケート', ja:'月次アンケート表示', u:'回'},
+  feedback_sent:   {g:'アンケート', ja:'アンケート送信',      u:'回'},
+  tour_done:       {g:'ツアー',  ja:'ツアー完走',             u:'回'},
+  tour_done_acted: {g:'ツアー',  ja:'完走かつ記帳',           u:'回'},
+  tour_sample:     {g:'ツアー',  ja:'サンプル閲覧',           u:'回'}
+};
+function evInfo(name){
+  if(EV_MAP[name]) return EV_MAP[name];
+  if(name.indexOf('tour_step_')===0){
+    const k = name.slice(10);
+    return {g:'ツアー', ja:'到達: '+(TOUR_STEP[k]||k), u:'回'};
+  }
+  if(name.indexOf('tour_skip_')===0){
+    const k = name.slice(10);
+    return {g:'ツアー', ja:'離脱: '+(TOUR_STEP[k]||k), u:'回'};
+  }
+  return {g:'その他', ja:name, u:'回'};
+}
+const GROUPS = ['獲得','ツアー','継続','アンケート','その他'];
 
 let tab = 'access';
 
@@ -349,28 +529,28 @@ async function loadFeedback(){
 }
 
 function renderFeedback(d){
-  let h = '<div class="kpis">';
-  h += kpi(d.total, 'ご意見の総数', 'アプリ内アンケート');
-  h += kpi(d.byMonth[0] ? d.byMonth[0].count : 0, '今月分', d.byMonth[0] ? d.byMonth[0].month : '—');
+  let h = '<div class="band"><h2>ご意見</h2><span class="hint">アプリ内アンケートの自由記述</span></div>';
+  h += '<div class="lead" style="grid-template-columns:repeat(2,minmax(0,1fr))">';
+  h += lead(d.total, '件', 'ご意見の総数', '全期間', true);
+  h += lead(d.byMonth[0] ? d.byMonth[0].count : 0, '件', '今月分', d.byMonth[0] ? d.byMonth[0].month : '—');
   h += '</div>';
 
   if(d.byMonth.length){
-    h += '<section><h2>月別の件数</h2><div class="wrap"><table><tr><th>月</th><th class="num">件数</th></tr>';
-    for(const m of d.byMonth) h += '<tr><td>'+esc(m.month)+'</td><td class="num">'+m.count+'</td></tr>';
-    h += '</table></div></section>';
+    h += '<section><h3>月別の件数</h3><div class="months">';
+    for(const m of d.byMonth) h += '<div class="month"><b>'+m.count+'</b>'+esc(m.month)+'</div>';
+    h += '</div></section>';
   }
 
-  h += '<section><h2>ご意見（新しい順）</h2>';
+  h += '<div class="band"><h2>本文（新しい順）</h2></div>';
   if(!d.items.length){
-    h += '<p class="muted">まだ届いていません。</p>';
+    h += '<section><p class="muted">まだ届いていません。</p></section>';
   }else{
     for(const it of d.items){
       h += '<div class="fb"><div class="when">'+esc((it.timestamp||'').replace('T',' ').slice(0,16))+'</div>'
          + '<div class="body">'+esc(it.body)+'</div></div>';
     }
   }
-  h += '</section>';
-  h += '<p class="muted" style="font-size:12px">匿名で保存されているため、送信者は特定できません。取得時刻: '+esc(d.generatedAt)+'</p>';
+  h += '<p class="foot"><span>匿名で保存されているため、送信者は特定できません。</span><span>取得時刻: '+esc(d.generatedAt)+'</span></p>';
   $('#root').innerHTML = h;
 }
 
@@ -391,98 +571,219 @@ async function load(){
 // 獲得ファネルと継続。人数は「ブラウザごとに1回だけ送るイベント」の数。
 function funnelSection(d){
   const f = d.events.funnel || [];
-  const has = f.some(x => x.count > 0);
-  let h = '<section><h2>獲得ファネル（人数・起動を100%とした割合）</h2>';
+  // 先頭（起動）が0なら分母が無く率を出せない。配信直後は registered など既存イベントだけが
+  // 値を持ち、それが満杯のバーとして描かれて誤読を招くため、揃うまでは表示しない。
+  const has = f.length > 0 && f[0].count > 0;
+  const ev = Object.fromEntries(d.events.total.map(e=>[e.name,e.count]));
+  let h = '<div class="cols">';
+  h += '<section><h3>獲得ファネル <small>人数（ブラウザ単位）／ 起動を100%とした割合</small></h3>';
   if(!has){
     h += '<p class="muted">計測イベントの配信直後です。数字が入るまで1日ほどお待ちください。'
        + '（既存の利用者は初回起動が済んでいるため、しばらくは実態より少なく出ます）</p>';
   }else{
     const max = Math.max(...f.map(x=>x.count), 1);
-    h += '<div class="fn">';
+    h += '<div class="fn-hd"><div>段階</div><div></div><div>人数</div><div>起動比</div><div>前段比</div></div><div class="fn">';
+    let prev = null;
     for(const s of f){
       const w = Math.round((s.count / max) * 100);
+      let step = '<div class="fn-s first">—</div>';
+      if(prev!=null && prev>0){
+        const sr = Math.round(s.count / prev * 1000) / 10;
+        const drop = prev - s.count;
+        step = '<div class="fn-s">'+sr+'%'+(drop>0?'<u>-'+drop+'人</u>':'')+'</div>';
+      }
       h += '<div class="fn-r"><div class="fn-l">'+esc(s.label)+'</div>'
          + '<div class="fn-b"><span style="width:'+w+'%"></span></div>'
-         + '<div class="fn-n">'+s.count+'人</div>'
-         + '<div class="fn-p">'+(s.rate==null?'—':s.rate+'%')+'</div></div>';
+         + '<div class="fn-n">'+s.count+'<u>人</u></div>'
+         + '<div class="fn-p">'+(s.rate==null?'—':s.rate+'%')+'</div>'
+         + step+'</div>';
+      prev = s.count;
     }
     h += '</div>';
     if(d.events.journalOfGuest!=null){
-      h += '<p class="muted" style="font-size:12px;margin:10px 0 0">'
-         + 'ゲスト開始した人のうち記帳まで到達: <strong>'+d.events.journalOfGuest+'%</strong></p>';
+      h += '<div class="headline"><span class="k">ゲスト開始した人のうち記帳まで到達</span>'
+         + '<span class="v">'+d.events.journalOfGuest+'%</span></div>';
     }
   }
   h += '</section>';
 
   const r = d.events.retention || [];
-  h += '<section><h2>継続（ゲスト開始した人を分母）</h2>';
+  h += '<div>';
+  h += '<section><h3>継続 <small>ゲスト開始した人が分母</small></h3>';
   if(!r.some(x=>x.count>0)){
     h += '<p class="muted">まだ計測できていません。retain_d1 は配信の翌日以降、d7 は7日後以降に出はじめます。</p>';
   }else{
-    h += '<div class="wrap"><table><tr><th>区分</th><th class="num">人数</th><th class="num">継続率</th></tr>';
-    for(const x of r) h += '<tr><td>'+esc(x.label)+'</td><td class="num">'+x.count+'</td><td class="num">'+(x.rate==null?'—':x.rate+'%')+'</td></tr>';
-    h += '</table></div>';
+    const rmax = Math.max(...r.map(x=>x.rate==null?0:x.rate), 1);
+    h += '<div class="ret">';
+    for(const x of r){
+      const w = Math.round(((x.rate==null?0:x.rate) / rmax) * 100);
+      h += '<div class="ret-r"><div class="ret-l">'+esc(x.label)+'</div>'
+         + '<div class="ret-b"><span style="width:'+w+'%"></span></div>'
+         + '<div class="ret-v">'+(x.rate==null?'—':x.rate+'%')+'<u>'+x.count+'人</u></div></div>';
+    }
+    h += '</div>';
   }
-  h += '<p class="muted" style="font-size:12px;margin:10px 0 0">'
-     + '起動回数(app_open) '+(d.events.appOpen||0)+' ／ 既存ゲストの再訪(guest_return) '+(d.events.guestReturn||0)+'</p>';
+  h += '<div class="headline">'
+     + '<span class="pair"><span class="k">起動 app_open</span><span class="v" style="font-size:20px">'+(d.events.appOpen||0)+'</span><span class="f">回</span></span>'
+     + '<span class="pair"><span class="k">既存ゲストの再訪 guest_return</span><span class="v" style="font-size:20px">'+(d.events.guestReturn||0)+'</span><span class="f">回</span></span></div>';
   h += '</section>';
+
+  h += '<section><h3>アクティベーション <small>記帳イベント ÷ ゲスト開始</small></h3>';
+  h += '<div class="headline" style="margin:0;padding:0;border:0">'
+     + '<span class="v" style="font-size:34px">'+(d.events.activation==null?'—':d.events.activation)+'</span>'
+     + '<span class="f">＝ 記帳イベント(journal_added) '+(ev.journal_added||0)+'回 ÷ ゲスト開始(guest_start) '+(ev.guest_start||0)+'回</span></div>';
+  h += '</section></div></div>';
   return h;
 }
 
 function render(d){
   $('#period').textContent = d.period.from ? (d.period.from+' 〜 '+d.period.to+'（直近'+d.period.days+'日）') : 'データなし';
   const o = d.opens;
-  let h = '<div class="kpis">';
-  h += kpi(d.registeredUsers==null?'—':d.registeredUsers, '登録ユーザー数', 'Cognito（数日ラグあり）');
-  h += kpi(o.human, '人間の訪問（オープン）', '実人数(distinct IP) '+o.humanDistinct);
-  h += kpi(o.humanDistinct, '実人数', '重複IPを除いた人数');
   const ev = Object.fromEntries(d.events.total.map(e=>[e.name,e.count]));
-  h += kpi(ev.guest_start||0, 'ゲスト開始', 'guest_start');
-  h += kpi(ev.journal_added||0, 'ゲスト記帳イベント', 'journal_added');
-  h += kpi(d.events.activation==null?'—':d.events.activation, 'アクティベーション', '記帳/ゲスト開始');
-  h += kpi(o.bot, 'ボット', 'self(自分) '+o.self);
-  h += '</div>';
 
+  // 1. 主役の数字
+  let h = '<div class="band"><h2>いま</h2><span class="hint">bot・self を除いた人間のアクセス</span></div>';
+  h += '<div class="lead">';
+  h += lead(d.registeredUsers==null?'—':d.registeredUsers, '人', '登録ユーザー数', 'Cognito（数日ラグあり）', true);
+  h += lead(o.humanDistinct, '人', '実人数', '重複IPを除いた人数');
+  h += lead(o.human, '回', '人間の訪問（オープン）', '1人あたり '+(o.humanDistinct?(o.human/o.humanDistinct).toFixed(1):'—')+'回');
+  h += '</div>';
+  h += '<div class="sub"><span class="t">ノイズ</span>'
+     + '<span class="i">ボット <b>'+o.bot+'</b> 回</span>'
+     + '<span class="i">self（自分） <b>'+o.self+'</b> 回</span>'
+     + '<span class="i">全オープン <b>'+o.total+'</b> 回</span></div>';
+
+  // 2. ファネルと継続
+  h += '<div class="band"><h2>獲得と継続</h2><span class="hint">計測開始直後は実態より少なく出ます</span></div>';
   h += funnelSection(d);
 
-  // 日別オープン
-  h += '<section><h2>日別オープン（人間 / bot / self）</h2><div class="wrap"><table><tr><th>日付</th><th class="num">人間</th><th class="num">bot</th><th class="num">self</th></tr>';
-  const maxH = Math.max(1, ...d.byDay.map(r=>r.human));
-  for(const r of d.byDay){ h += '<tr><td>'+r.date+'</td><td class="num"><span class="bar" style="width:'+Math.round(r.human/maxH*70)+'px"></span>'+r.human+'</td><td class="num muted">'+r.bot+'</td><td class="num muted">'+r.self+'</td></tr>'; }
-  if(!d.byDay.length) h += '<tr><td class="muted" colspan="4">データなし</td></tr>';
-  h += '</table></div></section>';
+  // 3. 日別オープン（人間 / bot を別スケールで）
+  h += '<div class="band"><h2>推移</h2><span class="hint">直近'+d.period.days+'日</span></div>';
+  h += '<section><h3>日別オープン <small>人間（回）</small></h3>';
+  if(!d.byDay.length){
+    h += '<p class="muted">データなし</p>';
+  }else{
+    const maxH = Math.max(1, ...d.byDay.map(r=>r.human));
+    const maxB = Math.max(1, ...d.byDay.map(r=>r.bot));
+    h += '<div class="chart">';
+    for(const r of d.byDay){
+      const md = r.date.slice(5).replace('-','/');
+      h += '<div class="col" title="'+r.date+' 人間'+r.human+' / bot'+r.bot+' / self'+r.self+'">'
+         + '<div class="v">'+r.human+'</div>'
+         + '<div class="track"><div class="b" style="height:'+Math.max(2,Math.round(r.human/maxH*100))+'%"></div></div>'
+         + '<div class="x">'+md+'</div></div>';
+    }
+    h += '</div>';
+    h += '<h3 style="margin:20px 0 8px">bot・self <small>人間とは別スケール</small></h3>';
+    h += '<div class="chart mini">';
+    for(const r of d.byDay){
+      h += '<div class="col" title="'+r.date+' bot'+r.bot+' / self'+r.self+'">'
+         + '<div class="v'+(r.bot===maxB?' peak':'')+'">'+r.bot+'</div>'
+         + '<div class="track"><div class="b bot" style="height:'+Math.max(2,Math.round(r.bot/maxB*100))+'%"></div></div>'
+         + '</div>';
+    }
+    h += '</div>';
+    h += '<div class="legend"><span><i></i>人間（回）</span><span><i class="g"></i>bot（回）</span>'
+       + '<span>self 合計 '+o.self+'回</span></div>';
+  }
+  h += '</section>';
 
-  // 媒体別
-  h += '<section><h2>人間の流入 媒体別（utm_sourceのみ。タグ無しは媒体不明）</h2><div class="wrap"><table><tr><th>媒体</th><th class="num">件数</th><th class="num">実人数</th></tr>';
+  // 4. 自前イベント（種類ごと）
+  h += '<div class="band"><h2>自前イベント計測</h2><span class="hint">/_e/*（bot・self除外）／「人」= ブラウザごとに1回、「回」= 毎回</span></div>';
+  h += '<div class="cols">';
+  h += '<section><h3>期間合計</h3>';
+  if(!d.events.total.length){
+    h += '<p class="muted">まだイベントがありません</p>';
+  }else{
+    const byGroup = {};
+    for(const e of d.events.total){
+      const info = evInfo(e.name);
+      (byGroup[info.g] = byGroup[info.g] || []).push({e:e, i:info});
+    }
+    for(const g of GROUPS){
+      const rows = byGroup[g];
+      if(!rows) continue;
+      h += '<div class="grp"><div class="gt">'+g+'</div>';
+      for(const r of rows){
+        h += '<div class="ev"><div class="n">'+esc(r.i.ja)+'<code>'+esc(r.e.name)+'</code></div>'
+           + '<div class="u">'+r.i.u+'</div>'
+           + '<div class="c">'+r.e.count+'<em>'+r.i.u+'</em></div></div>';
+      }
+      h += '</div>';
+    }
+  }
+  h += '</section>';
+
+  // 5. 日別の内訳（チップ）
+  h += '<section><h3>日別のゲスト開始と記帳 <small>棒=ゲスト開始（回）／濃色=記帳／数字=記帳率</small></h3>';
+  if(!d.events.byDay.length){
+    h += '<p class="muted">データなし</p>';
+  }else{
+    const gmax = Math.max(1, ...d.events.byDay.map(r=>r.counts.guest_start||0));
+    h += '<div class="chart rate">';
+    for(const r of d.events.byDay){
+      const g = r.counts.guest_start || 0;
+      const j = r.counts.journal_added || 0;
+      const rate = g ? Math.round(j/g*1000)/10 : null;
+      h += '<div class="col" title="'+r.date+' ゲスト開始'+g+'回 / 記帳'+j+'回">'
+         + '<div class="v'+(j?'':' zero')+'">'+(rate==null?'—':rate+'%')+'</div>'
+         + '<div class="track"><div class="b" style="height:'+Math.max(2,Math.round(g/gmax*100))+'%">'
+         + (j?'<i style="height:'+Math.min(100,Math.round(j/Math.max(g,1)*100))+'%"></i>':'')+'</div></div>'
+         + '<div class="x">'+r.date.slice(5).replace('-','/')+'</div></div>';
+    }
+    h += '</div>';
+
+    h += '<h3 style="margin:20px 0 8px">日別の内訳</h3>';
+    for(const r of d.events.byDay){
+      const entries = Object.entries(r.counts).sort((a,b)=>b[1]-a[1]);
+      const main = entries.filter(en=>evInfo(en[0]).g!=='ツアー');
+      const tour = entries.filter(en=>evInfo(en[0]).g==='ツアー');
+      const tourSum = tour.reduce((a,en)=>a+en[1], 0);
+      h += '<div class="day"><div class="d">'+r.date.slice(5).replace('-','/')+'</div><div class="chips">';
+      for(const en of main){
+        const info = evInfo(en[0]);
+        const key = (en[0]==='guest_start'||en[0]==='journal_added'||en[0]==='registered');
+        h += '<span class="chip'+(key?' k':'')+'" title="'+esc(en[0])+'">'+esc(info.ja)+' <b>'+en[1]+'</b></span>';
+      }
+      if(tour.length){
+        h += '<details class="tour"><summary>ツアー '+tour.length+'種 <b>'+tourSum+'</b></summary><div class="chips">';
+        for(const en of tour){
+          h += '<span class="chip" title="'+esc(en[0])+'">'+esc(evInfo(en[0]).ja)+' <b>'+en[1]+'</b></span>';
+        }
+        h += '</div></details>';
+      }
+      h += '</div></div>';
+    }
+  }
+  h += '</section></div>';
+
+  // 6. 流入
+  h += '<div class="band"><h2>流入</h2></div>';
+  h += '<div class="cols3">';
+  h += '<section><h3>媒体別 <small>utm_sourceのみ。タグ無しは媒体不明</small></h3><div class="wrap"><table><tr><th>媒体</th><th class="num">件数</th><th class="num">実人数</th></tr>';
   for(const r of d.bySrc){ h += '<tr><td>'+esc(r.src)+'</td><td class="num">'+r.count+'</td><td class="num muted">'+r.distinct+'</td></tr>'; }
   if(!d.bySrc.length) h += '<tr><td class="muted" colspan="3">データなし</td></tr>';
   h += '</table></div></section>';
 
-  // 自前イベント日別
-  h += '<section><h2>自前イベント計測 /_e/*（bot・self除外）</h2><div class="wrap"><table><tr><th>種別</th><th class="num">合計</th></tr>';
-  for(const e of d.events.total){ h += '<tr><td>'+esc(e.name)+'</td><td class="num">'+e.count+'</td></tr>'; }
-  if(!d.events.total.length) h += '<tr><td class="muted" colspan="2">まだイベントがありません</td></tr>';
-  h += '</table></div>';
-  if(d.events.byDay.length){
-    h += '<div class="wrap" style="margin-top:12px"><table><tr><th>日付</th><th>内訳</th></tr>';
-    for(const r of d.events.byDay){ h += '<tr><td>'+r.date+'</td><td class="muted">'+esc(Object.entries(r.counts).map(([n,c])=>n+'='+c).join('  '))+'</td></tr>'; }
-    h += '</table></div>';
-  }
-  h += '</section>';
-
-  // 参照元
-  h += '<section><h2>参照元 上位</h2><div class="wrap"><table><tr><th class="num">件数</th><th>Referer</th></tr>';
+  h += '<section><h3>参照元 上位</h3><div class="wrap"><table><tr><th class="num">件数</th><th>Referer</th></tr>';
   for(const r of d.refs){ h += '<tr><td class="num">'+r.count+'</td><td class="ref">'+esc(r.ref)+'</td></tr>'; }
   if(!d.refs.length) h += '<tr><td class="muted" colspan="2">データなし</td></tr>';
   h += '</table></div></section>';
+  h += '</div>';
 
-  // ボットUA
-  h += '<section><h2>ボットUA 上位（参考）</h2><div class="wrap"><table><tr><th class="num">件数</th><th>User-Agent</th></tr>';
+  // 7. 参考情報（折りたたみ）
+  h += '<div class="band"><h2>参考</h2></div>';
+  h += '<details><summary>ボットUA 上位 <span>'+d.botUa.length+'件</span></summary><div class="in"><div class="wrap"><table><tr><th class="num">件数</th><th>User-Agent</th></tr>';
   for(const r of d.botUa){ h += '<tr><td class="num">'+r.count+'</td><td class="ref">'+esc(r.ua)+'</td></tr>'; }
   if(!d.botUa.length) h += '<tr><td class="muted" colspan="2">データなし</td></tr>';
-  h += '</table></div></section>';
+  h += '</table></div></div></details>';
 
-  h += '<p class="muted" style="font-size:12px">集計時刻: '+esc(d.generatedAt)+' ／ 対象ログファイル '+d.fileCount+'件・'+d.totalRows+'行 ／ 自分IP: '+(d.selfIps.join(', ')||'なし')+'</p>';
+  h += '<details><summary>自分IP <span>'+d.selfIps.length+'件</span></summary><div class="in"><div class="iplist">';
+  for(const ip of d.selfIps) h += '<span>'+esc(ip)+'</span>';
+  if(!d.selfIps.length) h += '<span class="muted">なし</span>';
+  h += '</div></div></details>';
+
+  h += '<p class="foot"><span>集計時刻 '+esc(d.generatedAt)+'</span><span>対象ログファイル '+d.fileCount+'件・'+d.totalRows+'行</span><span>自分IP '+d.selfIps.length+'件</span></p>';
   $('#root').innerHTML = h;
 }
 
