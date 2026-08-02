@@ -86,7 +86,7 @@ export default function AccountModal({ open, onClose, editId, defaultType, prefi
           const lines = type === 'asset'
             ? [{ accountId: created.id, side: 'dr', amount: bal, taxRate: 0 }, { accountId: EQUITY_ID, side: 'cr', amount: bal, taxRate: 0 }]
             : [{ accountId: EQUITY_ID, side: 'dr', amount: bal, taxRate: 0 }, { accountId: created.id, side: 'cr', amount: bal, taxRate: 0 }];
-          await addJournal({ date: new Date().toISOString().slice(0, 10), desc: `開始残高（${name.trim()}）`, lines });
+          await addJournal({ date: new Date().toISOString().slice(0, 10), desc: `開始残高（${name.trim()}）`, lines }, { silent: true });
         }
       }
       toast('保存しました');

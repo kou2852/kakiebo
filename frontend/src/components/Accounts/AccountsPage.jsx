@@ -123,7 +123,7 @@ export default function AccountsPage() {
         const lines = quickAccount.type === 'asset'
           ? [{ accountId: created.id, side: 'dr', amount: balance, taxRate: 0 }, { accountId: EQUITY_ID, side: 'cr', amount: balance, taxRate: 0 }]
           : [{ accountId: EQUITY_ID, side: 'dr', amount: balance, taxRate: 0 }, { accountId: created.id, side: 'cr', amount: balance, taxRate: 0 }];
-        await addJournal({ date: new Date().toISOString().slice(0, 10), desc: `開始残高（${name}）`, lines });
+        await addJournal({ date: new Date().toISOString().slice(0, 10), desc: `開始残高（${name}）`, lines }, { silent: true });
       }
       setQuickAccount(QUICK_ACCOUNT_TYPES[0]);
       setQuickName(QUICK_ACCOUNT_TYPES[0].name);

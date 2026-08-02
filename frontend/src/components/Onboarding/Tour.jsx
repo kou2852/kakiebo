@@ -209,10 +209,14 @@ export default function Tour({ tourId, onClose, onNavigate, onOpenSidebar, onSta
   const next = useCallback(() => setI((v) => Math.min(steps.length - 1, v + 1)), [steps.length]);
   const prev = useCallback(() => setI((v) => Math.max(0, v - 1)), []);
   // 計測はイベント名のみ（完走 tour_done(_acted) / 離脱 tour_skip_<step> / 進行 tour_step_<step>）。家計データは送らない。firstRunのみ。
+  // 「実際に記帳した」の判定に使う件数。サンプル投入（sample）と、口座の開始残高など
+  // アプリが自動で作る仕訳（auto）は、ユーザーの記帳ではないので数えない。
+  const actedCount = () => journals.filter((j) => !j.sample && !j.auto).length;
+
   const finish = () => {
     if (tourId === 'firstRun') {
       // ツアー中に実際に記帳したかで完走イベントを分ける（偽の完走を区別）
-      track(journals.length > journalsAtTourStart.current ? 'tour_done_acted' : 'tour_done');
+      track(actedCount() > journalsAtTourStart.current ? 'tour_done_acted' : 'tour_done');
     }
     onClose();
   };
@@ -226,7 +230,7 @@ export default function Tour({ tourId, onClose, onNavigate, onOpenSidebar, onSta
   };
   // 完了ステップの連鎖ボタン：firstRunの完走を記録してから次のツアーへ
   const chainTo = (t) => {
-    if (tourId === 'firstRun') track(journals.length > journalsAtTourStart.current ? 'tour_done_acted' : 'tour_done');
+    if (tourId === 'firstRun') track(actedCount() > journalsAtTourStart.current ? 'tour_done_acted' : 'tour_done');
     if (onStartTour) onStartTour(t); else onClose();
   };
   // 「サンプルで見る」：数か月分のサンプル仕訳を投入し、純資産ステップへジャンプ
@@ -240,7 +244,7 @@ export default function Tour({ tourId, onClose, onNavigate, onOpenSidebar, onSta
   const showSample = step.key === 'welcome' && sampleAvailable && journals.length === 0;
 
   // ツアー切替時は先頭から。開始時点の記帳数を控える（完走イベントの区別用）
-  useEffect(() => { setI(0); journalsAtTourStart.current = journals.length; /* eslint-disable-line react-hooks/exhaustive-deps */ }, [tourId]);
+  useEffect(() => { setI(0); journalsAtTourStart.current = actedCount(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [tourId]);
 
   // ステップ開始：コンテンツ系は対象ページへ移動／ナビ系はサイドバーを開く。記帳数・科目数を記録＋進行計測。
   useEffect(() => {

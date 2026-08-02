@@ -206,20 +206,28 @@ function analyze(days) {
 
   // 獲得ファネル。各段はブラウザごとに1回だけ発火するイベント＝「人数」として読める。
   // 起動(app_first)を分母に、どこで落ちているかを見る。
+  // auth_view はここに入れない：?guest で来た人はログイン画面を通らないため、
+  // 「ログイン画面を見た」は「ゲスト開始」の上位集合にならず、前段比が意味を持たない。
   const funnel = [
     { key: 'app_first', label: '起動（新規訪問）', count: n('app_first') },
-    { key: 'auth_view', label: 'ログイン画面を見た', count: n('auth_view') },
     { key: 'guest_first', label: 'ゲスト開始', count: n('guest_first') },
     { key: 'first_journal', label: '初回記帳', count: n('first_journal') },
     { key: 'registered', label: '登録', count: n('registered') },
   ];
   const base = funnel[0].count;
   for (const f of funnel) f.rate = base ? Number(((f.count / base) * 100).toFixed(1)) : null;
-  // ゲスト開始した人のうち記帳まで行った割合（入口を通過した後の詰まり具合）
-  const gf = n('guest_first');
-  const journalOfGuest = gf ? Number(((n('first_journal') / gf) * 100).toFixed(1)) : null;
+
+  // 入口の内訳。ログイン画面に当たった人と、LPから ?guest で直行した人の比率。
+  const av = n('auth_view');
+  const entry = {
+    authView: av,
+    authRate: base ? Number(((av / base) * 100).toFixed(1)) : null,
+    direct: Math.max(0, base - av),
+    directRate: base ? Number((((base - av) / base) * 100).toFixed(1)) : null,
+  };
 
   // 継続。分母は「ゲスト開始した人」。d1 ≥ d7 ≥ d30 の絞り込みになる。
+  const gf = n('guest_first');
   const retention = [
     { key: 'retain_d1', label: '翌日以降に再訪', count: n('retain_d1') },
     { key: 'retain_d7', label: '7日以降に再訪', count: n('retain_d7') },
@@ -231,7 +239,7 @@ function analyze(days) {
     total: Object.entries(evTotal).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count })),
     activation: gs ? Number((ja / gs).toFixed(2)) : null,
     byDay: Object.entries(evByDayMap).sort().map(([date, m]) => ({ date, counts: m })),
-    funnel, journalOfGuest, retention,
+    funnel, entry, retention,
     appOpen: n('app_open'), guestReturn: n('guest_return'),
   };
 
@@ -602,9 +610,13 @@ function funnelSection(d){
       prev = s.count;
     }
     h += '</div>';
-    if(d.events.journalOfGuest!=null){
-      h += '<div class="headline"><span class="k">ゲスト開始した人のうち記帳まで到達</span>'
-         + '<span class="v">'+d.events.journalOfGuest+'%</span></div>';
+    const en = d.events.entry;
+    if(en && en.authRate!=null){
+      // ログイン画面は ?guest で来た人が通らないため、ファネルの段には入れず内訳として出す
+      h += '<div class="headline"><span class="pair"><span class="k">ログイン画面に当たった</span>'
+         + '<span class="v" style="font-size:20px">'+en.authRate+'%</span><span class="f">'+en.authView+'人</span></span>'
+         + '<span class="pair"><span class="k">LPから直行（?guest）</span>'
+         + '<span class="v" style="font-size:20px">'+en.directRate+'%</span><span class="f">'+en.direct+'人</span></span></div>';
     }
   }
   h += '</section>';
@@ -630,7 +642,7 @@ function funnelSection(d){
      + '<span class="pair"><span class="k">既存ゲストの再訪 guest_return</span><span class="v" style="font-size:20px">'+(d.events.guestReturn||0)+'</span><span class="f">回</span></span></div>';
   h += '</section>';
 
-  h += '<section><h3>アクティベーション <small>記帳イベント ÷ ゲスト開始</small></h3>';
+  h += '<section><h3>アクティベーション <small>記帳イベント ÷ ゲスト開始（どちらも回数。人あたりではなく訪問あたり）</small></h3>';
   h += '<div class="headline" style="margin:0;padding:0;border:0">'
      + '<span class="v" style="font-size:34px">'+(d.events.activation==null?'—':d.events.activation)+'</span>'
      + '<span class="f">＝ 記帳イベント(journal_added) '+(ev.journal_added||0)+'回 ÷ ゲスト開始(guest_start) '+(ev.guest_start||0)+'回</span></div>';

@@ -176,18 +176,23 @@ export function DataProvider({ children }) {
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
   // ── Journals CRUD ──
-  const addJournal = useCallback(async (data) => {
-    const newJ = { id: uid(), ...data };
+  // opts.silent: 口座の開始残高のように「アプリが自動で作る仕訳」。簿記上は正しい仕訳だが、
+  // 「ユーザーが取引を記帳した」という指標には含めない（口座を登録しただけで記帳到達に
+  // なってしまうため）。目印の auto はローカル状態にだけ持つ（サーバーは既知の項目しか
+  // 保存しないので、リロードすると消える。ツアーの判定はセッション内で完結するため足りる）。
+  const addJournal = useCallback(async (data, opts = {}) => {
+    const silent = !!opts.silent;
+    const newJ = { id: uid(), ...data, ...(silent ? { auto: 1 } : {}) };
     // 初回記帳は登録の有無にかかわらず計上する。journal_added は記帳のたびに出る
     // 「回数」なので、何人が記帳に到達したかはこちらで見る。
-    trackOnce('first_journal');
+    if (!silent) trackOnce('first_journal');
     if (useLocal || encEnabled) {
       setJournals((prev) => [...prev, newJ]);
-      if (guestMode) track('journal_added'); // ゲストの記帳はサーバに残らないため件数のみ計測
+      if (guestMode && !silent) track('journal_added'); // ゲストの記帳はサーバに残らないため件数のみ計測
       return newJ;
     }
     const created = await api.journals.create(data);
-    setJournals((prev) => [...prev, created]);
+    setJournals((prev) => [...prev, silent ? { ...created, auto: 1 } : created]);
     return created;
   }, [useLocal, encEnabled, guestMode]);
 
