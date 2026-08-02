@@ -1,0 +1,8 @@
+# cmd.exe はバッチファイルの行区切りに CRLF を要求する。LF のままだと行が連結され、
+# 「'...echo' は、内部コマンドまたは外部コマンドとして認識されていません」で落ちる。
+# チェックアウト先の環境やGitの設定に関わらず CRLF を強制する。
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# シェルスクリプトは逆に CRLF だと動かないので LF を強制する
+*.sh text eol=lf
