@@ -25,7 +25,9 @@ const TABLE = 'kakeibo-prod'; // DynamoDB（ご意見は固定PK 'FEEDBACK' 配�
 const CACHE_DIR = join(__dirname, '.cache-cflogs');
 
 // analyze-cflogs.mjs と同一の判定ルール
-const SELF_PREFIXES = ['240d:f:a2c:6300', '240d:1f:a2c:6300']; // 既知の自分IPプレフィックス（変動あり）
+// 既知の自分IPプレフィックス（変動あり）。IPv6は再接続で変わるため、増えたら追記する。
+// 判定は前方一致なので、除外漏れに気づいたら `curl https://api64.ipify.org` で現IPを確認して足す。
+const SELF_PREFIXES = ['240d:f:a2c:6300', '240d:1f:a2c:6300', '240f:6e:e188:'];
 const BOT = /bot|spider|crawl|checker|ruby|preview|slurp|fetch|facebookexternalhit|embedly|monitoring|headless|curl|wget|python-requests|python-httpx|okhttp|axios|node-fetch|libwww|winhttp|go-http-client|scan|nmap|nikto|sqlmap|masscan|censys|shodan|palo alto networks/i;
 const SUSPICIOUS_QUERY = /phpinfo|\.env(\W|$)|wp-admin|wp-login|eval\(|union(\s|%20)+select|\.\.\/|etc\/passwd/i;
 const dec = (s) => { try { return decodeURIComponent(s); } catch { return s; } };
