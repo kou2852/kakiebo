@@ -44,3 +44,9 @@ ds-bundle/
 .design-sync/.cache/
 .design-sync/learnings/
 .design-sync/node_modules/
+
+# Claude Design が出力した自己完結HTML（10MB超。lp/index.html へ移植済みのため原本は追跡しない）
+黒福簿LP（スタンドアロン）.html
+
+# 管理ダッシュボードのCloudFrontログ取得キャッシュ
+scripts/admin/.cache-cflogs/
