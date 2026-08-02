@@ -579,7 +579,9 @@ function funnelSection(d){
   h += '<section><h3>獲得ファネル <small>人数（ブラウザ単位）／ 起動を100%とした割合</small></h3>';
   if(!has){
     h += '<p class="muted">計測イベントの配信直後です。数字が入るまで1日ほどお待ちください。'
-       + '（既存の利用者は初回起動が済んでいるため、しばらくは実態より少なく出ます）</p>';
+       + '（判定に使う localStorage のキーは計測導入時点では誰も持っていないため、'
+       + '長く使っている人も次の訪問で1回ずつ計上されます。最初の数日は新規訪問者が'
+       + '実態より多く出ます）</p>';
   }else{
     const max = Math.max(...f.map(x=>x.count), 1);
     h += '<div class="fn-hd"><div>段階</div><div></div><div>人数</div><div>起動比</div><div>前段比</div></div><div class="fn">';
@@ -654,7 +656,7 @@ function render(d){
      + '<span class="i">全オープン <b>'+o.total+'</b> 回</span></div>';
 
   // 2. ファネルと継続
-  h += '<div class="band"><h2>獲得と継続</h2><span class="hint">計測開始直後は実態より少なく出ます</span></div>';
+  h += '<div class="band"><h2>獲得と継続</h2><span class="hint">2026-08-02に計測開始。最初の数日は既存利用者の分が新規として上乗せされる</span></div>';
   h += funnelSection(d);
 
   // 3. 日別オープン（人間 / bot を別スケールで）
