@@ -160,6 +160,29 @@ function analyze(days) {
   const selfOpens = opens.filter((r) => !isBot(r) && isSelf(r.ip));
   const humanIps = new Set(humanOpens.map((r) => r.ip));
 
+  // 除外の理由別内訳。「人間0」のときに何で弾かれたのかを追えるようにする
+  // （合算して「ボット」とだけ出していると、原因にたどり着けない）。
+  // 判定順は上の分類と揃える。最初に該当した理由に1件だけ数える。
+  const excludeReason = (r) => {
+    const ua = dec(r.ua);
+    if (BOT.test(ua)) return 'UAがボット';
+    if (SUSPICIOUS_QUERY.test(dec(r.q))) return '不審なクエリ';
+    if (burstCount[burstKey(r)] >= 3) return '同一秒に3回以上';
+    if (isOutdatedUa(ua)) return '古すぎるUA';
+    if (isSelf(r.ip)) return '自分IP';
+    return null;
+  };
+  const exCnt = {}, exUa = {};
+  for (const r of opens) {
+    const w = excludeReason(r);
+    if (!w) continue;
+    exCnt[w] = (exCnt[w] || 0) + 1;
+    // 理由ごとの代表UA（何を弾いているか分かるように）
+    if (!exUa[w]) exUa[w] = dec(r.ua).slice(0, 80);
+  }
+  const excluded = Object.entries(exCnt).sort((a, b) => b[1] - a[1])
+    .map(([reason, count]) => ({ reason, count, ua: exUa[reason] }));
+
   // 日別オープン
   const byDayMap = {};
   for (const r of opens) {
@@ -280,7 +303,7 @@ function analyze(days) {
       total: opens.length, bot: botOpens.length, self: selfOpens.length,
       human: humanOpens.length, humanDistinct: humanIps.size,
     },
-    byDay, bySrc, byArticle, byDevice, refs, botUa, events,
+    byDay, bySrc, byArticle, byDevice, excluded, refs, botUa, events,
   };
 }
 
@@ -692,6 +715,16 @@ function render(d){
      + '<span class="i">ボット <b>'+o.bot+'</b> 回</span>'
      + '<span class="i">self（自分） <b>'+o.self+'</b> 回</span>'
      + '<span class="i">全オープン <b>'+o.total+'</b> 回</span></div>';
+
+  // 除外の内訳。「人間0」のとき何で弾かれたのかをここで確認できる
+  if(d.excluded && d.excluded.length){
+    h += '<details><summary>除外の内訳 <span>'+(o.total-o.human)+'回を除外（人間 '+o.human+'回）</span></summary><div class="in"><div class="wrap">'
+       + '<table><tr><th>理由</th><th class="num">件数</th><th>代表的なUser-Agent</th></tr>';
+    for(const r of d.excluded){
+      h += '<tr><td>'+esc(r.reason)+'</td><td class="num">'+r.count+'</td><td class="ref">'+esc(r.ua||'')+'</td></tr>';
+    }
+    h += '</table></div></div></details>';
+  }
 
   // 2. ファネルと継続
   h += '<div class="band"><h2>獲得と継続</h2><span class="hint">2026-08-02に計測開始。最初の数日は既存利用者の分が新規として上乗せされる</span></div>';
