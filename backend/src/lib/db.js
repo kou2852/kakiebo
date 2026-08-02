@@ -111,38 +111,43 @@ export async function queryByDateRange(userId, start, end) {
   return items;
 }
 
+/**
+ * BatchWrite を最後までやり切る。
+ * BatchWriteItem はスロットリング等で処理しきれなかった分を UnprocessedItems として返し、
+ * 例外は投げない。放置すると「消えたつもりで残る」「保存したつもりで欠ける」が起きるため、
+ * 残りが無くなるまで再試行し、それでも残ればエラーにする（呼び出し側に失敗を伝える）。
+ */
+const BATCH_MAX_RETRY = 6;
+async function sendBatch(requests) {
+  let pending = requests;
+  for (let attempt = 0; attempt <= BATCH_MAX_RETRY; attempt++) {
+    if (attempt > 0) {
+      // 指数バックオフ（100ms, 200ms, 400ms …）。スロットリングは待てば解消する
+      await new Promise((r) => setTimeout(r, 100 * 2 ** (attempt - 1)));
+    }
+    const res = await ddb.send(new BatchWriteCommand({ RequestItems: { [TABLE]: pending } }));
+    pending = res.UnprocessedItems?.[TABLE] || [];
+    if (!pending.length) return;
+  }
+  throw new Error(`BatchWrite が完了しませんでした（未処理 ${pending.length} 件）`);
+}
+
 /** バッチ書き込み (25件ずつ) */
 export async function batchPut(userId, items) {
-  const chunks = [];
   for (let i = 0; i < items.length; i += 25) {
-    chunks.push(items.slice(i, i + 25));
-  }
-  for (const chunk of chunks) {
-    await ddb.send(new BatchWriteCommand({
-      RequestItems: {
-        [TABLE]: chunk.map((item) => {
-          // PK はサーバー側で権威的に決定。クライアント由来の PK を上書きさせない
-          const { PK, ...safe } = item;
-          return { PutRequest: { Item: { ...safe, PK: userPK(userId), updatedAt: new Date().toISOString() } } };
-        }),
-      },
+    await sendBatch(items.slice(i, i + 25).map((item) => {
+      // PK はサーバー側で権威的に決定。クライアント由来の PK を上書きさせない
+      const { PK, ...safe } = item;
+      return { PutRequest: { Item: { ...safe, PK: userPK(userId), updatedAt: new Date().toISOString() } } };
     }));
   }
 }
 
 /** バッチ削除 */
 export async function batchDelete(userId, sks) {
-  const chunks = [];
   for (let i = 0; i < sks.length; i += 25) {
-    chunks.push(sks.slice(i, i + 25));
-  }
-  for (const chunk of chunks) {
-    await ddb.send(new BatchWriteCommand({
-      RequestItems: {
-        [TABLE]: chunk.map((sk) => ({
-          DeleteRequest: { Key: { PK: userPK(userId), SK: sk } },
-        })),
-      },
-    }));
+    await sendBatch(sks.slice(i, i + 25).map((sk) => ({
+      DeleteRequest: { Key: { PK: userPK(userId), SK: sk } },
+    })));
   }
 }

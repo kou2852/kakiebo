@@ -1,7 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import { CognitoIdentityProviderClient, AdminDeleteUserCommand } from '@aws-sdk/client-cognito-identity-provider';
 import { getItem, putItem, queryByPrefix, queryAll, batchPut, batchDelete } from '../lib/db.js';
-import { getUserId, parseBody, ok, created, noContent, badRequest, unauthorized, tooLong } from '../middleware/apiHelper.js';
+import { getUserId, parseBody, ok, created, noContent, badRequest, unauthorized, serverError, tooLong } from '../middleware/apiHelper.js';
 
 const cognito = new CognitoIdentityProviderClient({});
 
@@ -248,6 +248,15 @@ export async function handler(event) {
     // 1. このユーザーの DynamoDB 全アイテムを削除
     const all = await queryAll(userId);
     if (all.length) await batchDelete(userId, all.map((i) => i.SK));
+
+    // 1-2. 本当に消えたかを確認する。ここを飛ばすと、削除が一部失敗したまま
+    // Cognito だけ消えて「本人はログインできないのに家計データは残る」状態になる。
+    // 残っている場合は Cognito を消さずにエラーを返し、本人が再実行できるようにする。
+    const remaining = await queryAll(userId);
+    if (remaining.length) {
+      console.error('ACCOUNT_DELETE_INCOMPLETE', JSON.stringify({ remaining: remaining.length }));
+      return serverError('データの削除が完了しませんでした。お手数ですが、時間をおいて再度お試しください。');
+    }
 
     // 2. Cognito ユーザー本体を削除（SRP/Google 両対応で AdminDeleteUser を使用）
     const username = event.requestContext?.authorizer?.claims?.['cognito:username'];
