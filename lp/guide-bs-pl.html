@@ -35,6 +35,7 @@ th{color:var(--tx);background:var(--bg2)}
 .cta-box{background:var(--bg2);border:1px solid var(--bd);border-radius:8px;padding:22px;text-align:center;margin:36px 0 0}
 .cta-box a{display:inline-block;background:var(--ac);color:#ffffff;font-weight:700;padding:10px 24px;border-radius:6px;margin-top:8px}
 .cta-box a:hover{background:var(--ac2)}
+.note{font-size:13px;color:var(--tx3);margin-top:24px;border-top:1px solid var(--bd);padding-top:14px}
 .more{margin-top:28px;font-size:14px;color:var(--tx3)}
 footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--tx3);text-align:center}
 .fig{margin:20px 0}.fig img{width:100%;height:auto;border:1px solid var(--bd);border-radius:10px;display:block}.fig figcaption{font-size:12.5px;color:var(--tx3);margin-top:6px;text-align:center}
@@ -49,7 +50,7 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"家計のバランスシート（BS）・損益計算書（PL）の作り方と読み方 | kurofukubo","description":"家計のバランスシート（貸借対照表BS）と損益計算書（PL）の作り方と読み方を解説。資産・負債・純資産、収入・支出の関係を、家計の具体例でやさしく紹介します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-bs-pl.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}},"author":{"@type":"Person","name":"ぱくぱく","url":"https://kurofukubo.com/about.html"},"datePublished":"2026-06-26","dateModified":"2026-07-01","mainEntityOfPage":{"@type":"WebPage","@id":"https://kurofukubo.com/guide-bs-pl.html"}}</script>
   <script defer src="/analytics.js"></script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ホーム","item":"https://kurofukubo.com/"},{"@type":"ListItem","position":2,"name":"ガイド","item":"https://kurofukubo.com/guides.html"},{"@type":"ListItem","position":3,"name":"家計のバランスシート（BS）・損益計算書（PL）の作り方と読み方","item":"https://kurofukubo.com/guide-bs-pl.html"}]}</script>
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"家計にBS・PLは本当に必要ですか？","acceptedAnswer":{"@type":"Answer","text":"収支トントンを目指すだけならPL（家計簿）で十分ですが、投資も含めて財産が増えているかを知りたいならBS（純資産）まで見る必要があります。両方あって家計の全体像が見えます。"}},{"@type":"Question","name":"どのくらいの頻度で作ればいいですか？","acceptedAnswer":{"@type":"Answer","text":"PLは毎月、BSは月末に1回で十分です。投資の評価額は月1回まとめて更新する程度で問題ありません。"}},{"@type":"Question","name":"簿記の知識がないと作れませんか？","acceptedAnswer":{"@type":"Answer","text":"複式簿記で記帳できるアプリを使えば、入力からBS・PLが自動生成されます。kurofukubo はかんたん入力や一行入力に対応しており、簿記を知らなくても記録できます。"}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"黒字なのに貯金が増えないのはなぜですか？","acceptedAnswer":{"@type":"Answer","text":"費用が発生した月と現金が動く月がずれているためです。クレジットカードの利用は使った月に費用として計上されますが、預金から出ていくのは翌月です。加えて投資への積立は支出ではなく資産の移動なので、黒字でも預金は減ります。PL（もうけ）とBS（財産の中身）を分けて見ると、この理由が数字で分かります。"}},{"@type":"Question","name":"家計にBS・PLは本当に必要ですか？","acceptedAnswer":{"@type":"Answer","text":"収支トントンを目指すだけならPL（家計簿）で十分ですが、投資も含めて財産が増えているかを知りたいならBS（純資産）まで見る必要があります。両方あって家計の全体像が見えます。"}},{"@type":"Question","name":"どのくらいの頻度で作ればいいですか？","acceptedAnswer":{"@type":"Answer","text":"PLは毎月、BSは月末に1回で十分です。投資の評価額は月1回まとめて更新する程度で問題ありません。"}},{"@type":"Question","name":"簿記の知識がないと作れませんか？","acceptedAnswer":{"@type":"Answer","text":"複式簿記で記帳できるアプリを使えば、入力からBS・PLが自動生成されます。kurofukubo はかんたん入力や一行入力に対応しており、簿記を知らなくても記録できます。"}}]}</script>
 </head>
 <body>
 <nav><div class="nav-inner"><a href="/" class="nav-logo"><img src="/favicon.svg" alt="" width="22" height="22" style="border-radius:6px;vertical-align:middle;margin-right:8px">kurofukubo</a><div class="nav-r"><a href="/guides.html">ガイド</a><a href="https://app.kurofukubo.com/?guest&utm_source=guide&utm_medium=article&utm_content=guide-bs-pl" class="cta">無料で始める</a></div></div></nav>
@@ -99,39 +100,52 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
       <tr><td><strong>収支（黒字）</strong></td><td><strong>+70,000円</strong></td></tr>
     </table>
     <p>この月は7万円の黒字でした。ここで大事なのは、<strong>NISAへの積立2万円は「支出」に入れない</strong>という点です。お金が消えたのではなく、現金という資産から投資という資産へ「移動」しただけだからです。PL（損益計算書）に載るのは、消費・費用として家計の外へ出ていったお金だけです。</p>
+    <p>あとでBS（次の項）と突き合わせられるように、<strong>支払い方法の内訳</strong>も控えておきます。支出23万円のうち、<strong>家賃9万円は口座振替</strong>、<strong>残り14万円はクレジットカード払い</strong>だったとします。カード払いの14万円は<strong>翌月の引き落とし</strong>なので、今月はまだ預金から出ていきません。</p>
 
     <h3>② 貸借対照表（BS）＝月末時点の財産</h3>
     <p>次に、月末時点の財産を並べます。先月末の純資産は 250万円だったとします。今月は株価が上がり、NISAに1万円の含み益（評価益）が出ました。</p>
     <table>
       <tr><th>資産</th><th>金額</th></tr>
-      <tr><td>現金・普通預金</td><td>1,550,000円</td></tr>
+      <tr><td>現金・普通預金</td><td>1,490,000円</td></tr>
       <tr><td>投資（NISA評価額）</td><td>1,230,000円</td></tr>
-      <tr><td><strong>資産合計</strong></td><td><strong>2,780,000円</strong></td></tr>
+      <tr><td><strong>資産合計</strong></td><td><strong>2,720,000円</strong></td></tr>
     </table>
     <table>
       <tr><th>負債</th><th>金額</th></tr>
-      <tr><td>クレジットカード未払い</td><td>200,000円</td></tr>
-      <tr><td><strong>負債合計</strong></td><td><strong>200,000円</strong></td></tr>
+      <tr><td>クレジットカード未払い</td><td>140,000円</td></tr>
+      <tr><td><strong>負債合計</strong></td><td><strong>140,000円</strong></td></tr>
     </table>
-    <p>純資産＝資産 2,780,000 − 負債 200,000 ＝ <strong>2,580,000円</strong>。先月末の250万円から、8万円増えました。</p>
+    <p>純資産＝資産 2,720,000 − 負債 140,000 ＝ <strong>2,580,000円</strong>。先月末の250万円から、8万円増えました。</p>
 
-    <h3>③ 「黒字は7万円」なのに、純資産は8万円増えた理由</h3>
+    <h2 id="black-but-no-cash">黒字なのにお金が増えた気がしない — 黒字7万円で純資産が8万円増えた理由</h2>
+
+    <h3>なぜ黒字7万円なのに、預金は1万円「減った」のか</h3>
+    <p>今月の預金の動きを追うと、こうなります。給与 +30万円／家賃 −9万円／先月分のカード引き落とし −20万円／NISA積立 −2万円。差し引き<strong>1万円の減少</strong>です。今月のカード払い14万円は翌月引き落としなので、今月はまだ預金から出ていきません。</p>
+    <p>費用が発生した月と、現金が動く月がずれているためです。今月のカード払い14万円は費用として計上済みですが、現金はまだ出ていません。逆に先月分20万円の引き落としは現金が出ましたが、これは負債の精算であって費用ではありません。つまり今月は<strong>20万円払って14万円使った</strong>ので、<strong>カードの未払いは6万円減りました</strong>。</p>
+    <p>この時間差で6万円、さらにNISAへの積立2万円（資産の移動であって支出ではない）が加わって、<strong>合計8万円</strong>、黒字7万円と預金の動き（−1万円）がずれます。</p>
+
+    <h3>では、なぜ純資産は8万円増えたのか</h3>
     <p>ここが、家計にBS・PLの両方を使うおもしろさです。今月の純資産の増加8万円は、こう分解できます。</p>
-    <ul>
-      <li>PLの黒字（家計に残ったお金）：<strong>+70,000円</strong>（うち2万円はNISAへ移動、5万円は預金に残った）</li>
-      <li>NISAの含み益（評価額の上昇）：<strong>+10,000円</strong>（これはPLには一切出てこない）</li>
-      <li>合計：純資産 <strong>+80,000円</strong></li>
-    </ul>
+    <table>
+      <tr><th>項目</th><th>残高の増減</th><th>純資産への寄与</th></tr>
+      <tr><td>現金・普通預金</td><td>−10,000円</td><td>−10,000円</td></tr>
+      <tr><td>NISA（積立2万＋含み益1万）</td><td>+30,000円</td><td>+30,000円</td></tr>
+      <tr><td>カード未払い（負債）</td><td>−60,000円</td><td><strong>+60,000円</strong>（負債が減ると純資産は増える）</td></tr>
+      <tr><td><strong>合計</strong></td><td>—</td><td><strong>+80,000円</strong></td></tr>
+    </table>
+    <p class="note">※ 引き落とし20万円は預金も同額減っており、その分は預金の行に入っています。未払いの6万円減は、今月の利用14万円が未払いとして残ったことによる差額です。</p>
     <p>つまり<strong>「今月いくら使ったか（PL）」と「財産が結局いくら増えたか（BSの純資産）」は別物</strong>で、両方を見て初めて家計の実態がわかります。支出管理だけの家計簿では、投資に回した分や評価益が見えないため、「黒字なのにお金が増えた気がしない」「赤字なのに実は資産は増えていた」といったズレが起きがちです。</p>
 
     <h2>よくある勘違い</h2>
     <ul>
-      <li><strong>「黒字＝手元のお金が増える」とは限らない</strong>：黒字分を投資やローンの繰上返済に回すと、純資産は増えても手元現金は増えません。PL（もうけ）とBS（現金残高）を混同しないのがコツです。</li>
+      <li><strong>「黒字＝手元のお金が増える」とは限らない</strong>：黒字を投資やローンの繰上返済に回せば、純資産は増えても現金は増えません。PLの黒字と、BSのどの項目が増えたかは別問題です。</li>
       <li><strong>「資産が多い＝お金持ち」ではない</strong>：住宅を持っていても住宅ローンが同額あれば、純資産への寄与はゼロです。必ず負債を引いた<strong>純資産</strong>で見ます。</li>
       <li><strong>ローンの返済は「支出」ではない</strong>：元本の返済は負債が減るだけ（資産も同額減る）なので純資産は中立。ただし利息部分はPL上の支出になります。</li>
     </ul>
 
     <h2>よくある質問</h2>
+    <h3>Q. 黒字なのに貯金が増えないのはなぜですか？</h3>
+    <p>費用が発生した月と現金が動く月がずれているためです。クレジットカードの利用は使った月に費用として計上されますが、預金から出ていくのは翌月です。逆に前月分の引き落としは現金が出ても費用ではありません。加えて、投資への積立は支出ではなく資産の移動なので、黒字でも預金は減ります。PL（もうけ）とBS（財産の中身）を分けて見ると、この理由が数字で分かります。</p>
     <h3>Q. 家計にBS・PLは本当に必要ですか？</h3>
     <p>収支トントンを目指すだけならPL（家計簿）で十分です。ただ「老後までにいくら貯まるか」「投資も含めて財産が増えているか」を知りたいなら、BS（純資産）まで見ないと判断できません。両方あって家計の全体像が見えます。</p>
     <h3>Q. どのくらいの頻度で作ればいいですか？</h3>
@@ -145,6 +159,7 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
 
     <figure class="fig"><img src="/img/pl-screen.webp" alt="収益と費用を集計した損益計算書（PL）画面" loading="lazy" width="1200" height="844"><figcaption>損益計算書（PL）。期間の収入・支出と収支が自動集計されます（アプリ実画面）</figcaption></figure>
 
+    <p class="more">はじめる前に：<a href="/guide-start.html">口座と「いまの残高」の登録方法</a>（最初にここでつまずく人が多いポイントです）</p>
     <div class="cta-box">
       <p>あなたの家計のBS・PLを、自動で作ってみませんか？</p>
       <a href="https://app.kurofukubo.com/?guest&utm_source=guide&utm_medium=article&utm_content=guide-bs-pl">無料で始める</a>
