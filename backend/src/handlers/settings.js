@@ -1,6 +1,6 @@
 import { v4 as uuid } from 'uuid';
 import { CognitoIdentityProviderClient, AdminDeleteUserCommand } from '@aws-sdk/client-cognito-identity-provider';
-import { getItem, putItem, putItemWithRev, getRev, bumpRev, isRevConflict, queryByPrefix, queryAll, batchPut, batchDelete } from '../lib/db.js';
+import { getItem, putItem, putItemWithRev, getRev, bumpRev, isRevConflict, touchLastSeen, queryByPrefix, queryAll, batchPut, batchDelete } from '../lib/db.js';
 import { getUserId, parseBody, ok, created, noContent, badRequest, unauthorized, conflict, serverError, tooLong } from '../middleware/apiHelper.js';
 
 const cognito = new CognitoIdentityProviderClient({});
@@ -164,6 +164,8 @@ export async function handler(event) {
 
   // ── E2E暗号化データ（方式A: データセット全体を1ブロブで保管。鍵バンドルは平文鍵を含まない） ──
   if (path === '/api/encdata' && method === 'GET') {
+    // E2E利用者はここでデータを読み込み /api/export を通らないため、計測はこちらにも要る
+    await markSeen(userId);
     const item = await getItem(userId, 'ENCDATA');
     return ok(item
       ? { bundle: item.bundle || null, ct: item.ct || null, rev: item.rev || 0 }
@@ -202,6 +204,8 @@ export async function handler(event) {
 
   // ── Export (全データ一括取得) ──
   if (path === '/api/export' && method === 'GET') {
+    // 通常利用者はアプリ起動時にここを通る（暗号化利用者は /api/encdata 側で記録）
+    await markSeen(userId);
     const [accounts, journals, tags, wallets, budgets, presets, recurring, rules, allocs,
       revBudget, revPreset, revRecurring, revRule] = await Promise.all([
       queryByPrefix(userId, 'ACCOUNT#'),
@@ -325,6 +329,19 @@ async function replaceCollection(userId, existing, items) {
   const keep = new Set(items.map((i) => i.SK));
   const toDel = existing.map((e) => e.SK).filter((sk) => !keep.has(sk));
   if (toDel.length) await batchDelete(userId, toDel);
+}
+
+/**
+ * 最終利用日の記録。アプリを開いたときに通る読み取り経路から呼ぶ。
+ * 同じ日の2回目以降は条件式で弾かれるので、書き込みは1ユーザー1日1回。
+ * 計測が失敗しても本来の処理は続ける（数字のために機能を止めない）。
+ */
+async function markSeen(userId) {
+  try {
+    await touchLastSeen(userId, new Date().toISOString().slice(0, 10));
+  } catch (e) {
+    if (!isRevConflict(e)) console.warn('lastSeen 更新に失敗:', e?.message);
+  }
 }
 
 /**

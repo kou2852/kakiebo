@@ -8,6 +8,9 @@ import { useToast } from '../Common/Toast';
 import InfoTip from '../Common/InfoTip';
 import Modal from '../Common/Modal';
 
+// 相手科目の選択肢で「評価損益をその場で作る」を表す番兵値
+const CREATE_PL = '__create_pl__';
+
 export default function AccountModal({ open, onClose, editId, defaultType, prefill }) {
   const { accounts, journals, addAccount, updateAccount, addJournal } = useData();
   const toast = useToast();
@@ -47,13 +50,18 @@ export default function AccountModal({ open, onClose, editId, defaultType, prefi
       .sort((a, b) => (a.code || '').localeCompare(b.code || '')),
     [accounts]
   );
+  // 「評価損益」は既定科目に入れたが、それ以前に登録した人は持っていない。
+  // 無いまま元入金へ倒すと、評価益が「自分で入れた元手」として記帳され損益計算書に出ないので、
+  // その場で作れる選択肢を出す（作成はユーザーが実行したときだけ）。
+  const plAccount = useMemo(() => accounts.find((a) => a.name === '評価損益'), [accounts]);
+  const needsPl = !!editing && isInvestmentAsset(editing) && !plAccount;
   const defaultCounterId = useMemo(() => {
     if (editing && isInvestmentAsset(editing)) {
-      const pl = accounts.find((a) => a.name === '評価損益');
-      if (pl) return pl.id;
+      if (plAccount) return plAccount.id;
+      return CREATE_PL;
     }
     return accounts.some((a) => a.id === EQUITY_ID) ? EQUITY_ID : (counterOptions[0]?.id || '');
-  }, [editing, accounts, counterOptions]);
+  }, [editing, accounts, counterOptions, plAccount]);
 
   const adjustDiff = Math.round(parseFloat(String(actualBalance).replace(/[¥,，]/g, '')) || 0) - bookBalance;
   // 締め日はフォームの値で見る。既定の「クレジットカード」科目は引き落とし設定を持たないので、
@@ -87,17 +95,22 @@ export default function AccountModal({ open, onClose, editId, defaultType, prefi
     if (!String(actualBalance).trim()) { toast('実際の残高を入力してください'); return; }
     const diff = adjustDiff;
     if (!diff) { toast('帳簿の残高と一致しています'); return; }
-    const cid = counterId || defaultCounterId;
-    if (!cid) { toast('差額の相手科目を選んでください'); return; }
+    const picked = counterId || defaultCounterId;
+    if (!picked) { toast('差額の相手科目を選んでください'); return; }
     const amount = Math.abs(diff);
     // 資産は増える＝借方、負債は増える＝貸方
     const selfSide = editing.type === 'asset' ? (diff > 0 ? 'dr' : 'cr') : (diff > 0 ? 'cr' : 'dr');
-    const lines = [
-      { accountId: editing.id, side: selfSide, amount, taxRate: 0 },
-      { accountId: cid, side: selfSide === 'dr' ? 'cr' : 'dr', amount, taxRate: 0 },
-    ].sort((a, b) => (a.side === 'dr' ? 0 : 1) - (b.side === 'dr' ? 0 : 1));
     setAdjusting(true);
     try {
+      let cid = picked;
+      if (cid === CREATE_PL) {
+        const made = await addAccount({ name: '評価損益', type: 'income', code: nextCode(accounts, 'income'), note: '' });
+        cid = made.id;
+      }
+      const lines = [
+        { accountId: editing.id, side: selfSide, amount, taxRate: 0 },
+        { accountId: cid, side: selfSide === 'dr' ? 'cr' : 'dr', amount, taxRate: 0 },
+      ].sort((a, b) => (a.side === 'dr' ? 0 : 1) - (b.side === 'dr' ? 0 : 1));
       // カードは直前の締め日に置く（次回の引き落としに乗せる）。それ以外は今日。
       const date = formCcClose ? lastClosingDate(formCcClose) : today();
       await addJournal({ date, desc: `残高合わせ（${editing.name}）`, lines }, { silent: true });
@@ -300,6 +313,7 @@ export default function AccountModal({ open, onClose, editId, defaultType, prefi
             </div>
             <div className="fg"><label className="fl">差額の相手科目</label>
               <select className="fc" value={counterId || defaultCounterId} onChange={(e) => setCounterId(e.target.value)}>
+                {needsPl && <option value={CREATE_PL}>＋「評価損益」を作成して使う</option>}
                 {counterOptions.map((a) => <option key={a.id} value={a.id}>{a.code ? `${a.code} ` : ''}{a.name}</option>)}
               </select>
             </div>
@@ -307,6 +321,11 @@ export default function AccountModal({ open, onClose, editId, defaultType, prefi
           {isCardInput && (
             <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 6 }}>
               まだ引き落とされていない額（カード会社アプリの「今月のお支払い金額」）。差額は直前の締め日（{lastClosingDate(formCcClose)}）に記帳され、次回の引き落としに乗ります。
+            </div>
+          )}
+          {(counterId || defaultCounterId) === CREATE_PL && (
+            <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 6 }}>
+              「残高を合わせる」を押すと、収益科目「評価損益」を作成してから記帳します。含み損益が損益計算書に出るようになります。
             </div>
           )}
           {editing?.type === 'liability' && !isCardInput && (

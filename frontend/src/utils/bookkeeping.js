@@ -204,6 +204,49 @@ export function isInvestmentAsset(a) {
   return a.type === 'asset' && (/^1[23]/.test(a.code || '') || /有価証券|固定資産|投資/.test(a.name || ''));
 }
 
+/** 評価損益の科目か（残高合わせの相手に使う。名称で判定） */
+export function isValuationAccount(a) {
+  return /評価損益/.test(a?.name || '');
+}
+
+/**
+ * 投資性資産ごとの 元本 / 評価損益 / 時価。
+ *
+ * iDeCo やつみたてNISA は「いくら積んで、いくら増えたか」を見るものなので、科目を分けずに
+ * 仕訳から振り分ける。同じ仕訳に「評価損益」科目が入っていれば評価替え、なければ拠出（元本）。
+ * 給与天引きの拠出（相手が収益）も元本として拾える。元本＋評価損益は科目残高に一致する。
+ *
+ * @returns {Array<{account, principal, gain, value, rate, lastValuation}>} 時価の降順
+ *   lastValuation は最後に評価替えした日（YYYY-MM-DD、未実施なら ''）
+ */
+export function investmentSummary(journals, accounts) {
+  const targets = accounts.filter(isInvestmentAsset);
+  if (!targets.length) return [];
+  const valuationIds = new Set(accounts.filter(isValuationAccount).map((a) => a.id));
+  const rows = new Map(targets.map((a) => [a.id, { account: a, principal: 0, gain: 0, lastValuation: '' }]));
+
+  journals.forEach((j) => {
+    const lines = j.lines || [];
+    const isValuation = lines.some((l) => valuationIds.has(l.accountId));
+    lines.forEach((l) => {
+      const row = rows.get(l.accountId);
+      if (!row) return;
+      const delta = (l.side === 'dr' ? 1 : -1) * l.amount;
+      if (isValuation) {
+        row.gain += delta;
+        if (j.date > row.lastValuation) row.lastValuation = j.date;
+      } else {
+        row.principal += delta;
+      }
+    });
+  });
+
+  return [...rows.values()]
+    .filter((r) => r.principal !== 0 || r.gain !== 0)
+    .map((r) => ({ ...r, value: r.principal + r.gain, rate: r.principal ? r.gain / r.principal : 0 }))
+    .sort((a, b) => b.value - a.value);
+}
+
 /** 相手科目のCF区分を判定（簡易直接法） */
 function cfCategory(account) {
   if (!account) return 'operating';

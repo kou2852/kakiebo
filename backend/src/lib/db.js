@@ -1,5 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, GetCommand, PutCommand, DeleteCommand, QueryCommand, BatchWriteCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand, QueryCommand, BatchWriteCommand } from '@aws-sdk/lib-dynamodb';
 
 const client = new DynamoDBClient({});
 const ddb = DynamoDBDocumentClient.from(client, {
@@ -85,6 +85,27 @@ export async function bumpRev(userId, name, expectedRev) {
 
 /** 条件付き書き込みが弾かれたか（＝他端末が先に更新していた） */
 export const isRevConflict = (e) => e?.name === 'ConditionalCheckFailedException';
+
+/**
+ * 最終利用日を PROFILE に記録する（プライバシーポリシー §1「最終利用日」）。
+ * 記録するのは日付のみ。時刻もIPアドレスも保存しない。
+ *
+ * 条件式で「今日と違うときだけ書く」ため、同じ日に何度開いても書き込みは1回で済み、
+ * 事前の読み取りも要らない。既に今日の日付なら ConditionalCheckFailedException になる。
+ *
+ * updatedAt は意図的に更新しない。ここを触ると「最終書き込み日」の指標と区別が
+ * つかなくなり、開いただけの人が記帳したように見えてしまう。
+ */
+export async function touchLastSeen(userId, date) {
+  await ddb.send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { PK: userPK(userId), SK: 'PROFILE' },
+    UpdateExpression: 'SET lastSeen = :d',
+    // PROFILE が無いユーザーに空の PROFILE を作ってしまわないよう存在を条件にする
+    ConditionExpression: 'attribute_exists(SK) AND (attribute_not_exists(lastSeen) OR lastSeen <> :d)',
+    ExpressionAttributeValues: { ':d': date },
+  }));
+}
 
 /** アイテム1件削除 */
 export async function deleteItem(userId, sk) {

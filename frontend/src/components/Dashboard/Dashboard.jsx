@@ -11,6 +11,7 @@ import TrendChart from './TrendChart';
 import NetWorthChart from './NetWorthChart';
 import CCSettleModal from '../Credit/CCSettleModal';
 import BudgetPanel from './BudgetPanel';
+import InvestmentPanel from './InvestmentPanel';
 import Ad from '../Common/Ad';
 import { RegisterCard } from '../Common/Guest';
 import SetupChecklist from '../Onboarding/SetupChecklist';
@@ -197,6 +198,9 @@ export default function Dashboard() {
         <div className="card">{donutHead('収入内訳', incomePieData.length)}<PieChart items={incomePieData} masked={!vis.brk} /></div>
         <div className="card">{donutHead('支出内訳', expensePieData.length)}<PieChart items={expensePieData} masked={!vis.brk} /></div>
       </div>
+
+      {/* 投資の元本と損益（投資性の資産がある人だけに出る） */}
+      <InvestmentPanel masked={!vis.brk} />
 
       {/* 今月の予算 */}
       <BudgetPanel />
