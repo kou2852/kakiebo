@@ -55,6 +55,12 @@ Resources:
         DefaultRootObject: index.html
         HttpVersion: http2and3
         PriceClass: PriceClass_200
+        # アクセスログ。app側と同じバケットに prefix を分けて出す（app/ と lp/）。
+        # LP→アプリの端末別の離脱を見るために必要。バケットのACL設定はapp側で済み。
+        Logging:
+          Bucket: !Sub kakeibo-cf-logs-${AWS::AccountId}.s3.amazonaws.com
+          Prefix: lp/
+          IncludeCookies: false
         Aliases:
           - !Ref DomainName
           - !Sub www.${DomainName}

@@ -57,7 +57,7 @@ export default function CreditPage() {
           <EmptyState
             icon="💳"
             title="クレジットカードが未設定です"
-            desc="「勘定科目・口座」の負債タブでカードを作成し、CC設定（締め日・引落日・引落口座）を入力すると、利用と引落のサイクルがここにまとまります。"
+            desc="「勘定科目・口座」の負債タブでカードを作成し、引き落とし設定（締め日・引落日・引落口座）を入力すると、利用と引落のサイクルがここにまとまります。"
             action={<button className="btn btn-p" onClick={() => navigate('accounts')}>勘定科目・口座へ</button>}
           />
         </div>

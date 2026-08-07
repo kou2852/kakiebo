@@ -28,16 +28,19 @@ export default function RuleModal({ open, onClose, editId }) {
     }
   }, [open, editId, rules]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!keyword.trim()) { toast('キーワードを入力してください'); return; }
     const data = { keyword: keyword.trim(), drAccountId, crAccountId, tagId: tagId || '' };
-    if (editId) {
-      saveRules(rules.map((r) => r.id === editId ? { ...r, ...data } : r));
-    } else {
-      saveRules([...rules, { id: uid(), ...data }]);
-    }
-    toast('保存しました');
-    onClose();
+    // 第2引数は「何をしたか」。他端末が先に保存していたとき、入力値を捨てずに載せ直すために使う。
+    const item = { id: editId || uid(), ...data };
+    const next = editId
+      ? rules.map((r) => (r.id === editId ? { ...r, ...data } : r))
+      : [...rules, item];
+    try {
+      await saveRules(next, { op: 'upsert', item });
+      toast('保存しました');
+      onClose();
+    } catch { toast('保存に失敗しました'); }
   };
 
   return (

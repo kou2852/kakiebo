@@ -18,6 +18,8 @@ const DEFAULT_ACCOUNTS = [
   { id: 'd02', code: '4002', name: '副業収入', type: 'income', sys: 1 },
   { id: 'd03', code: '4003', name: '利子収入', type: 'income', sys: 1 },
   { id: 'd04', code: '4004', name: '雑収入', type: 'income', sys: 1 },
+  // 投資資産の評価替え用。評価損の月はマイナスの収益になる（費用側に置くと支出内訳の円グラフに混ざるため収益に置く）
+  { id: 'd05', code: '4005', name: '評価損益', type: 'income', sys: 1 },
   { id: 'e01', code: '5001', name: '食費', type: 'expense', sys: 1 },
   { id: 'e02', code: '5002', name: '日用品費', type: 'expense', sys: 1 },
   { id: 'e03', code: '5003', name: '光熱費', type: 'expense', sys: 1 },

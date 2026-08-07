@@ -109,11 +109,15 @@ export default function QuickEntry() {
     if (!drId || !crId) { toast('借方・貸方の科目を選んでください'); return; }
     if (amt <= 0) { toast('金額を入力してください'); return; }
     try {
+      // タグは両方の行に付ける。どちらが資産科目かで増減の向きが決まるので
+      // （支出=貸方の口座から減る / 収入=借方の口座へ増える / 振替=口座間で移る）
+      // 集計側（computeTagBalances）が正しい1回分だけを採る。
+      const tagSplit = tagId ? { splits: [{ tagId, amount: amt }] } : {};
       await addJournal({
-        date, desc, ...(tagId ? { tagId } : {}),
+        date, desc,
         lines: [
-          { accountId: drId, side: 'dr', amount: amt, taxRate: 0 },
-          { accountId: crId, side: 'cr', amount: amt, taxRate: 0 },
+          { accountId: drId, side: 'dr', amount: amt, taxRate: 0, ...tagSplit },
+          { accountId: crId, side: 'cr', amount: amt, taxRate: 0, ...tagSplit },
         ],
       });
       clearForm();

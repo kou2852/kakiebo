@@ -358,18 +358,36 @@ Resources:
             RestApiId: !Ref KakeiboApi
             Path: /api/budgets
             Method: POST
+        GetRecurring:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/recurring
+            Method: GET
         SaveRecurring:
           Type: Api
           Properties:
             RestApiId: !Ref KakeiboApi
             Path: /api/recurring
             Method: POST
+        GetPresets:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/presets
+            Method: GET
         SavePresets:
           Type: Api
           Properties:
             RestApiId: !Ref KakeiboApi
             Path: /api/presets
             Method: POST
+        GetRules:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/rules
+            Method: GET
         SaveRules:
           Type: Api
           Properties:

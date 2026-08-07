@@ -1,11 +1,12 @@
 import { useState, useMemo } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { fa, esc } from '../../utils/format';
+import { fa, faBal, esc } from '../../utils/format';
 import { calcBalances, accountBalance, computeTagBalances } from '../../utils/bookkeeping';
 import { useToast } from '../Common/Toast';
 import { GUEST_LIMITS } from '../../config/tiers';
 import EmptyState from '../Common/EmptyState';
+import InfoTip from '../Common/InfoTip';
 import TagModal from './TagModal';
 
 export default function TagsPage() {
@@ -41,9 +42,9 @@ export default function TagsPage() {
     const tt = {};
     tags.forEach((t) => { tt[t.id] = 0; });
     allocs.forEach((a) => { if (tt[a.tagId] !== undefined) tt[a.tagId] += a.amount; });
-    Object.values(tagBals).forEach((m) => Object.entries(m).forEach(([tid, amt]) => {
+    Object.entries(tagBals.byTag).forEach(([tid, amt]) => {
       if (tt[tid] !== undefined) tt[tid] += amt;
-    }));
+    });
     return tt;
   }, [tags, allocs, tagBals]);
 
@@ -62,11 +63,11 @@ export default function TagsPage() {
     return assetAccts.map((a) => {
       const bal = Math.max(0, accountBalance(a.id, accounts, bB));
       const manual = allocs.filter((x) => x.accountId === a.id);
-      const computed = tagBals[a.id] || {};
+      const computed = tagBals.byAccount[a.id] || {};
       const mg = {};
       manual.forEach((x) => { mg[x.tagId] = (mg[x.tagId] || 0) + x.amount; });
       Object.entries(computed).forEach(([tid, amt]) => { mg[tid] = (mg[tid] || 0) + amt; });
-      const items = Object.entries(mg).filter(([, v]) => v > 0).map(([tid, amt]) => {
+      const items = Object.entries(mg).filter(([, v]) => Math.round(v) !== 0).map(([tid, amt]) => {
         const t = tags.find((x) => x.id === tid);
         return { tagId: tid, name: t?.name || '?', color: t?.color || '#666', amount: amt };
       });
@@ -103,7 +104,9 @@ export default function TagsPage() {
       <div className="g2">
         {/* 登録タグ */}
         <div>
-          <div className="card-title" style={{ marginTop: 8 }}>登録タグ</div>
+          <div className="card-title" style={{ marginTop: 8 }}>登録タグ
+            <InfoTip text="タグ残高＝タグを付けて入ってきた額 − タグを付けて出ていった額。仕訳の借方・貸方どちらにタグを付けても向きは同じで、1つの仕訳で二重に計上されることはありません。使いすぎるとマイナス表示になります。" />
+          </div>
           {sortedTags.length === 0 ? (
             <EmptyState
               icon="🏷️"
@@ -125,7 +128,7 @@ export default function TagsPage() {
                     <tr key={t.id}>
                       <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 600 }}><span style={{ width: 11, height: 11, borderRadius: '50%', background: t.color, flex: 'none' }} />{t.name}</span></td>
                       <td className="text-m">{t.note || ''}</td>
-                      <td className="text-r mono">{fa(Math.max(0, tagTotals[t.id] || 0))}</td>
+                      <td className="text-r mono" style={(tagTotals[t.id] || 0) < 0 ? { color: 'var(--red)' } : undefined}>{faBal(tagTotals[t.id] || 0)}</td>
                       <td style={{ whiteSpace: 'nowrap' }}>
                         <button className="btn btn-g btn-s" onClick={() => openEditTag(t.id)}>編集</button>
                         <button className="btn btn-d btn-s" style={{ marginLeft: 4 }} onClick={() => deleteTag(t)}>削除</button>
@@ -140,7 +143,9 @@ export default function TagsPage() {
 
         {/* 口座別 配分 */}
         <div>
-          <div className="card-title" style={{ marginTop: 8 }}>口座別 配分</div>
+          <div className="card-title" style={{ marginTop: 8 }}>口座別 配分
+            <InfoTip text="いま各口座にあるお金のタグ別内訳です。カード払いのようにまだ口座から引き落とされていない分は左の「登録タグ」残高からは引かれますが、ここには反映されません（引落時に反映されます）。" />
+          </div>
           {acctTagData.length === 0 ? <p className="nd">資産科目なし</p> : (
             acctTagData.map((d) => (
               <div key={d.account.id} className="ta-card">
@@ -149,7 +154,7 @@ export default function TagsPage() {
                   <span className="ta-card-bal">{fa(d.bal)}</span>
                 </div>
                 {d.items.map((item, i) => {
-                  const pct = d.bal > 0 ? (item.amount / d.bal * 100).toFixed(1) : 0;
+                  const pct = d.bal > 0 ? Math.min(100, Math.max(0, item.amount / d.bal * 100)).toFixed(1) : 0;
                   return (
                     <div key={i} className="ta-row">
                       <span style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 80, fontSize: 12 }}>
@@ -157,7 +162,7 @@ export default function TagsPage() {
                         {item.name}
                       </span>
                       <div className="ta-bar-w"><div className="ta-bar" style={{ background: item.color, width: `${pct}%` }} /></div>
-                      <span className="ta-amt">{fa(item.amount)}</span>
+                      <span className="ta-amt" style={item.amount < 0 ? { color: 'var(--red)' } : undefined}>{faBal(item.amount)}</span>
                     </div>
                   );
                 })}

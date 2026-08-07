@@ -53,20 +53,23 @@ export default function PresetModal({ open, onClose, editId, walletId, type }) {
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) { toast('名前を入力してください'); return; }
     const validLines = lines.filter((l) => l.accountId).map((l) => ({
       accountId: l.accountId, side: l.side, amount: l.amount || 0, tagId: l.tagId || '',
     }));
     if (validLines.length < 1) { toast('少なくとも1行入力してください'); return; }
     const data = { walletId: wlt, type: ptype, name: name.trim(), desc: desc.trim(), lines: validLines };
-    if (editId) {
-      savePresets(presets.map((p) => p.id === editId ? { ...p, ...data } : p));
-    } else {
-      savePresets([...presets, { id: uid(), ...data }]);
-    }
-    toast('保存しました');
-    onClose();
+    // 第2引数は「何をしたか」。他端末が先に保存していたとき、入力値を捨てずに載せ直すために使う。
+    const item = { id: editId || uid(), ...data };
+    const next = editId
+      ? presets.map((p) => (p.id === editId ? { ...p, ...data } : p))
+      : [...presets, item];
+    try {
+      await savePresets(next, { op: 'upsert', item });
+      toast('保存しました');
+      onClose();
+    } catch { toast('保存に失敗しました'); }
   };
 
   return (

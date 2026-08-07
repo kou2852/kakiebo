@@ -37,6 +37,55 @@ export async function putGroupedItem(pk, sk, data) {
   return item;
 }
 
+/**
+ * 楽観的排他つきの1件保存（ENCDATA用）。
+ * expectedRev が現在の rev と一致するときだけ書き込み、新しい rev を返す。
+ * 一致しなければ ConditionalCheckFailedException が投げられ、書き込みは1件も起きない。
+ * `attribute_not_exists(rev)` は移行の継ぎ目＝rev導入前からある既存アイテムを
+ * デプロイ後の最初の1回だけ通すためのもの（そこで rev が入り、以降は保護される）。
+ */
+export async function putItemWithRev(userId, sk, data, expectedRev) {
+  const { PK, SK, GSI1SK, rev, ...safe } = data || {};
+  const expected = expectedRev || 0;
+  const nextRev = expected + 1;
+  await ddb.send(new PutCommand({
+    TableName: TABLE,
+    Item: { ...safe, PK: userPK(userId), SK: sk, rev: nextRev, updatedAt: new Date().toISOString() },
+    ConditionExpression: 'attribute_not_exists(SK) OR attribute_not_exists(rev) OR rev = :expected',
+    ExpressionAttributeValues: { ':expected': expected },
+  }));
+  return nextRev;
+}
+
+/**
+ * コレクションの版番号を取得。マーカー未作成＝rev 0 として扱う。
+ * これにより既存データの書き換え（バックフィル）なしで導入できる。
+ */
+export async function getRev(userId, name) {
+  const item = await getItem(userId, `REV#${name}`);
+  return item?.rev || 0;
+}
+
+/**
+ * コレクションの版番号を条件付きで進める。不一致なら ConditionalCheckFailedException。
+ * データ書き込みより先に呼ぶこと。逆順にすると2端末が同時に通過できてしまう。
+ * （先に進めた場合の失敗は「他端末が不要に409を受けて読み直す」だけで、データは失われない）
+ */
+export async function bumpRev(userId, name, expectedRev) {
+  const expected = expectedRev || 0;
+  const nextRev = expected + 1;
+  await ddb.send(new PutCommand({
+    TableName: TABLE,
+    Item: { PK: userPK(userId), SK: `REV#${name}`, rev: nextRev, updatedAt: new Date().toISOString() },
+    ConditionExpression: 'attribute_not_exists(SK) OR rev = :expected',
+    ExpressionAttributeValues: { ':expected': expected },
+  }));
+  return nextRev;
+}
+
+/** 条件付き書き込みが弾かれたか（＝他端末が先に更新していた） */
+export const isRevConflict = (e) => e?.name === 'ConditionalCheckFailedException';
+
 /** アイテム1件削除 */
 export async function deleteItem(userId, sk) {
   await ddb.send(new DeleteCommand({

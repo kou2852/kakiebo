@@ -29,6 +29,19 @@
 
 ## 開発ルール
 
+### 本番への干渉（不変ルール・撤回されない限り常に有効）
+
+**本番への干渉は、毎回ユーザーの明示的な許可を得てから実施する。** 一度の許可を次の作業に持ち越さない。
+
+**許可が必要（実行してはいけない）:**
+- S3 sync / CloudFront invalidation / `sam deploy`
+- **CloudFormation の `execute-change-set`（インフラ設定だけの変更でも該当）**
+- AWSリソースの設定変更全般（CloudFront・Cognito・DynamoDB・Route53 等）、データの削除・書き換え
+
+**止まる地点＝実行コマンドを組み立て終わった時点。** 何を実行するかを提示して許可を取る。「準備」と「実行」を連続させない。
+
+**この一覧に無いものを自己判断で「許可不要」と解釈しない。** 判断に迷ったら実行せず、ユーザーに確認する。
+
 ### コードスタイル
 - `kakeibo.html`: 変数名は短縮形（`S`=state, `sv`=save, `rp`=renderPage, `fa`=formatAmount）
 - React版: 標準的なReact慣習。コンポーネントはPascalCase、フックはcamelCase

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import * as api from '../api/client';
 import { rollbackNextDate } from '../utils/autoGen';
@@ -18,7 +18,7 @@ const DEFAULT_ACCOUNTS = [
   {id:'a01',code:'1001',name:'現金',type:'asset',sys:1},{id:'a02',code:'1002',name:'普通預金',type:'asset',sys:1},{id:'a03',code:'1003',name:'定期預金',type:'asset',sys:1},{id:'a04',code:'1101',name:'売掛金',type:'asset',sys:1},{id:'a05',code:'1201',name:'有価証券',type:'asset',sys:1},{id:'a06',code:'1301',name:'固定資産',type:'asset',sys:1},
   {id:'b01',code:'2001',name:'買掛金',type:'liability',sys:1},{id:'b02',code:'2002',name:'未払金',type:'liability',sys:1},{id:'b03',code:'2101',name:'クレジットカード',type:'liability',sys:1},{id:'b04',code:'2201',name:'借入金',type:'liability',sys:1},
   {id:'c01',code:'3001',name:'元入金',type:'equity',sys:1},{id:'c02',code:'3101',name:'繰越利益',type:'equity',sys:1},
-  {id:'d01',code:'4001',name:'給与収入',type:'income',sys:1},{id:'d02',code:'4002',name:'副業収入',type:'income',sys:1},{id:'d03',code:'4003',name:'利子収入',type:'income',sys:1},{id:'d04',code:'4004',name:'雑収入',type:'income',sys:1},
+  {id:'d01',code:'4001',name:'給与収入',type:'income',sys:1},{id:'d02',code:'4002',name:'副業収入',type:'income',sys:1},{id:'d03',code:'4003',name:'利子収入',type:'income',sys:1},{id:'d04',code:'4004',name:'雑収入',type:'income',sys:1},{id:'d05',code:'4005',name:'評価損益',type:'income',sys:1},
   {id:'e01',code:'5001',name:'食費',type:'expense',sys:1},{id:'e02',code:'5002',name:'日用品費',type:'expense',sys:1},{id:'e03',code:'5003',name:'光熱費',type:'expense',sys:1},{id:'e04',code:'5004',name:'通信費',type:'expense',sys:1},{id:'e05',code:'5005',name:'交通費',type:'expense',sys:1},{id:'e06',code:'5006',name:'医療費',type:'expense',sys:1},{id:'e07',code:'5007',name:'娯楽費',type:'expense',sys:1},{id:'e08',code:'5008',name:'衣服費',type:'expense',sys:1},{id:'e09',code:'5009',name:'住居費',type:'expense',sys:1},{id:'e10',code:'5010',name:'保険料',type:'expense',sys:1},{id:'e11',code:'5011',name:'教育費',type:'expense',sys:1},{id:'e12',code:'5012',name:'雑費',type:'expense',sys:1},
 ];
 
@@ -58,6 +58,30 @@ function saveLocal(state, key = STORAGE_KEY) {
   try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
 }
 
+/**
+ * 他端末が先に保存していたとき（409）、サーバーの最新一覧に「ユーザーがした操作」を載せ直す。
+ * 呼び出し元は1件のupsert/deleteをしているので、その意図さえ渡せば入力値は失われない。
+ * 別の項目を触っていた場合は両方残る。同じ項目を同時に編集した場合だけ、後から保存した側が残る。
+ */
+function applyIntent(list, intent) {
+  if (!intent) return list;
+  if (intent.op === 'delete') return list.filter((x) => x.id !== intent.id);
+  if (intent.op === 'upsert') {
+    const i = list.findIndex((x) => x.id === intent.item.id);
+    return i >= 0 ? list.map((x, n) => (n === i ? { ...x, ...intent.item } : x)) : [...list, intent.item];
+  }
+  // 予算は科目ごとの入力フォーム。ユーザーが触った科目だけ載せ替える（0=予算なし＝削除）。
+  // 触っていない科目は他端末が設定した値をそのまま残す。
+  if (intent.op === 'budgets') {
+    const touched = intent.changed;
+    return [
+      ...list.filter((b) => !(b.accountId in touched)),
+      ...Object.entries(touched).filter(([, amount]) => amount > 0).map(([accountId, amount]) => ({ accountId, amount })),
+    ];
+  }
+  return list;
+}
+
 export function DataProvider({ children }) {
   const { isAuthenticated, devMode, guestMode } = useAuth();
 
@@ -72,6 +96,12 @@ export function DataProvider({ children }) {
   const [allocs, setAllocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [useLocal, setUseLocal] = useState(false);
+  // 全置換保存するコレクションの版番号。他端末が先に保存していれば 409 で弾かれる。
+  // 既存ユーザーはマーカー未作成＝0 から始まる（サーバー側でバックフィル不要）。
+  const revs = useRef({ budgets: 0, presets: 0, recurring: 0, rules: 0 });
+  const encRev = useRef(0);
+  // 暗号化データが他端末と競合し、サーバーへ保存できていない状態
+  const [encConflict, setEncConflict] = useState(false);
   // E2E（端末側）暗号化。useLocal（ゲスト/開発/フォールバック）時のみ有効。既定OFF・後方互換。
   const [dek, setDek] = useState(null);            // 解錠中のデータ鍵（メモリのみ・サーバー非送信）
   const [encEnabled, setEncEnabled] = useState(false); // このストレージが暗号化済みか
@@ -84,6 +114,8 @@ export function DataProvider({ children }) {
     setAccounts(d.accounts || []); setJournals(d.journals || []); setTags(d.tags || []);
     setWallets(d.wallets || []); setBudgets(d.budgets || []); setPresets(d.presets && d.presets.length ? d.presets : [...DEFAULT_PRESETS]);
     setRecurring(d.recurring || []); setRules(d.rules || []); setAllocs(d.allocs || []);
+    // サーバーから読んだときは版番号も受け取る（ローカル/バックアップ復元時は入っていない）
+    if (d.revs) revs.current = { ...revs.current, ...d.revs };
   }, []);
 
   // ローカル読み込み（暗号化対応）。暗号化済み・未解錠ならデータは読まず解錠待ちにする。
@@ -123,8 +155,15 @@ export function DataProvider({ children }) {
       else saveLocal(dataset, key);
     } else if (encEnabled && dek) {
       cryptoSeal(dek, dataset)
-        .then((ct) => api.encdata.save({ bundle: encBundle, ct }))
-        .catch((e) => console.warn('暗号化保存(API)に失敗:', e?.message));
+        .then((ct) => api.encdata.save({ bundle: encBundle, ct, rev: encRev.current }))
+        .then((r) => { encRev.current = r.rev; setEncConflict(false); })
+        .catch((e) => {
+          // 409＝他端末が先に保存していた。上書きすると相手の記帳が消えるので書かない。
+          // 手元のデータはメモリに残っているため、利用者に知らせて判断してもらう。
+          // E2Eなのでサーバーでは統合できず、突き合わせはクライアントでしか行えない。
+          if (e?.status === 409) { setEncConflict(true); return; }
+          console.warn('暗号化保存(API)に失敗:', e?.message);
+        });
     }
   }, [useLocal, loading, encLocked, dek, encEnabled, encBundle, guestMode, accounts, journals, tags, allocs, wallets, presets, budgets, recurring, rules]);
 
@@ -154,7 +193,7 @@ export function DataProvider({ children }) {
 
         // E2E暗号化が有効なら暗号文を取得（取得失敗時は通常ロードへフォールバック）
         let ed = null;
-        try { ed = await api.encdata.get(); } catch { ed = null; }
+        try { ed = await api.encdata.get(); encRev.current = ed?.rev || 0; } catch { ed = null; }
         if (ed && ed.bundle) {
           setEncEnabled(true); setEncBundle(ed.bundle);
           const k = dek || await loadDek('api'); // 端末保持の鍵で自動解錠
@@ -207,37 +246,57 @@ export function DataProvider({ children }) {
   }, [useLocal, encEnabled]);
 
   // ── Recurring（定期取引: サーバー保存付き。useLocal時はlocalStorageへ） ──
-  const saveRecurring = useCallback(async (newRecurring) => {
-    if (!useLocal && !encEnabled) {
-      try { await api.recurring.save(newRecurring); } catch (e) { console.warn('recurring save failed:', e?.message); }
+  /**
+   * 全置換コレクションの保存。版番号を添えて送り、他端末が先に保存していれば 409 が返る。
+   * そのときは入力を捨てず、最新を取り直して同じ操作を載せ直し、1回だけ再試行する。
+   * 2回目も競合したら呼び出し元へ投げる（モーダルは入力を保持したまま残る）。
+   * 保存に失敗したら state を更新せずに投げる。握りつぶすと
+   * 「画面では保存できたのに、リロードすると消えている」になる。
+   */
+  const saveCollection = useCallback(async (key, endpoint, next, intent) => {
+    try {
+      const r = await endpoint.save(next, revs.current[key]);
+      revs.current[key] = r.rev;
+      return next;
+    } catch (e) {
+      if (e.status !== 409 || !intent) throw e;
+      const fresh = await endpoint.list();
+      const merged = applyIntent(fresh.items || [], intent);
+      const r = await endpoint.save(merged, fresh.rev);
+      revs.current[key] = r.rev;
+      return merged;
     }
-    setRecurring(newRecurring);
-  }, [useLocal, encEnabled]);
+  }, []);
+
+  const saveRecurring = useCallback(async (newRecurring, intent) => {
+    if (useLocal || encEnabled) { setRecurring(newRecurring); return; }
+    setRecurring(await saveCollection('recurring', api.recurring, newRecurring, intent));
+  }, [useLocal, encEnabled, saveCollection]);
 
   // ── Presets（プリセット: サーバー保存付き。useLocal時はlocalStorageへ） ──
-  const savePresets = useCallback(async (newPresets) => {
-    if (!useLocal && !encEnabled) {
-      try { await api.presets.save(newPresets); } catch (e) { console.warn('presets save failed:', e?.message); }
-    }
-    setPresets(newPresets);
-  }, [useLocal, encEnabled]);
+  const savePresets = useCallback(async (newPresets, intent) => {
+    if (useLocal || encEnabled) { setPresets(newPresets); return; }
+    setPresets(await saveCollection('presets', api.presets, newPresets, intent));
+  }, [useLocal, encEnabled, saveCollection]);
 
   // ── Rules（自動仕訳ルール: サーバー保存付き。useLocal時はlocalStorageへ） ──
-  const saveRules = useCallback(async (newRules) => {
-    if (!useLocal && !encEnabled) {
-      try { await api.rules.save(newRules); } catch (e) { console.warn('rules save failed:', e?.message); }
-    }
-    setRules(newRules);
-  }, [useLocal, encEnabled]);
+  const saveRules = useCallback(async (newRules, intent) => {
+    if (useLocal || encEnabled) { setRules(newRules); return; }
+    setRules(await saveCollection('rules', api.rules, newRules, intent));
+  }, [useLocal, encEnabled, saveCollection]);
 
   const deleteJournal = useCallback(async (id) => {
     const removed = journals.find((j) => j.id === id);
     if (useLocal || encEnabled) { setJournals((prev) => prev.filter((j) => j.id !== id)); }
     else { await api.journals.delete(id); setJournals((prev) => prev.filter((j) => j.id !== id)); }
-    // 定期取引の巻き戻し: 削除した仕訳が定期生成分なら次回生成日を戻す（保存して永続化）
+    // 定期取引の巻き戻し: 削除した仕訳が定期生成分なら次回生成日を戻す（保存して永続化）。
+    // ここは仕訳削除の副次処理。失敗しても仕訳の削除自体は成功しているので、
+    // 投げ直すと「削除に失敗しました」と誤って表示される。次回生成日が戻らないだけに留める。
     if (removed && recurring.length) {
       const rolled = rollbackNextDate(recurring, removed);
-      if (rolled.some((r, i) => r.nextDate !== recurring[i].nextDate)) await saveRecurring(rolled);
+      if (rolled.some((r, i) => r.nextDate !== recurring[i].nextDate)) {
+        try { await saveRecurring(rolled); } catch (e) { console.warn('nextDate rollback failed:', e?.message); }
+      }
     }
   }, [useLocal, encEnabled, journals, recurring, saveRecurring]);
 
@@ -278,11 +337,10 @@ export function DataProvider({ children }) {
   }, [useLocal, encEnabled]);
 
   // ── Budgets ──
-  const saveBudgets = useCallback(async (newBudgets) => {
+  const saveBudgets = useCallback(async (newBudgets, intent) => {
     if (useLocal || encEnabled) { setBudgets(newBudgets); return; }
-    await api.budgets.save(newBudgets);
-    setBudgets(newBudgets);
-  }, [useLocal, encEnabled]);
+    setBudgets(await saveCollection('budgets', api.budgets, newBudgets, intent));
+  }, [useLocal, encEnabled, saveCollection]);
 
   // ── サンプルデータ（ゲスト/ローカル体験用。sample:1 フラグ付き＝まとめて削除可能） ──
   const loadSampleData = useCallback(() => {
@@ -316,7 +374,9 @@ export function DataProvider({ children }) {
   const exportAll = useCallback(async () => {
     // 暗号化時は端末内の復号済みデータ（in-memory）から平文JSONを生成（サーバーは暗号文のみ）
     if (useLocal || encEnabled) return { accounts, journals, tags, wallets, budgets, presets, recurring, rules, allocs };
-    return api.data.exportAll();
+    // 版番号は内部用。ユーザーがダウンロードするバックアップJSONには含めない。
+    const { revs: _serverRevs, ...data } = await api.data.exportAll();
+    return data;
   }, [useLocal, encEnabled, accounts, journals, tags, wallets, budgets, presets, recurring, rules, allocs]);
 
   const applyAll = (d) => {
@@ -349,7 +409,8 @@ export function DataProvider({ children }) {
     // API: 端末で鍵生成→暗号化→サーバー保存。既存の平文(per-type items)はサーバーから削除。
     const { dek: k, recoveryKey, bundle } = await setupEncryption(passphrase);
     const ct = await cryptoSeal(k, dataset);
-    await api.encdata.save({ bundle, ct, clearPlaintext: true });
+    const saved = await api.encdata.save({ bundle, ct, clearPlaintext: true, rev: encRev.current });
+    encRev.current = saved.rev;
     setDek(k); setEncBundle(bundle); setEncEnabled(true); setEncLocked(false);
     return recoveryKey;
   }, [useLocal, guestMode, accounts, journals, tags, allocs, wallets, presets, budgets, recurring, rules]);
@@ -363,6 +424,7 @@ export function DataProvider({ children }) {
       return;
     }
     const ed = await api.encdata.get();
+    encRev.current = ed?.rev || 0;
     const k = await cryptoUnlock(passphrase, ed.bundle);
     applyDataset(ed.ct ? await cryptoOpen(k, ed.ct) : {});
     setDek(k); setEncBundle(ed.bundle); setEncLocked(false);
@@ -377,6 +439,7 @@ export function DataProvider({ children }) {
       return;
     }
     const ed = await api.encdata.get();
+    encRev.current = ed?.rev || 0;
     const k = await cryptoRecover(recoveryKey, ed.bundle);
     applyDataset(ed.ct ? await cryptoOpen(k, ed.ct) : {});
     setDek(k); setEncBundle(ed.bundle); setEncLocked(false);
@@ -393,7 +456,8 @@ export function DataProvider({ children }) {
     }
     // API: 復号済みデータを平文でサーバーへ戻し、暗号ブロブを空に
     await api.data.importAll({ accounts, journals, tags, allocs, wallets, presets, budgets, recurring, rules });
-    await api.encdata.save({ bundle: null, ct: null });
+    const cleared = await api.encdata.save({ bundle: null, ct: null, rev: encRev.current });
+    encRev.current = cleared.rev;
     await clearDek('api');
     setDek(null); setEncBundle(null); setEncEnabled(false); setEncLocked(false);
   }, [useLocal, guestMode, dek, applyDataset, accounts, journals, tags, allocs, wallets, presets, budgets, recurring, rules]);
@@ -407,7 +471,8 @@ export function DataProvider({ children }) {
     }
     const ed = await api.encdata.get();
     const newBundle = await cryptoChangePass(dek, newPassphrase, ed.bundle);
-    await api.encdata.save({ bundle: newBundle, ct: ed.ct });
+    const saved = await api.encdata.save({ bundle: newBundle, ct: ed.ct, rev: ed.rev || 0 });
+    encRev.current = saved.rev;
     setEncBundle(newBundle);
   }, [useLocal, guestMode, dek]);
 
@@ -422,7 +487,8 @@ export function DataProvider({ children }) {
     } else {
       const ed = await api.encdata.get();
       const newBundle = { ...(ed.bundle || {}), recoverySalt: rec.recoverySalt, recoveryWrappedDEK: rec.recoveryWrappedDEK };
-      await api.encdata.save({ bundle: newBundle, ct: ed.ct });
+      const saved = await api.encdata.save({ bundle: newBundle, ct: ed.ct, rev: ed.rev || 0 });
+      encRev.current = saved.rev;
       setEncBundle(newBundle);
     }
     return rec.recoveryKey;
@@ -430,7 +496,7 @@ export function DataProvider({ children }) {
 
   const value = {
     accounts, journals, tags, wallets, budgets, presets, recurring, rules, allocs, loading,
-    encLocked, encEnabled, encAvailable: useLocal || isAuthenticated, recoverySaved,
+    encLocked, encEnabled, encAvailable: useLocal || isAuthenticated, recoverySaved, encConflict,
     enableEncryption, unlockEncryption, recoverEncryption, disableEncryption, changeEncPassphrase,
     regenerateRecoveryKey, markRecoverySaved,
     addJournal, updateJournal, deleteJournal,

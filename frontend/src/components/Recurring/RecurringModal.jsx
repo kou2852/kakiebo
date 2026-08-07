@@ -63,12 +63,16 @@ export default function RecurringModal({ open, onClose, editId }) {
 
     const data = { name: name.trim(), frequency, day: dayNum, lines: validLines, desc: desc.trim(), nextDate };
 
+    // 第2引数は「何をしたか」。他端末が先に保存していたとき、入力値を捨てずに載せ直すために使う。
+    const item = { id: editId || uid(), ...data };
     const next = editId
       ? recurring.map((r) => (r.id === editId ? { ...r, ...data } : r))
-      : [...recurring, { id: uid(), ...data }];
-    await saveRecurring(next);
-    toast('保存しました');
-    onClose();
+      : [...recurring, item];
+    try {
+      await saveRecurring(next, { op: 'upsert', item });
+      toast('保存しました');
+      onClose();
+    } catch { toast('保存に失敗しました'); }
   };
 
   const tagOpts = [{ id: '', name: '(なし)' }, ...tags];

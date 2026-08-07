@@ -1,5 +1,5 @@
 // クレジットカードの「締め→引落」サイクルを計算する純関数群。
-// CC設定（ccClose=締め日, ccDay=引落日, ccDelay=引落月ずれ, ccFrom=引落口座）を持つ
+// 引き落とし設定（ccClose=締め日, ccDay=引落日, ccDelay=引き落とし月, ccFrom=引落口座）を持つ
 // 負債科目について、利用期間ごとの利用額・引落予定日・引落状態をまとめる。
 
 function ymd(d) {
@@ -20,9 +20,24 @@ function clampDay(yy, mm, day) {
   return new Date(yy, mm, Math.min(day, last));
 }
 
-/** CC設定済みのクレジットカード（負債科目）か */
+/** 引き落とし設定済みのクレジットカード（負債科目）か */
 export function isCreditCard(a) {
   return a.type === 'liability' && !!a.ccClose && !!a.ccDay && !!a.ccFrom;
+}
+
+/**
+ * 締め日 close の「直前に到来した締め日」を YYYY-MM-DD で返す。
+ *
+ * カードの開始残高（＝次回の引落額）をこの日付で記帳すると、締め済み・未引落の
+ * サイクルに乗り、次回引落として正しく出る。今日の日付だと締め前のサイクルに入り、
+ * 引き落とされるのが1サイクル先へずれ込む。
+ * 締まったかどうかの境界は creditCardCycles と揃える（締め日当日はまだ締め前）。
+ */
+export function lastClosingDate(close, now = new Date()) {
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const thisClose = clampDay(y, m, close);
+  return ymd(now) > ymd(thisClose) ? ymd(thisClose) : ymd(clampDay(y, m - 1, close));
 }
 
 // 返済（引落）仕訳か: カード借方 ＋ 資産(口座)貸方。利用額・内訳には含めない。

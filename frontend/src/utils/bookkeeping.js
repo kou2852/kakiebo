@@ -61,30 +61,95 @@ export function getPeriodRange(mode, custom = {}) {
   }
 }
 
+// タグの符号判定。「そのタグのお金が増えたか減ったか」を科目区分と貸借から決める。
+const TAG_SIGN = {
+  asset: { dr: 1, cr: -1 },      // 口座に入る / 口座から出る
+  expense: { dr: -1, cr: 1 },    // 使った / 返金された
+  income: { dr: -1, cr: 1 },     // 収入が入った
+  liability: { dr: -1, cr: 1 },  // 返済で出ていった / 借入で入ってきた
+  equity: { dr: -1, cr: 1 },
+};
+// どの行に付いたタグを採用するかの優先順位（小さいほど優先）。
+// 資産行は実際の口座の出入りそのものなので最優先。
+const TAG_LEVEL = { asset: 0, expense: 1, income: 1, liability: 2, equity: 2 };
+// 未知の区分（壊れたバックアップの取込など）は負債・純資産と同じ扱いにする
+const tagSign = (type, side) => (TAG_SIGN[type] || TAG_SIGN.equity)[side];
+const tagLevel = (type) => TAG_LEVEL[type] ?? 2;
+
 /**
  * タグ別残高計算（仕訳のsplitsから）。
+ *
+ * タグは「口座のお金に色をつける封筒」。1つの仕訳につき1つのタグは1回だけ増減する。
+ * どの行にタグを付けても向きがぶれないよう、次の優先順位で1段だけ採用する:
+ *   1. 資産行  … 借方=増える / 貸方=減る（実際に口座を出入りした額）
+ *   2. 費用・収益行 … 費用=減る / 収益=増える（カード払いなど資産が動かない取引も拾う）
+ *   3. 負債・純資産行 … 借方=減る（返済） / 貸方=増える（借入）
+ * これにより借方・貸方の両方に同じタグを付けても二重計上・相殺が起きない。
+ *
+ * 2・3 で拾った増減は同じ仕訳の資産行へ金額按分して口座に紐づける。資産行が無い
+ * 取引（カード払いなど）は口座別配分には現れないが、タグ合計からは差し引く。
+ *
+ * @returns {{ byAccount: Object, byTag: Object }}
+ *   byAccount: { [accountId]: { [tagId]: number } } 口座別のタグ配分
+ *   byTag:     { [tagId]: number } タグ合計（口座に紐づかない分も含む）
  */
 export function computeTagBalances(journals, accounts) {
-  const result = {};
-  journals.forEach((j) =>
-    j.lines.forEach((l) => {
-      const splits = l.splits || [];
-      if (!splits.length) return;
-      const account = accounts.find((a) => a.id === l.accountId);
-      if (!account) return;
-      const sign =
-        (account.type === 'asset' || account.type === 'expense')
-          ? (l.side === 'dr' ? 1 : -1)
-          : (l.side === 'cr' ? 1 : -1);
+  const byAccount = {};
+  const byTag = {};
+  const acctById = new Map(accounts.map((a) => [a.id, a]));
+
+  const add = (accountId, tagId, amount) => {
+    if (!amount) return;
+    byTag[tagId] = (byTag[tagId] || 0) + amount;
+    if (!accountId) return;
+    if (!byAccount[accountId]) byAccount[accountId] = {};
+    byAccount[accountId][tagId] = (byAccount[accountId][tagId] || 0) + amount;
+  };
+
+  journals.forEach((j) => {
+    const lines = (j.lines || [])
+      .map((l) => ({ ...l, account: acctById.get(l.accountId) }))
+      .filter((l) => l.account && l.amount);
+    if (!lines.length) return;
+
+    // 旧クイック入力が仕訳直下に残した tagId。行にタグが無いときだけ全行に効かせる
+    const jTag = j.tagId && !lines.some((l) => (l.splits || []).length) ? j.tagId : null;
+
+    // タグごとに最優先の段の行だけを集める
+    const perTag = {};
+    lines.forEach((l) => {
+      const splits = jTag ? [{ tagId: jTag, amount: l.amount }] : (l.splits || []);
       splits.forEach((sp) => {
-        if (!sp.tagId) return;
-        if (!result[l.accountId]) result[l.accountId] = {};
-        if (!result[l.accountId][sp.tagId]) result[l.accountId][sp.tagId] = 0;
-        result[l.accountId][sp.tagId] += sp.amount * sign;
+        if (!sp.tagId || !sp.amount) return;
+        const level = tagLevel(l.account.type);
+        const cur = perTag[sp.tagId];
+        if (!cur || level < cur.level) perTag[sp.tagId] = { level, entries: [{ line: l, amount: sp.amount }] };
+        else if (level === cur.level) cur.entries.push({ line: l, amount: sp.amount });
       });
-    })
-  );
-  return result;
+    });
+
+    const assetLines = lines.filter((l) => l.account.type === 'asset');
+    const assetAbs = assetLines.reduce((s, l) => s + Math.abs(l.amount), 0);
+
+    Object.entries(perTag).forEach(([tagId, { level, entries }]) => {
+      const signed = ({ line, amount }) => amount * tagSign(line.account.type, line.side);
+      if (level === 0) {
+        entries.forEach((e) => add(e.line.accountId, tagId, signed(e)));
+        return;
+      }
+      const delta = entries.reduce((s, e) => s + signed(e), 0);
+      if (!delta) return;
+      if (!assetAbs) { add(null, tagId, delta); return; }
+      let rest = delta;
+      assetLines.forEach((l, i) => {
+        const share = i === assetLines.length - 1 ? rest : Math.round(delta * (Math.abs(l.amount) / assetAbs));
+        rest -= share;
+        add(l.accountId, tagId, share);
+      });
+    });
+  });
+
+  return { byAccount, byTag };
 }
 
 /**
@@ -135,7 +200,7 @@ export function isCashAccount(a) {
 }
 
 /** 投資性の資産科目か（有価証券・固定資産。コード12x/13x or 名称一致） */
-function isInvestmentAsset(a) {
+export function isInvestmentAsset(a) {
   return a.type === 'asset' && (/^1[23]/.test(a.code || '') || /有価証券|固定資産|投資/.test(a.name || ''));
 }
 

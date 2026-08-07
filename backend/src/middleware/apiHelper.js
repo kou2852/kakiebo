@@ -21,6 +21,8 @@ export const noContent = () => ({ statusCode: 204, headers: CORS });
 export const badRequest = (msg) => res(400, { error: msg || 'Bad Request' });
 export const unauthorized = () => res(401, { error: 'Unauthorized' });
 export const notFound = () => res(404, { error: 'Not Found' });
+/** 他端末が先に更新していて、送られてきた rev が古い場合。クライアントは読み直して再試行する */
+export const conflict = (data) => res(409, { error: 'Conflict', ...data });
 export const serverError = (msg) => res(500, { error: msg || 'Internal Server Error' });
 
 /**

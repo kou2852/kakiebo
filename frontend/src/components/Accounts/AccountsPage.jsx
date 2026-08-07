@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { fa, esc, ACCOUNT_TYPES, BADGE_CLASSES } from '../../utils/format';
+import { fa, esc, today, ACCOUNT_TYPES, BADGE_CLASSES } from '../../utils/format';
 import { calcBalances, accountBalance } from '../../utils/bookkeeping';
 import { EQUITY_ID, nextCode } from '../../utils/accountCode';
+import { lastClosingDate } from '../../utils/creditCard';
 import CCSettleModal from '../Credit/CCSettleModal';
 import { useToast } from '../Common/Toast';
 import InfoTip from '../Common/InfoTip';
@@ -123,7 +124,9 @@ export default function AccountsPage() {
         const lines = quickAccount.type === 'asset'
           ? [{ accountId: created.id, side: 'dr', amount: balance, taxRate: 0 }, { accountId: EQUITY_ID, side: 'cr', amount: balance, taxRate: 0 }]
           : [{ accountId: EQUITY_ID, side: 'dr', amount: balance, taxRate: 0 }, { accountId: created.id, side: 'cr', amount: balance, taxRate: 0 }];
-        await addJournal({ date: new Date().toISOString().slice(0, 10), desc: `開始残高（${name}）`, lines }, { silent: true });
+        // カードの開始残高は「次回の引落額」。直前の締め日に置くと次回引落のサイクルに乗る
+        const date = data.ccClose ? lastClosingDate(data.ccClose) : today();
+        await addJournal({ date, desc: `開始残高（${name}）`, lines }, { silent: true });
       }
       setQuickAccount(QUICK_ACCOUNT_TYPES[0]);
       setQuickName(QUICK_ACCOUNT_TYPES[0].name);
@@ -185,23 +188,32 @@ export default function AccountsPage() {
     setPresetEditId(editId); setPresetWalletId(walletId); setPresetType(type); setPresetModalOpen(true);
   };
 
-  const handleDeletePreset = (id) => {
+  const handleDeletePreset = async (id) => {
     if (!confirm('削除しますか？')) return;
-    savePresets(presets.filter((p) => p.id !== id));
-    toast('削除しました');
+    try {
+      await savePresets(presets.filter((p) => p.id !== id), { op: 'delete', id });
+      toast('削除しました');
+    } catch { toast('削除に失敗しました'); }
   };
 
-  const handleDeleteRule = (id) => {
+  const handleDeleteRule = async (id) => {
     if (!confirm('削除しますか？')) return;
-    saveRules(rules.filter((r) => r.id !== id));
-    toast('削除しました');
+    try {
+      await saveRules(rules.filter((r) => r.id !== id), { op: 'delete', id });
+      toast('削除しました');
+    } catch { toast('削除に失敗しました'); }
   };
 
-  // クレカ等（CC設定済み負債科目）の現在の未払残高
+  // クレカ等（引き落とし設定済み負債科目）の現在の未払残高
   const allBal = useMemo(() => calcBalances(journals, accounts), [journals, accounts]);
   const ccAccounts = useMemo(
     () => accounts.filter((a) => a.type === 'liability' && a.ccDay && a.ccFrom && a.ccClose),
     [accounts]
+  );
+  // 仕訳に登場する科目。引き落とし未設定の警告を「使っているカード」だけに絞るために使う
+  const usedAccountIds = useMemo(
+    () => new Set(journals.flatMap((j) => j.lines.map((l) => l.accountId))),
+    [journals]
   );
 
   // クレカ返済の記帳は確認モーダル（CCSettleModal）で対象を選んで実行する。
@@ -247,19 +259,22 @@ export default function AccountsPage() {
             <input type="text" className="fc" maxLength={50} value={quickName} onChange={(e) => setQuickName(e.target.value)} />
           </div>
           <div className="fg" style={{ flex: '1 1 140px', minWidth: 0 }}>
-            <label className="fl">{quickAccount.name === 'NISA口座' ? '評価額（任意）' : quickAccount.type === 'liability' ? '未払残高（任意）' : '残高（任意）'}</label>
+            <label className="fl">{quickAccount.name === 'NISA口座' ? '評価額（任意）' : quickAccount.type === 'liability' ? '次回の引落額（任意）' : '残高（任意）'}</label>
             <input type="text" inputMode="numeric" className="fc" placeholder="0" value={quickBalance} onChange={(e) => setQuickBalance(e.target.value)} />
+            {quickAccount.type === 'liability' && (
+              <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 4 }}>請求が確定して、まだ引き落とされていない額（カード会社アプリの「今月のお支払い金額」）</div>
+            )}
           </div>
           <button className="btn btn-p" style={{ flex: '0 0 auto' }} onClick={saveQuickAccount}>登録する</button>
           {quickAccount.type === 'liability' && (
             <div style={{ flex: '1 1 100%', minWidth: 0, marginTop: 14, padding: 12, border: '1px solid var(--bd)', borderRadius: 6 }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--ac)', marginBottom: 10 }}>CC設定</div>
+              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--ac)', marginBottom: 10 }}>引き落とし設定</div>
               <div className="form-row">
                 <div className="fg"><label className="fl">締め日（毎月）</label><input type="number" className="fc" min="1" max="31" placeholder="15" value={quickCcClose} onChange={(e) => setQuickCcClose(e.target.value)} /></div>
                 <div className="fg"><label className="fl">引落日（毎月）</label><input type="number" className="fc" min="1" max="31" placeholder="27" value={quickCcDay} onChange={(e) => setQuickCcDay(e.target.value)} /></div>
               </div>
               <div className="form-row mt-6">
-                <div className="fg"><label className="fl">引落月ずれ</label>
+                <div className="fg"><label className="fl">引き落とし月</label>
                   <select className="fc" value={quickCcDelay} onChange={(e) => setQuickCcDelay(e.target.value)}>
                     <option value="1">翌月</option><option value="2">翌々月</option>
                   </select>
@@ -300,18 +315,31 @@ export default function AccountsPage() {
                 <SortTh k="code">コード</SortTh>
                 <SortTh k="name">科目名</SortTh>
                 <th>区分</th>
-                <th>CC設定</th>
+                <th>引き落とし</th>
                 <th />
               </tr></thead>
               <tbody>
                 {filtered.map((a) => {
-                  const cc = a.ccDay ? `締${a.ccClose || '?'}日→${a.ccDelay || 1}ヶ月後${a.ccDay}日 / ${acctName(a.ccFrom)}` : '—';
+                  // 締め日・引落日・引落口座は3つ揃って初めて機能する。欠けていれば静かに無効なので警告する。
+                  const ccDone = !!(a.ccClose && a.ccDay && a.ccFrom);
+                  const ccAny = !!(a.ccClose || a.ccDay || a.ccFrom);
+                  const ccMissing = [!a.ccClose && '締め日', !a.ccDay && '引落日', !a.ccFrom && '引落口座'].filter(Boolean);
+                  const cc = `締${a.ccClose}日→${a.ccDelay || 1}ヶ月後${a.ccDay}日 / ${acctName(a.ccFrom)}`;
                   return (
                     <tr key={a.id}>
                       <td className="mono text-m">{a.code || ''}</td>
                       <td>{a.name}</td>
                       <td><span className={`bdg ${BADGE_CLASSES[a.type]}`}>{ACCOUNT_TYPES[a.type]}</span></td>
-                      <td className="text-m" style={{ fontSize: 11 }}>{a.type === 'liability' ? cc : ''}</td>
+                      <td className="text-m" style={{ fontSize: 11 }}>
+                        {a.type !== 'liability' ? '' : ccDone ? cc
+                          : (ccAny || usedAccountIds.has(a.id)) ? (
+                            <button className="bdg bdg-l"
+                              style={{ border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11 }}
+                              onClick={() => { setAcctEditId(a.id); setAcctModalOpen(true); }}>
+                              {ccAny ? `設定が未完了：${ccMissing.join('・')}` : '引き落とし未設定'}
+                            </button>
+                          ) : '—'}
+                      </td>
                       <td style={{ whiteSpace: 'nowrap' }}>
                         <button className="btn btn-g btn-s" onClick={() => { setAcctEditId(a.id); setAcctModalOpen(true); }}>編集</button>
                         {!a.sys && <button className="btn btn-d btn-s" style={{ marginLeft: 4 }} onClick={() => handleDelete(a.id)}>削除</button>}
@@ -374,14 +402,14 @@ export default function AccountsPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span className="card-title">
             クレジットカード返済
-            <InfoTip text="負債科目（クレカ等）に『CC設定』（締め日・引落日・引落月ずれ・引落口座）を設定すると、締め済みの利用額を集計し、当月の引落日に『クレカ→引落口座』の返済仕訳をまとめて生成できます。利用月（発生）と支払月（引落）が分かれて記帳されます。" />
+            <InfoTip text="負債科目（クレカ等）に『引き落とし設定』（締め日・引落日・引き落とし月・引落口座）を設定すると、締め済みの利用額を集計し、当月の引落日に『クレカ→引落口座』の返済仕訳をまとめて生成できます。利用月（発生）と支払月（引落）が分かれて記帳されます。" />
           </span>
           <button className="btn btn-p btn-s" onClick={() => setCcModalOpen(true)}>クレカ返済を記帳</button>
         </div>
         <div className="card">
           {ccAccounts.length === 0 ? (
             <p className="nd">
-              CC設定のあるカードがありません。「負債」タブで科目を編集し『CC設定』（締め日・引落日・引落口座）を入力すると、ここで返済仕訳を自動生成できます。
+              引き落とし設定のあるカードがありません。「負債」タブで科目を編集し『引き落とし設定』（締め日・引落日・引落口座）を入力すると、ここで返済仕訳を自動生成できます。
             </p>
           ) : (
             <>

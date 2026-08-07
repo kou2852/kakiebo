@@ -58,8 +58,10 @@ export default function RecurringPage() {
 
   const handleDelete = async (id) => {
     if (!confirm('削除しますか？')) return;
-    await saveRecurring(recurring.filter((r) => r.id !== id));
-    toast('削除しました');
+    try {
+      await saveRecurring(recurring.filter((r) => r.id !== id), { op: 'delete', id });
+      toast('削除しました');
+    } catch { toast('削除に失敗しました'); }
   };
 
   if (loading) return <p className="nd">読み込み中...</p>;

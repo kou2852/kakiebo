@@ -20,7 +20,11 @@ async function request(path, options = {}) {
   if (res.status === 204) return null;
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `API Error: ${res.status}`);
+    const e = new Error(err.error || `API Error: ${res.status}`);
+    // 409（他端末が先に更新）の判定と、サーバー側の最新状態を呼び出し元へ渡す
+    e.status = res.status;
+    e.payload = err;
+    throw e;
   }
   return res.json();
 }
@@ -61,26 +65,18 @@ export const wallets = {
   save: (data) => request('/api/wallets', { method: 'POST', body: JSON.stringify(data) }),
 };
 
-// ── Budgets ──
-export const budgets = {
-  list: () => request('/api/budgets'),
-  save: (data) => request('/api/budgets', { method: 'POST', body: JSON.stringify(data) }),
-};
+// ── 全置換保存するコレクション ──
+// list は { items, rev }、save は版番号 rev を添えて送る。
+// サーバー側の rev と食い違えば 409 が返り、書き込みは1件も起きない。
+const collection = (path) => ({
+  list: () => request(path),
+  save: (items, rev) => request(path, { method: 'POST', body: JSON.stringify({ items, rev }) }),
+});
 
-// ── Recurring（定期取引。全置換保存） ──
-export const recurring = {
-  save: (data) => request('/api/recurring', { method: 'POST', body: JSON.stringify(data) }),
-};
-
-// ── Presets（プリセット。全置換保存） ──
-export const presets = {
-  save: (data) => request('/api/presets', { method: 'POST', body: JSON.stringify(data) }),
-};
-
-// ── Rules（自動仕訳ルール。全置換保存） ──
-export const rules = {
-  save: (data) => request('/api/rules', { method: 'POST', body: JSON.stringify(data) }),
-};
+export const budgets = collection('/api/budgets');
+export const recurring = collection('/api/recurring');
+export const presets = collection('/api/presets');
+export const rules = collection('/api/rules');
 
 // ── E2E暗号化データ（方式A: データセット全体を1ブロブ。bundle=鍵バンドル, ct=暗号文） ──
 export const encdata = {
