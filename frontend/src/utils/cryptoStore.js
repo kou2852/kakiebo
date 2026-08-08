@@ -17,6 +17,17 @@ export function writeBundle(key, bundle) {
   localStorage.setItem(metaKey(key), JSON.stringify(bundle));
 }
 
+/** 暗号文をそのまま読む（復号しない）。解錠できないときのバックアップ書き出しに使う。 */
+export function readCipher(key) {
+  return localStorage.getItem(blobKey(key));
+}
+
+/** 復号せずに暗号化を捨てる。パスフレーズもリカバリーキーも失った人の最終手段。 */
+export function clearEncryption(key) {
+  localStorage.removeItem(blobKey(key));
+  localStorage.removeItem(metaKey(key));
+}
+
 /** dek でデータセット全体を封緘して保存 */
 export async function saveEncrypted(key, dek, dataset) {
   localStorage.setItem(blobKey(key), await seal(dek, dataset));

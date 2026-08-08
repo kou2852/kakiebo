@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { fa, esc, today, ACCOUNT_TYPES, BADGE_CLASSES } from '../../utils/format';
+import { fa, esc, uid, today, ACCOUNT_TYPES, BADGE_CLASSES } from '../../utils/format';
 import { calcBalances, accountBalance } from '../../utils/bookkeeping';
 import { EQUITY_ID, nextCode } from '../../utils/accountCode';
 import { lastClosingDate } from '../../utils/creditCard';
@@ -15,16 +15,18 @@ import WalletModal from './WalletModal';
 import PresetModal from './PresetModal';
 
 // 純資産（家族のBS）に効く科目テンプレ。クリックでモーダルに内容をプリフィルし、編集してから追加できる。
+// wallet は「口座として使う」の初期値。支払い・入金の起点になるものだけ ON にする
+// （ローンはそこから支払わないので OFF）。モーダル側で変更できる。
 const ACCOUNT_TEMPLATES = [
-  { name: '銀行口座', type: 'asset', code: '1011' },
-  { name: 'クレジットカード', type: 'liability', code: '2102' },
-  { name: 'NISA口座', type: 'asset', code: '1211' },
-  { name: 'iDeCo', type: 'asset', code: '1212' },
-  { name: '証券口座', type: 'asset', code: '1213' },
-  { name: '積立保険', type: 'asset', code: '1214' },
-  { name: '住宅ローン', type: 'liability', code: '2211' },
-  { name: '自動車ローン', type: 'liability', code: '2212' },
-  { name: '奨学金', type: 'liability', code: '2213' },
+  { name: '銀行口座', type: 'asset', code: '1011', wallet: true },
+  { name: 'クレジットカード', type: 'liability', code: '2102', wallet: true },
+  { name: 'NISA口座', type: 'asset', code: '1211', wallet: true },
+  { name: 'iDeCo', type: 'asset', code: '1212', wallet: true },
+  { name: '証券口座', type: 'asset', code: '1213', wallet: true },
+  { name: '積立保険', type: 'asset', code: '1214', wallet: true },
+  { name: '住宅ローン', type: 'liability', code: '2211', wallet: false },
+  { name: '自動車ローン', type: 'liability', code: '2212', wallet: false },
+  { name: '奨学金', type: 'liability', code: '2213', wallet: false },
 ];
 
 const QUICK_ACCOUNT_TYPES = [
@@ -63,7 +65,7 @@ export default function AccountsPage() {
       return;
     }
     setAcctEditId(null);
-    setAcctPrefill({ name: t.name, type: t.type, code: t.code });
+    setAcctPrefill({ name: t.name, type: t.type, code: t.code, wallet: t.wallet });
     setTab(t.type);
     setAcctModalOpen(true);
   };
@@ -88,6 +90,8 @@ export default function AccountsPage() {
   const [quickCcDay, setQuickCcDay] = useState('27');
   const [quickCcDelay, setQuickCcDelay] = useState('1');
   const [quickCcFrom, setQuickCcFrom] = useState('');
+  // かんたん登録の4種（銀行・カード・現金・NISA）はどれも支払い・入金の起点になるので既定でON
+  const [quickWallet, setQuickWallet] = useState(true);
   const quickAssetAccounts = useMemo(() => accounts.filter((a) => a.type === 'asset'), [accounts]);
 
   const defaultQuickCcFrom = () => quickAssetAccounts.find((a) => a.name === '普通預金')?.id || quickAssetAccounts[0]?.id || '';
@@ -119,6 +123,13 @@ export default function AccountsPage() {
         data.ccFrom = quickCcFrom || '';
       }
       const created = await addAccount(data);
+      // 科目だけ作って口座を作らないと、プリセットも残高の配分も使えないまま増えていく
+      if (quickWallet) {
+        await saveWallets([...wallets, {
+          id: uid(), name, accountId: created.id,
+          defaultTagName: '', defaultTagColor: '#888', note: '',
+        }]);
+      }
       const balance = Math.round(parseFloat(String(quickBalance).replace(/[¥,，]/g, '')) || 0);
       if (balance > 0) {
         const lines = quickAccount.type === 'asset'
@@ -135,6 +146,7 @@ export default function AccountsPage() {
       setQuickCcDay('27');
       setQuickCcDelay('1');
       setQuickCcFrom(defaultQuickCcFrom());
+      setQuickWallet(true);
       toast('登録しました');
     } catch { toast('登録に失敗しました'); }
   };
@@ -230,7 +242,7 @@ export default function AccountsPage() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-p" onClick={openNewAccount}>＋ 科目</button>
-          <button className="btn btn-g" onClick={openNewWallet}>＋ 口座</button>
+          <button className="btn btn-p" onClick={openNewWallet}>＋ 口座</button>
         </div>
       </div>
 
@@ -266,6 +278,10 @@ export default function AccountsPage() {
             )}
           </div>
           <button className="btn btn-p" style={{ flex: '0 0 auto' }} onClick={saveQuickAccount}>登録する</button>
+          <label style={{ flex: '1 1 100%', display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'var(--tx2)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={quickWallet} onChange={(e) => setQuickWallet(e.target.checked)} />
+            口座一覧にも登録する（プリセットと残高の配分に使えます）
+          </label>
           {quickAccount.type === 'liability' && (
             <div style={{ flex: '1 1 100%', minWidth: 0, marginTop: 14, padding: 12, border: '1px solid var(--bd)', borderRadius: 6 }}>
               <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--ac)', marginBottom: 10 }}>引き落とし設定</div>
@@ -355,8 +371,11 @@ export default function AccountsPage() {
 
       {/* 口座一覧 */}
       <div style={{ marginTop: 24 }}>
-        <div className="card-title">口座一覧</div>
-        <div className="card">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div className="card-title" style={{ marginBottom: 0 }}>口座一覧</div>
+          <button className="btn btn-p btn-s" onClick={openNewWallet}>＋ 口座</button>
+        </div>
+        <div className="card" style={{ marginTop: 10 }}>
           {wallets.length === 0 ? <p className="nd">口座なし。「＋ 口座」から追加してください。</p> : (
             wallets.map((w) => {
               const wPresets = presets.filter((p) => p.walletId === w.id);

@@ -10,7 +10,9 @@ Globals:
     Environment:
       Variables:
         TABLE_NAME: !Ref KakeiboTable
-        ALLOWED_ORIGIN: !Ref AllowedOrigin
+        # LP からも叩くルート（問い合わせ）があるため、CORS だけは複数オリジンを許可する。
+        # AllowedOrigin 単体は Cognito の CallbackURLs にも使うので、そちらは1つのまま。
+        ALLOWED_ORIGIN: !If [HasLpOrigin, !Sub "${AllowedOrigin},${LpOrigin}", !Ref AllowedOrigin]
     Architectures:
       - arm64
 
@@ -30,11 +32,21 @@ Parameters:
   SesIdentityArn:
     Type: String
     Default: ""
-    Description: Cognito の送信に使う SES 検証済みドメインIDの ARN。空なら Cognito 既定送信者を使う。
+    # 【重要】SES が本番アクセス（サンドボックス解除）を取得するまで、ここに値を入れないこと。
+    # 値を入れると Cognito が SES 経由の送信になり、サンドボックスでは検証済みアドレス宛にしか
+    # 送れないため、新規登録者に確認コードが1通も届かなくなる（画面上はエラーも出ない）。
+    # 2026-08-02〜08-09 の間、この設定が入っていたためメール登録が全滅していた。
+    # 本番アクセスは過去に一度却下されている（ケース 178113029200250）。承認後に値を戻すこと。
+    # samconfig.toml は gitignore されているため、デプロイ時の指定にも注意する。
+    Description: Cognito の送信に使う SES 検証済みドメインIDの ARN。空なら Cognito 既定送信者を使う（SES本番アクセス取得までは空のままにする）。
   SesFromEmail:
     Type: String
     Default: "no-reply@kurofukubo.com"
     Description: SES 利用時の差出人アドレス（SesIdentityArn のドメイン配下）。
+  LpOrigin:
+    Type: String
+    Default: ""
+    Description: ランディングページのオリジン（例 https://kurofukubo.com）。問い合わせフォームの CORS 用。空なら追加しない。
   GoogleClientId:
     Type: String
     Default: ""
@@ -49,6 +61,7 @@ Conditions:
   HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
   HasSes: !Not [!Equals [!Ref SesIdentityArn, ""]]
   HasGoogle: !Not [!Equals [!Ref GoogleClientId, ""]]
+  HasLpOrigin: !Not [!Equals [!Ref LpOrigin, ""]]
 
 Resources:
   # ── Cognito ──
@@ -292,6 +305,36 @@ Resources:
         - DynamoDBCrudPolicy:
             TableName: !Ref KakeiboTable
 
+  # ログイン済みユーザーの問い合わせスレッド（メールアドレスは受け取らない）
+  InquiriesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/inquiries.handler
+      CodeUri: .
+      Events:
+        ListInquiries:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/inquiries
+            Method: GET
+        SaveInquiry:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/inquiries
+            Method: POST
+        OptionsInquiries:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/inquiries
+            Method: OPTIONS
+            Auth: { Authorizer: NONE }
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref KakeiboTable
+
   FeedbackFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -503,6 +546,32 @@ Resources:
         - Statement:
             - Effect: Allow
               Action: cognito-idp:AdminDeleteUser
+              Resource: !GetAtt UserPool.Arn
+
+  # ── 確認されないまま残ったサインアップの掃除（1日1回）──
+  # 残すと同じメールアドレスで登録し直せなくなるため、復旧手段としても機能する。
+  CleanupUnconfirmedFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: src/handlers/cleanupUnconfirmed.handler
+      CodeUri: .
+      Timeout: 60
+      Environment:
+        Variables:
+          USER_POOL_ID: !Ref UserPool
+          UNCONFIRMED_KEEP_DAYS: "3"
+      Events:
+        Daily:
+          Type: Schedule
+          Properties:
+            Schedule: cron(20 18 * * ? *)  # 毎日 03:20 JST（UTC 18:20）
+            Description: 3日以上確認されていないサインアップを削除
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:ListUsers
+                - cognito-idp:AdminDeleteUser
               Resource: !GetAtt UserPool.Arn
 
   # ── 新規ユーザー初期データ投入 ──

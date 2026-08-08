@@ -4,7 +4,7 @@ import * as api from '../api/client';
 import { rollbackNextDate } from '../utils/autoGen';
 import { hasEncryption, loadEncrypted, saveEncrypted, enableEncryption as csEnable, unlockLocal, recoverLocal, changeLocalPassphrase, disableEncryption as csDisable } from '../utils/cryptoStore';
 import { setupEncryption, unlock as cryptoUnlock, recover as cryptoRecover, changePassphrase as cryptoChangePass, regenerateRecovery as regenRecovery, seal as cryptoSeal, open as cryptoOpen } from '../utils/crypto';
-import { readBundle, writeBundle } from '../utils/cryptoStore';
+import { readBundle, writeBundle, readCipher, clearEncryption } from '../utils/cryptoStore';
 import { saveDek, loadDek, clearDek } from '../utils/dekStore';
 import { track, trackOnce } from '../utils/track';
 
@@ -12,6 +12,9 @@ const DataContext = createContext(null);
 
 const STORAGE_KEY = 'kk4';
 const GUEST_KEY = 'kk4_guest'; // ゲストのデータは通常の kk4 と分離して保存
+
+// 解錠できないまま持ち出すバックアップの識別子。インポート時にこれで平文JSONと見分ける。
+export const ENC_BACKUP_TYPE = 'kurofukubo-encrypted-backup';
 
 // デフォルト勘定科目
 const DEFAULT_ACCOUNTS = [
@@ -445,6 +448,62 @@ export function DataProvider({ children }) {
     setDek(k); setEncBundle(ed.bundle); setEncLocked(false);
   }, [useLocal, guestMode, applyDataset]);
 
+  // ── パスフレーズもリカバリーキーも失った人の経路 ──
+  // 暗号文と鍵バンドルをそのまま書き出す。bundle だけで復号に必要な情報が揃うので
+  // （crypto.js の unlock/recover を参照）、後から思い出せばこのファイルから復元できる。
+  // 解錠画面が出ている＝ bundle は手元にある、なので鍵は不要。
+  const exportEncryptedBackup = useCallback(async () => {
+    let bundle = null; let ct = null;
+    if (useLocal) {
+      const key = guestMode ? GUEST_KEY : STORAGE_KEY;
+      bundle = readBundle(key); ct = readCipher(key);
+    } else {
+      const ed = await api.encdata.get();
+      bundle = ed?.bundle || null; ct = ed?.ct || null;
+    }
+    if (!bundle || !ct) throw new Error('書き出せる暗号化データがありません');
+    return { type: ENC_BACKUP_TYPE, v: 1, exportedAt: new Date().toISOString(), bundle, ct };
+  }, [useLocal, guestMode]);
+
+  // バックアップファイルを復号する。ファイルは自己完結（bundle だけで鍵を導出できる）ので、
+  // いまのアカウントが暗号化中かどうか・どのパスフレーズかには依存しない。
+  // secret 未指定なら現在の鍵で試す（破棄を挟んでいなければ鍵が同じなので、そのまま開く）。
+  const decryptBackup = useCallback(async (backup, secret, kind = 'pass') => {
+    const b = backup?.bundle; const ct = backup?.ct;
+    if (!b || !ct) throw new Error('バックアップの形式が正しくありません');
+    if (secret == null) {
+      if (!dek) throw new Error('鍵がありません');
+      return cryptoOpen(dek, ct); // 鍵違いは AES-GCM の認証で必ず失敗する
+    }
+    const k = kind === 'recovery' ? await cryptoRecover(secret.trim(), b) : await cryptoUnlock(secret, b);
+    return cryptoOpen(k, ct);
+  }, [dek]);
+
+  // 復号できない暗号文を捨てて、使える状態に戻す。データは戻らない（戻せたらE2Eではない）。
+  // アカウントとログインは維持する。呼ぶ前に exportEncryptedBackup を促すこと。
+  const wipeEncryption = useCallback(async () => {
+    const fresh = {
+      accounts: [...DEFAULT_ACCOUNTS], journals: [], tags: [], allocs: [],
+      wallets: [], presets: [], budgets: [], recurring: [], rules: [],
+    };
+    if (useLocal) {
+      const key = guestMode ? GUEST_KEY : STORAGE_KEY;
+      clearEncryption(key);
+      saveLocal(fresh, key);
+      await clearDek(key);
+    } else {
+      const ed = await api.encdata.get();
+      await api.encdata.save({ bundle: null, ct: null, rev: ed?.rev || 0 });
+      encRev.current = 0;
+      // 有効化時に平文をサーバーから消しているため、そのままだと科目が1つも無い状態になる。
+      // 既定科目は固定ID（a01/b03/e01…）なので、後から古いバックアップを取り込んでも二重にならない。
+      await api.data.importAll(fresh);
+      await clearDek('api');
+    }
+    applyDataset(fresh); // 既定プリセットはここで入る（通常の読み込みと同じ経路）
+    setDek(null); setEncBundle(null); setEncEnabled(false); setEncLocked(false);
+  }, [useLocal, guestMode, applyDataset]);
+
   const disableEncryption = useCallback(async () => {
     if (!dek) return;
     if (useLocal) {
@@ -480,13 +539,15 @@ export function DataProvider({ children }) {
   const regenerateRecoveryKey = useCallback(async () => {
     if (!dek) return null;
     const rec = await regenRecovery(dek);
+    // recoveryIterations も一緒に更新する。落とすと、新しく作ったラップを古い回数で開こうとして失敗する。
+    const patch = { recoveryIterations: rec.recoveryIterations, recoverySalt: rec.recoverySalt, recoveryWrappedDEK: rec.recoveryWrappedDEK };
     if (useLocal) {
       const key = guestMode ? GUEST_KEY : STORAGE_KEY;
       const b = readBundle(key);
-      if (b) writeBundle(key, { ...b, recoverySalt: rec.recoverySalt, recoveryWrappedDEK: rec.recoveryWrappedDEK });
+      if (b) writeBundle(key, { ...b, ...patch });
     } else {
       const ed = await api.encdata.get();
-      const newBundle = { ...(ed.bundle || {}), recoverySalt: rec.recoverySalt, recoveryWrappedDEK: rec.recoveryWrappedDEK };
+      const newBundle = { ...(ed.bundle || {}), ...patch };
       const saved = await api.encdata.save({ bundle: newBundle, ct: ed.ct, rev: ed.rev || 0 });
       encRev.current = saved.rev;
       setEncBundle(newBundle);
@@ -498,7 +559,7 @@ export function DataProvider({ children }) {
     accounts, journals, tags, wallets, budgets, presets, recurring, rules, allocs, loading,
     encLocked, encEnabled, encAvailable: useLocal || isAuthenticated, recoverySaved, encConflict,
     enableEncryption, unlockEncryption, recoverEncryption, disableEncryption, changeEncPassphrase,
-    regenerateRecoveryKey, markRecoverySaved,
+    regenerateRecoveryKey, markRecoverySaved, exportEncryptedBackup, wipeEncryption, decryptBackup,
     addJournal, updateJournal, deleteJournal,
     addAccount, updateAccount, deleteAccount,
     saveTags, saveWallets, saveBudgets,

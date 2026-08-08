@@ -19,6 +19,7 @@ import CalendarPage from './components/Calendar/CalendarPage';
 import RecurringPage from './components/Recurring/RecurringPage';
 import SettingsPage from './components/Settings/SettingsPage';
 import GuidePage from './components/Guide/GuidePage';
+import InquiryPage from './components/Support/InquiryPage';
 import Toast from './components/Common/Toast';
 import Ad from './components/Common/Ad';
 import { GuestBanner, GuestPromoModal } from './components/Common/Guest';
@@ -59,6 +60,7 @@ const PAGES = {
   recurring: RecurringPage,
   settings: SettingsPage,
   guide: GuidePage,
+  inquiry: InquiryPage,
 };
 
 function AppShell({ devMode, guestMode, tier }) {

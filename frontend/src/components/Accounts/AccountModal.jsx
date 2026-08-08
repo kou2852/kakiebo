@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useData } from '../../contexts/DataContext';
-import { faBal, fas, ACCOUNT_TYPES, today } from '../../utils/format';
+import { faBal, fas, uid, ACCOUNT_TYPES, today } from '../../utils/format';
 import { CODE_BASE, EQUITY_ID, nextCode } from '../../utils/accountCode';
 import { calcBalances, accountBalance, isInvestmentAsset } from '../../utils/bookkeeping';
 import { lastClosingDate } from '../../utils/creditCard';
@@ -12,7 +12,7 @@ import Modal from '../Common/Modal';
 const CREATE_PL = '__create_pl__';
 
 export default function AccountModal({ open, onClose, editId, defaultType, prefill }) {
-  const { accounts, journals, addAccount, updateAccount, addJournal } = useData();
+  const { accounts, journals, wallets, presets, addAccount, updateAccount, addJournal, saveWallets } = useData();
   const toast = useToast();
 
   const [name, setName] = useState('');
@@ -28,6 +28,10 @@ export default function AccountModal({ open, onClose, editId, defaultType, prefi
   // 止めないための目印（触っていなければ既存値をそのまま通す）。
   const [ccTouched, setCcTouched] = useState(false);
   const [openingBalance, setOpeningBalance] = useState('');
+  // 口座（wallet）としての登録。口座は資産・負債科目の薄いラッパーなので、科目を作る流れの中で決められるようにする。
+  const [useWallet, setUseWallet] = useState(false);
+  const [walletName, setWalletName] = useState('');
+  const [walletNameTouched, setWalletNameTouched] = useState(false);
   const [actualBalance, setActualBalance] = useState('');
   const [counterId, setCounterId] = useState('');
   const [adjusting, setAdjusting] = useState(false);
@@ -131,6 +135,8 @@ export default function AccountModal({ open, onClose, editId, defaultType, prefi
         // 1つでも入っていればカードとして設定しかけている
         setUseCard(!!(a.ccClose || a.ccDay || a.ccFrom));
         setCcTouched(false);
+        const w = wallets.find((x) => x.accountId === editId);
+        setUseWallet(!!w); setWalletName(w?.name || a.name); setWalletNameTouched(true);
       }
     } else {
       // テンプレから開いた場合は内容をプリフィル（編集して保存できる）。
@@ -150,11 +156,24 @@ export default function AccountModal({ open, onClose, editId, defaultType, prefi
       setCcDelay('1'); setCcFrom(cardOn ? defaultCcFrom() : '');
       setCcTouched(false);
       setOpeningBalance('');
+      // テンプレ側が口座かどうかを持っている（銀行・カード・NISA等はON、ローン系はOFF）
+      setUseWallet(!!prefill?.wallet);
+      setWalletName(prefill?.name || ''); setWalletNameTouched(false);
     }
-  }, [open, editId, accounts, defaultType, prefill]);
+  }, [open, editId, accounts, wallets, defaultType, prefill]);
 
   // 開始残高は新規の資産・負債科目のみ（収益・費用・純資産は「フロー」の科目で開始残高という概念がない）
   const showOpeningBalance = !editId && (type === 'asset' || type === 'liability');
+
+  // 口座にできるのは資産・負債のみ（WalletModal の紐づけ対象と揃える）
+  const showWallet = type === 'asset' || type === 'liability';
+  const myWallet = useMemo(() => (editId ? wallets.find((w) => w.accountId === editId) : null), [editId, wallets]);
+  const myWalletPresets = useMemo(
+    () => (myWallet ? presets.filter((p) => p.walletId === myWallet.id) : []),
+    [myWallet, presets]
+  );
+  // 区分を資産・負債の外へ変えた場合も口座は外れる
+  const removingWallet = !!myWallet && (!useWallet || !showWallet);
 
   // 開いたら、いちばん価値のある入力（残高がある新規口座なら残高欄、それ以外は科目名）へフォーカスを合わせる
   useEffect(() => {
@@ -195,11 +214,19 @@ export default function AccountModal({ open, onClose, editId, defaultType, prefi
         data.ccFrom = ccFrom || '';
       }
     }
+    // 口座を外す前に、ぶら下がっているプリセットを確認する。口座を消すとプリセットは
+    // 口座一覧から辿れなくなるため、使用中の科目を削除させない既存の作法と揃えて止める。
+    if (removingWallet && myWalletPresets.length) {
+      toast(`口座「${myWallet.name}」にはプリセットが${myWalletPresets.length}件あります。先に削除してください`);
+      return;
+    }
     try {
+      let targetId = editId;
       if (editId) {
         await updateAccount(editId, data);
       } else {
         const created = await addAccount(data);
+        targetId = created.id;
         // 開始残高：資産は (借)新科目/(貸)元入金、負債（既存の借金）は (借)元入金/(貸)新科目
         const bal = Math.round(parseFloat(String(openingBalance).replace(/[¥,，]/g, '')) || 0);
         if (showOpeningBalance && bal > 0) {
@@ -211,6 +238,15 @@ export default function AccountModal({ open, onClose, editId, defaultType, prefi
           await addJournal({ date, desc: `開始残高（${name.trim()}）`, lines }, { silent: true });
         }
       }
+      // 口座の登録・解除は科目の保存が通ってから
+      if (removingWallet) {
+        await saveWallets(wallets.filter((w) => w.id !== myWallet.id));
+      } else if (showWallet && useWallet && !myWallet) {
+        await saveWallets([...wallets, {
+          id: uid(), name: walletName.trim() || name.trim(), accountId: targetId,
+          defaultTagName: '', defaultTagColor: '#888', note: '',
+        }]);
+      }
       toast('保存しました');
       onClose();
     } catch { toast('保存に失敗しました'); }
@@ -221,7 +257,8 @@ export default function AccountModal({ open, onClose, editId, defaultType, prefi
       footer={<><button className="btn btn-g" onClick={onClose}>キャンセル</button><button className="btn btn-p" onClick={handleSave}>保存</button></>}>
 
       <div style={{ display: 'grid', gap: 10 }}>
-        <div className="fg"><label className="fl">科目名</label><input ref={nameRef} type="text" className="fc" maxLength={50} value={name} onChange={(e) => setName(e.target.value)} /></div>
+        <div className="fg"><label className="fl">科目名</label><input ref={nameRef} type="text" className="fc" maxLength={50} value={name}
+          onChange={(e) => { setName(e.target.value); if (!walletNameTouched) setWalletName(e.target.value); }} /></div>
         <div className="fg"><label className="fl">区分</label>
           <select className="fc" value={type} onChange={(e) => handleTypeChange(e.target.value)}>
             {Object.entries(ACCOUNT_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -248,6 +285,37 @@ export default function AccountModal({ open, onClose, editId, defaultType, prefi
           </div>
         )}
       </div>
+
+      {showWallet && (
+        <div style={{ marginTop: 14, padding: 12, border: `1px solid ${removingWallet ? 'var(--red)' : 'var(--bd)'}`, borderRadius: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--ac)', marginBottom: 8 }}>
+            口座として使う
+            <InfoTip text="口座は資産・負債の科目に名前を付けたものです。口座にすると、よく使う仕訳をプリセットとして登録でき、タグ・配分の画面で残高の内訳を管理できます。科目としての機能は口座にしなくても変わりません。" />
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+            <input type="checkbox" checked={useWallet} onChange={(e) => setUseWallet(e.target.checked)} />
+            口座一覧に登録する
+          </label>
+          {useWallet && !myWallet && (
+            <div className="fg" style={{ marginTop: 10 }}>
+              <label className="fl">口座名</label>
+              <input type="text" className="fc" maxLength={50} value={walletName}
+                onChange={(e) => { setWalletNameTouched(true); setWalletName(e.target.value); }} />
+              <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 4 }}>
+                科目名が自動で入ります。あとから口座一覧で変更できます。
+              </div>
+            </div>
+          )}
+          {removingWallet && (
+            <div style={{ fontSize: 11, color: 'var(--red)', marginTop: 8, lineHeight: 1.7 }}>
+              保存すると、口座「{myWallet.name}」が口座一覧から外れます。
+              {myWalletPresets.length > 0
+                ? `この口座のプリセット${myWalletPresets.length}件が使えなくなるため、先に削除してください。`
+                : '残高の配分（タグ）の割り当ても外れます。'}
+            </div>
+          )}
+        </div>
+      )}
 
       {type === 'liability' && (
         <div style={{ marginTop: 14, padding: 12, border: '1px solid var(--bd)', borderRadius: 6 }}>

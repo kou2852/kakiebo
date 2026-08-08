@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react';
-import { useData } from '../../contexts/DataContext';
+import { useData, ENC_BACKUP_TYPE } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { useToast } from '../Common/Toast';
 import { HIDEABLE_NAV } from '../../config/nav';
 import { track } from '../../utils/track';
 import EncryptionPanel from './EncryptionPanel';
+import EncryptedImportModal from './EncryptedImportModal';
 
 export default function SettingsPage() {
   const { exportAll, importAll } = useData();
@@ -18,6 +19,7 @@ export default function SettingsPage() {
   const [confirmText, setConfirmText] = useState('');
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
+  const [encBackup, setEncBackup] = useState(null); // 取り込み待ちの暗号化バックアップ
 
   const handleDeleteAccount = async () => {
     setDeleting(true);
@@ -57,6 +59,11 @@ export default function SettingsPage() {
       payload = JSON.parse(await file.text());
     } catch {
       toast('JSONの読み込みに失敗しました');
+      return;
+    }
+    // 解錠画面から書き出した暗号化バックアップ。中身は読めないので専用モーダルへ回す。
+    if (payload?.type === ENC_BACKUP_TYPE || (payload?.bundle && payload?.ct)) {
+      setEncBackup(payload);
       return;
     }
     if (!payload || !Array.isArray(payload.accounts)) {
@@ -156,6 +163,10 @@ export default function SettingsPage() {
           )}
         </div>
       )}
+
+      <EncryptedImportModal open={!!encBackup} backup={encBackup}
+        onClose={() => setEncBackup(null)}
+        onDone={() => toast('取り込みました')} />
     </div>
   );
 }

@@ -20,8 +20,10 @@ export async function handler(event) {
   if (path === '/api/tags' && method === 'POST') {
     const body = parseBody(event);
     if (!body) return badRequest('Invalid JSON');
-    // 一括保存 (配列) or 単体保存
-    const tags = Array.isArray(body) ? body : [body];
+    // { items: [...] } は全置換（送られてこなかったものは削除する）。他のコレクションと同じ形式。
+    // 素の配列・単体は rev 導入前のクライアント互換で追記のみ（＝削除が伝わらない）。
+    const fullReplace = Array.isArray(body?.items);
+    const tags = fullReplace ? body.items : (Array.isArray(body) ? body : [body]);
     for (const t of tags) {
       if (tooLong(t.name, 100)) return badRequest('タグ名は100文字以内です');
       if (tooLong(t.note, 300)) return badRequest('備考は300文字以内です');
@@ -33,7 +35,11 @@ export async function handler(event) {
       color: t.color || '#6090d8',
       note: t.note || '',
     }));
-    await batchPut(userId, items);
+    if (fullReplace) {
+      await replaceCollection(userId, await queryByPrefix(userId, 'TAG#'), items);
+    } else {
+      await batchPut(userId, items); // 旧クライアント（配列送信）は従来どおり追記のみ
+    }
     return created(items.map(strip));
   }
 
@@ -44,7 +50,8 @@ export async function handler(event) {
   if (path === '/api/wallets' && method === 'POST') {
     const body = parseBody(event);
     if (!body) return badRequest('Invalid JSON');
-    const wallets = Array.isArray(body) ? body : [body];
+    const fullReplace = Array.isArray(body?.items);
+    const wallets = fullReplace ? body.items : (Array.isArray(body) ? body : [body]);
     for (const w of wallets) {
       if (tooLong(w.name, 100)) return badRequest('口座名は100文字以内です');
       if (tooLong(w.defaultTagName, 50)) return badRequest('デフォルトタグ名は50文字以内です');
@@ -59,7 +66,11 @@ export async function handler(event) {
       defaultTagColor: w.defaultTagColor || '#888',
       note: w.note || '',
     }));
-    await batchPut(userId, items);
+    if (fullReplace) {
+      await replaceCollection(userId, await queryByPrefix(userId, 'WALLET#'), items);
+    } else {
+      await batchPut(userId, items); // 旧クライアント（配列送信）は従来どおり追記のみ
+    }
     return created(items.map(strip));
   }
 

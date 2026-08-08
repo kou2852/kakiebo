@@ -50,3 +50,6 @@ ds-bundle/
 
 # 管理ダッシュボードのCloudFrontログ取得キャッシュ
 scripts/admin/.cache-cflogs/
+
+# sam package の出力（S3のオブジェクトURIが入るだけの生成物）
+backend/packaged-*.yaml

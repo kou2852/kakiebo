@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { fa, faBal, esc } from '../../utils/format';
-import { calcBalances, accountBalance, computeTagBalances } from '../../utils/bookkeeping';
+import { computeTagBalances, tagAllocation } from '../../utils/bookkeeping';
 import { useToast } from '../Common/Toast';
 import { GUEST_LIMITS } from '../../config/tiers';
 import EmptyState from '../Common/EmptyState';
@@ -34,7 +34,6 @@ export default function TagsPage() {
   const [tagModalOpen, setTagModalOpen] = useState(false);
   const [tagEditId, setTagEditId] = useState(null);
 
-  const bB = useMemo(() => calcBalances(journals, accounts), [journals, accounts]);
   const tagBals = useMemo(() => computeTagBalances(journals, accounts), [journals, accounts]);
 
   // タグごとの合計残高
@@ -57,26 +56,11 @@ export default function TagsPage() {
     });
   }, [tags, sortKey, sortDir, tagTotals]);
 
-  // 科目ごとのタグ配分
-  const acctTagData = useMemo(() => {
-    const assetAccts = accounts.filter((a) => a.type === 'asset').sort((a, b) => accountBalance(b.id, accounts, bB) - accountBalance(a.id, accounts, bB));
-    return assetAccts.map((a) => {
-      const bal = Math.max(0, accountBalance(a.id, accounts, bB));
-      const manual = allocs.filter((x) => x.accountId === a.id);
-      const computed = tagBals.byAccount[a.id] || {};
-      const mg = {};
-      manual.forEach((x) => { mg[x.tagId] = (mg[x.tagId] || 0) + x.amount; });
-      Object.entries(computed).forEach(([tid, amt]) => { mg[tid] = (mg[tid] || 0) + amt; });
-      const items = Object.entries(mg).filter(([, v]) => Math.round(v) !== 0).map(([tid, amt]) => {
-        const t = tags.find((x) => x.id === tid);
-        return { tagId: tid, name: t?.name || '?', color: t?.color || '#666', amount: amt };
-      });
-      const allocated = items.reduce((s, x) => s + x.amount, 0);
-      const free = bal - allocated;
-      const w = wallets.find((x) => x.accountId === a.id);
-      return { account: a, bal, items, free, defaultTag: w?.defaultTagName || '(未配分)', defaultColor: w?.defaultTagColor || '#888' };
-    }).filter((x) => x.bal > 0);
-  }, [accounts, journals, tags, allocs, tagBals, wallets, bB]);
+  // 科目ごとのタグ配分（ダッシュボードのパネルと同じ集計を使う）
+  const acctTagData = useMemo(
+    () => tagAllocation(journals, accounts, tags, allocs, wallets),
+    [journals, accounts, tags, allocs, wallets]
+  );
 
   const toggleSort = (key) => {
     if (sortKey === key) setSortDir((d) => d === 'asc' ? 'desc' : 'asc');
@@ -170,6 +154,12 @@ export default function TagsPage() {
                   <div className="ta-free" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                     <span style={{ width: 7, height: 7, borderRadius: '50%', background: d.defaultColor }} />
                     {d.defaultTag}: <span className="mono">{fa(d.free)}</span>
+                  </div>
+                )}
+                {/* 配分しすぎ。出さないと残高と内訳の合計が合わない理由が分からない */}
+                {d.free < 0 && (
+                  <div className="ta-free" style={{ color: 'var(--red)' }}>
+                    配分超過: <span className="mono">{faBal(d.free)}</span>
                   </div>
                 )}
               </div>

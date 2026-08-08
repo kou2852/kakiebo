@@ -29,16 +29,23 @@ function concat(a, b) { const r = new Uint8Array(a.length + b.length); r.set(a, 
 
 // ── 鍵 ──
 // パスフレーズ + salt → KEK（DEK ラップ用の AES-GCM 鍵）
-async function deriveKEK(passphrase, salt) {
+// iterations は必ず「そのラップを作ったときの値」を渡す。ここで現在の定数を使うと、
+// PBKDF2_ITERATIONS を引き上げた瞬間に既存の bundle が開けなくなる。
+async function deriveKEK(passphrase, salt, iterations) {
   const base = await subtle.importKey('raw', te.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
   return subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt, iterations, hash: 'SHA-256' },
     base,
     { name: 'AES-GCM', length: 256 },
     false,
     ['encrypt', 'decrypt'],
   );
 }
+
+// bundle から反復回数を取り出す。パスフレーズ側とリカバリー側は独立に再発行できるので別々に持つ。
+// v1 の bundle は iterations が1つしか無いため、リカバリー側もそれで代替する。
+const passIterations = (b) => b.iterations || PBKDF2_ITERATIONS;
+const recoveryIterations = (b) => b.recoveryIterations || b.iterations || PBKDF2_ITERATIONS;
 
 // ランダムな DEK（データ暗号化鍵）。ラップするため extractable。
 async function generateDEK() {
@@ -83,42 +90,43 @@ export function generateRecoveryKey() {
 export async function setupEncryption(passphrase) {
   const dek = await generateDEK();
   const salt = rand(16);
-  const wrappedDEK = await wrapDEK(dek, await deriveKEK(passphrase, salt));
+  const wrappedDEK = await wrapDEK(dek, await deriveKEK(passphrase, salt, PBKDF2_ITERATIONS));
   const recoveryKey = generateRecoveryKey();
   const recoverySalt = rand(16);
-  const recoveryWrappedDEK = await wrapDEK(dek, await deriveKEK(recoveryKey, recoverySalt));
+  const recoveryWrappedDEK = await wrapDEK(dek, await deriveKEK(recoveryKey, recoverySalt, PBKDF2_ITERATIONS));
   return {
     dek,
     recoveryKey,
     bundle: {
-      v: 1, kdf: KDF, cipher: CIPHER, iterations: PBKDF2_ITERATIONS,
-      salt: toB64(salt), wrappedDEK,
-      recoverySalt: toB64(recoverySalt), recoveryWrappedDEK,
+      v: 2, kdf: KDF, cipher: CIPHER,
+      iterations: PBKDF2_ITERATIONS, salt: toB64(salt), wrappedDEK,
+      recoveryIterations: PBKDF2_ITERATIONS, recoverySalt: toB64(recoverySalt), recoveryWrappedDEK,
     },
   };
 }
 
 // 解錠: パスフレーズ + bundle → dek（パスフレーズ違いは例外）
 export async function unlock(passphrase, bundle) {
-  return unwrapDEK(bundle.wrappedDEK, await deriveKEK(passphrase, fromB64(bundle.salt)));
+  return unwrapDEK(bundle.wrappedDEK, await deriveKEK(passphrase, fromB64(bundle.salt), passIterations(bundle)));
 }
 
 // リカバリー: リカバリーキー + bundle → dek
 export async function recover(recoveryKey, bundle) {
-  return unwrapDEK(bundle.recoveryWrappedDEK, await deriveKEK(recoveryKey, fromB64(bundle.recoverySalt)));
+  return unwrapDEK(bundle.recoveryWrappedDEK, await deriveKEK(recoveryKey, fromB64(bundle.recoverySalt), recoveryIterations(bundle)));
 }
 
 // パスフレーズ変更: 既存 dek を新パスフレーズで再ラップ（データ再暗号化は不要）
 export async function changePassphrase(dek, newPassphrase, bundle) {
   const salt = rand(16);
-  const wrappedDEK = await wrapDEK(dek, await deriveKEK(newPassphrase, salt));
-  return { ...bundle, salt: toB64(salt), wrappedDEK };
+  const wrappedDEK = await wrapDEK(dek, await deriveKEK(newPassphrase, salt, PBKDF2_ITERATIONS));
+  // iterations も一緒に更新する。ここを据え置くと、いま作ったラップを古い回数で開こうとして失敗する。
+  return { ...bundle, v: 2, iterations: PBKDF2_ITERATIONS, salt: toB64(salt), wrappedDEK };
 }
 
 // リカバリーキー再発行: 既存 dek を新しいリカバリーキーで再ラップ。新キーと更新用フィールドを返す。
 export async function regenerateRecovery(dek) {
   const recoveryKey = generateRecoveryKey();
   const recoverySalt = rand(16);
-  const recoveryWrappedDEK = await wrapDEK(dek, await deriveKEK(recoveryKey, recoverySalt));
-  return { recoveryKey, recoverySalt: toB64(recoverySalt), recoveryWrappedDEK };
+  const recoveryWrappedDEK = await wrapDEK(dek, await deriveKEK(recoveryKey, recoverySalt, PBKDF2_ITERATIONS));
+  return { recoveryKey, recoveryIterations: PBKDF2_ITERATIONS, recoverySalt: toB64(recoverySalt), recoveryWrappedDEK };
 }

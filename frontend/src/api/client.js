@@ -51,7 +51,8 @@ export const accounts = {
 // ── Tags ──
 export const tags = {
   list: () => request('/api/tags'),
-  save: (data) => request('/api/tags', { method: 'POST', body: JSON.stringify(data) }),
+  // { items } で送ると全置換になる（配列のままだと削除がサーバーに伝わらない）
+  save: (items) => request('/api/tags', { method: 'POST', body: JSON.stringify({ items }) }),
 };
 
 // ── Feedback ──
@@ -59,10 +60,18 @@ export const feedback = {
   send: (body) => request('/api/feedback', { method: 'POST', body: JSON.stringify({ body }) }),
 };
 
+// ── Inquiries（ログイン済みの問い合わせスレッド。メールアドレスは扱わない）──
+export const inquiries = {
+  list: () => request('/api/inquiries'),
+  // id を渡すと既存スレッドへの返信、渡さなければ新規
+  send: (data) => request('/api/inquiries', { method: 'POST', body: JSON.stringify(data) }),
+};
+
 // ── Wallets ──
 export const wallets = {
   list: () => request('/api/wallets'),
-  save: (data) => request('/api/wallets', { method: 'POST', body: JSON.stringify(data) }),
+  // { items } で送ると全置換になる（配列のままだと削除がサーバーに伝わらない）
+  save: (items) => request('/api/wallets', { method: 'POST', body: JSON.stringify({ items }) }),
 };
 
 // ── 全置換保存するコレクション ──

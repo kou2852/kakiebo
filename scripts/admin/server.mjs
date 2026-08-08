@@ -82,6 +82,75 @@ function getRegisteredUsers() {
   return Number.isFinite(n) ? n : null;
 }
 
+// aws cli 実行の共通ラッパ。日本語が届くため UTF-8 を強制する（Windows既定の cp932 だと落ちる）。
+function awsJson(args, what) {
+  const r = spawnSync('aws', [...args, '--output', 'json', '--profile', PROFILE, '--region', 'ap-northeast-1'], {
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+    env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' },
+  });
+  if (r.status !== 0) {
+    const err = (r.stderr || r.error?.message || '').trim();
+    const needLogin = /token|expired|sso|credential|Unable to locate/i.test(err);
+    throw new Error(needLogin
+      ? `AWS認証が切れています。ターミナルで実行してください:\n  aws sso login --profile ${PROFILE}`
+      : `${what}に失敗しました:\n${err.slice(0, 500)}`);
+  }
+  return JSON.parse(r.stdout || '{}');
+}
+
+// ログイン済みユーザーからの問い合わせスレッド。USER#<sub> 配下に散っているので scan で拾う。
+// ここは件数だけでなく本文も扱う（サポート窓口なので中身を読まないと返信できない）。
+// 表示するのは sub の先頭8桁のみで、メールアドレスは取得しない。
+function getInquiries() {
+  const out = [];
+  let start = null;
+  do {
+    const args = ['dynamodb', 'scan', '--table-name', TABLE,
+      '--filter-expression', 'begins_with(SK, :p)',
+      '--expression-attribute-values', '{":p":{"S":"INQUIRY#"}}'];
+    if (start) args.push('--exclusive-start-key', JSON.stringify(start));
+    const page = awsJson(args, '問い合わせの取得');
+    for (const i of page.Items || []) {
+      out.push({
+        pk: i.PK?.S || '', sk: i.SK?.S || '',
+        sub: (i.PK?.S || '').replace('USER#', '').slice(0, 8),
+        id: i.id?.S || '', subject: i.subject?.S || '',
+        status: i.status?.S || 'open',
+        createdAt: i.createdAt?.S || '', updatedAt: i.updatedAt?.S || '',
+        messages: (i.messages?.L || []).map((m) => ({
+          from: m.M?.from?.S || 'user', body: m.M?.body?.S || '', at: m.M?.at?.S || '',
+        })),
+      });
+    }
+    start = page.LastEvaluatedKey || null;
+  } while (start);
+
+  out.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  // 最後がユーザー発言＝こちらの返信待ち
+  const waiting = out.filter((t) => t.status !== 'closed' && t.messages.at(-1)?.from === 'user').length;
+  return { total: out.length, waiting, items: out, generatedAt: new Date().toISOString().replace('T', ' ').slice(0, 19) };
+}
+
+// 運営からの返信を追記する。update-item で messages にだけ足し、他の属性は触らない。
+function replyInquiry(pk, sk, body, close) {
+  const msg = { M: { from: { S: 'staff' }, body: { S: body }, at: { S: new Date().toISOString() } } };
+  const values = {
+    ':m': { L: [msg] },
+    ':empty': { L: [] },
+    ':u': { S: new Date().toISOString() },
+    ':s': { S: close ? 'closed' : 'open' },
+  };
+  awsJson(['dynamodb', 'update-item', '--table-name', TABLE,
+    '--key', JSON.stringify({ PK: { S: pk }, SK: { S: sk } }),
+    '--condition-expression', 'attribute_exists(SK)',
+    '--update-expression', 'SET messages = list_append(if_not_exists(messages, :empty), :m), updatedAt = :u, #st = :s',
+    '--expression-attribute-names', '{"#st":"status"}',
+    '--expression-attribute-values', JSON.stringify(values),
+  ], '返信の保存');
+  return { ok: true };
+}
+
 // アプリ内アンケートで送られたご意見。固定PK 'FEEDBACK' 配下を新しい順に取得する。
 // 匿名で保存されているため、誰が送ったかは分からない（userIdは常に 'guest'）。
 function getFeedback() {
@@ -498,6 +567,7 @@ const HTML = /* html */ `<!doctype html><html lang="ja"><head><meta charset="utf
   <span class="tabs">
     <button id="tab-access" class="on">アクセス</button>
     <button id="tab-feedback">ご意見</button>
+    <button id="tab-inquiry">問い合わせ</button>
   </span>
   <span class="meta" id="period">—</span>
   <span class="grow"></span>
@@ -567,6 +637,7 @@ function setTab(t){
   tab = t;
   $('#tab-access').className = t==='access' ? 'on' : '';
   $('#tab-feedback').className = t==='feedback' ? 'on' : '';
+  $('#tab-inquiry').className = t==='inquiry' ? 'on' : '';
   // 期間の切替はアクセスタブでしか意味がないため隠す
   $('#period-picker').style.display = t==='access' ? '' : 'none';
   $('#period').style.display = t==='access' ? '' : 'none';
@@ -611,8 +682,72 @@ function renderFeedback(d){
   $('#root').innerHTML = h;
 }
 
+async function loadInquiries(){
+  $('#refresh').disabled = true; $('#refresh').textContent = '取得中…';
+  $('#root').innerHTML = '<p class="muted">DynamoDBから取得中…</p>';
+  try{
+    const r = await fetch('/api/inquiries');
+    const d = await r.json();
+    if(!r.ok || d.error){ $('#root').innerHTML = '<div class="err">'+esc(d.error||'エラー')+'</div>'; return; }
+    renderInquiries(d);
+  }catch(e){ $('#root').innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
+  finally{ $('#refresh').disabled = false; $('#refresh').textContent = '更新'; }
+}
+
+function renderInquiries(d){
+  let h = '<div class="band"><h2>問い合わせ</h2><span class="hint">ログイン済みユーザーとのやり取り（メールアドレスは保持していない）</span></div>';
+  h += '<div class="lead" style="grid-template-columns:repeat(2,minmax(0,1fr))">';
+  h += lead(d.waiting, '件', '返信待ち', 'こちらの返答が必要', true);
+  h += lead(d.total, '件', 'スレッド総数', '全期間');
+  h += '</div>';
+  if(!d.items.length){
+    h += '<section><p class="muted">まだ届いていません。</p></section>';
+  }else{
+    for(const t of d.items){
+      const waiting = t.status!=='closed' && t.messages.length && t.messages[t.messages.length-1].from==='user';
+      h += '<div class="fb"><div class="when">'+esc(t.sub)+'… ／ '+esc((t.updatedAt||'').replace('T',' ').slice(0,16))
+         + (waiting ? ' ／ <b style="color:#e0a020">返信待ち</b>' : '')
+         + (t.status==='closed' ? ' ／ 終了' : '') + '</div>';
+      h += '<div class="body"><b>'+esc(t.subject||'（件名なし）')+'</b></div>';
+      for(const m of t.messages){
+        h += '<div class="body" style="margin-top:6px;padding-left:10px;border-left:3px solid '
+           + (m.from==='staff' ? '#0d9488' : '#c9d2d4') + '"><span class="muted">'
+           + (m.from==='staff' ? '運営' : 'ユーザー') + ' '+esc((m.at||'').replace('T',' ').slice(0,16))
+           + '</span><br>'+esc(m.body)+'</div>';
+      }
+      if(t.status!=='closed'){
+        h += '<div style="margin-top:8px"><textarea class="rp" rows="3" style="width:100%" '
+           + 'data-pk="'+esc(t.pk)+'" data-sk="'+esc(t.sk)+'" placeholder="返信を書く"></textarea>'
+           + '<button class="rp-send" data-pk="'+esc(t.pk)+'" data-sk="'+esc(t.sk)+'">返信する</button> '
+           + '<label class="muted"><input type="checkbox" class="rp-close" data-sk="'+esc(t.sk)+'"> 送信して終了にする</label></div>';
+      }
+      h += '</div>';
+    }
+  }
+  h += '<p class="foot"><span>本文はサポート対応のため表示している。メールアドレスは保持していない（表示は sub の先頭8桁）。</span><span>取得時刻: '+esc(d.generatedAt)+'</span></p>';
+  $('#root').innerHTML = h;
+
+  document.querySelectorAll('.rp-send').forEach(function(btn){
+    btn.addEventListener('click', async function(){
+      const sk = btn.dataset.sk;
+      const ta = document.querySelector('textarea.rp[data-sk="'+CSS.escape(sk)+'"]');
+      const close = document.querySelector('.rp-close[data-sk="'+CSS.escape(sk)+'"]').checked;
+      if(!ta.value.trim()) return;
+      btn.disabled = true; btn.textContent = '送信中…';
+      try{
+        const r = await fetch('/api/inquiry-reply', { method:'POST', headers:{'content-type':'application/json'},
+          body: JSON.stringify({ pk: btn.dataset.pk, sk, body: ta.value, close }) });
+        const j = await r.json();
+        if(!r.ok || j.error) throw new Error(j.error||'失敗');
+        loadInquiries();
+      }catch(e){ alert(e.message); btn.disabled = false; btn.textContent = '返信する'; }
+    });
+  });
+}
+
 async function load(){
   if(tab==='feedback') return loadFeedback();
+  if(tab==='inquiry') return loadInquiries();
   const days = $('#days').value;
   $('#refresh').disabled = true; $('#refresh').textContent = '取得中…';
   $('#root').innerHTML = '<p class="muted">S3からログを同期して集計中…（初回・長期間は少し時間がかかります）</p>';
@@ -886,6 +1021,7 @@ $('#refresh').addEventListener('click', load);
 $('#days').addEventListener('change', load);
 $('#tab-access').addEventListener('click', () => setTab('access'));
 $('#tab-feedback').addEventListener('click', () => setTab('feedback'));
+$('#tab-inquiry').addEventListener('click', () => setTab('inquiry'));
 load();
 </script></body></html>`;
 
@@ -907,6 +1043,34 @@ const server = createServer((req, res) => {
       res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ error: e.message }));
     }
+    return;
+  }
+  if (url.pathname === '/api/inquiries') {
+    try {
+      const data = getInquiries();
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(data));
+    } catch (e) {
+      res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+  if (url.pathname === '/api/inquiry-reply' && req.method === 'POST') {
+    let raw = '';
+    req.on('data', (c) => { raw += c; if (raw.length > 20000) req.destroy(); });
+    req.on('end', () => {
+      try {
+        const b = JSON.parse(raw || '{}');
+        if (!b.pk || !b.sk || !String(b.body || '').trim()) throw new Error('pk / sk / body が必要です');
+        const data = replyInquiry(b.pk, b.sk, String(b.body).trim().slice(0, 2000), !!b.close);
+        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(data));
+      } catch (e) {
+        res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
     return;
   }
   if (url.pathname === '/api/stats') {

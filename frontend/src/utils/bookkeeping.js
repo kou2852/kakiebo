@@ -311,3 +311,59 @@ function fmt(d) {
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
+
+/**
+ * 口座（資産科目）ごとのタグ配分。タグ・配分ページとダッシュボードで共有する。
+ *
+ * computeTagBalances の byAccount（仕訳から拾った分）と allocs（手動配分）を足し合わせる。
+ * 「行=タグ / 列=口座」の表のうち、列ごとに縦に読んだものにあたる。
+ *
+ * 表示するのは、残高があるか・配分があるか・口座として登録済みのいずれか。
+ * 残高0で口座登録もない既定科目（売掛金・固定資産など）まで並べると読めなくなるため。
+ * 以前は残高が正の口座だけを出していたので、作ったばかりの口座が出てこなかった。
+ *
+ * @returns {{account, bal, items, free, defaultTag, defaultColor}[]} 残高の多い順
+ *   items: [{ tagId, name, color, amount }] 金額の多い順。使いすぎでマイナスになりうる
+ *   free:  残高 − 配分合計。マイナスなら配分超過
+ */
+export function tagAllocation(journals, accounts, tags, allocs, wallets) {
+  const bal0 = calcBalances(journals, accounts);
+  const tagBals = computeTagBalances(journals, accounts);
+  const tagById = new Map((tags || []).map((t) => [t.id, t]));
+
+  return accounts
+    .filter((a) => a.type === 'asset')
+    .map((a) => {
+      // 残高はマイナスにもなりうる。0 に丸めると、その口座が一覧から消えてしまう。
+      const bal = accountBalance(a.id, accounts, bal0);
+      const merged = {};
+      (allocs || []).forEach((x) => {
+        if (x.accountId === a.id) merged[x.tagId] = (merged[x.tagId] || 0) + x.amount;
+      });
+      Object.entries(tagBals.byAccount[a.id] || {}).forEach(([tid, amt]) => {
+        merged[tid] = (merged[tid] || 0) + amt;
+      });
+      const items = Object.entries(merged)
+        .filter(([, v]) => Math.round(v) !== 0)
+        .map(([tagId, amount]) => ({
+          tagId,
+          name: tagById.get(tagId)?.name || '?',
+          color: tagById.get(tagId)?.color || '#666',
+          amount,
+        }))
+        .sort((x, y) => y.amount - x.amount);
+      const allocated = items.reduce((s, x) => s + x.amount, 0);
+      const w = (wallets || []).find((x) => x.accountId === a.id);
+      return {
+        account: a,
+        bal,
+        items,
+        free: bal - allocated,
+        defaultTag: w?.defaultTagName || '(未配分)',
+        defaultColor: w?.defaultTagColor || '#888',
+        isWallet: !!w,
+      };
+    })
+    .filter((d) => d.bal !== 0 || d.items.length > 0 || d.isWallet)
+    .sort((x, y) => y.bal - x.bal);
+}
