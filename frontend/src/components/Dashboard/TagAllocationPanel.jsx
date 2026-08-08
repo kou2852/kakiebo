@@ -5,7 +5,6 @@ import { tagAllocation } from '../../utils/bookkeeping';
 import InfoTip from '../Common/InfoTip';
 
 const MASK = '¥•••••';
-const FREE_COLOR = '#7b8987';
 
 // 口座ごとの「そのお金が何のためのものか」。タグを1つも使っていない人には出さない。
 // バーの中には文字を書かず、ホバーでツールチップ。スマホにはホバーが無いので、
@@ -22,10 +21,16 @@ export default function TagAllocationPanel({ masked = false }) {
   );
 
   const total = rows.reduce((s, r) => s + r.bal, 0);
+
+  // 凡例は実際に描いた区画から作る。未配分の呼び名と色は口座ごとに変えられる
+  // （口座一覧の「デフォルトタグ」）ので、口座をまたいで異なる分だけ並べる。
   const used = useMemo(() => {
     const m = new Map();
-    rows.forEach((r) => r.items.forEach((i) => m.set(i.tagId, i)));
-    return [...m.values()];
+    rows.forEach((r) => {
+      r.items.forEach((i) => m.set(i.tagId, { name: i.name, color: i.color }));
+      if (r.free > 0) m.set(`free:${r.defaultTag}:${r.defaultColor}`, { name: r.defaultTag, color: r.defaultColor });
+    });
+    return [...m.entries()].map(([key, v]) => ({ key, ...v }));
   }, [rows]);
 
   // タグを使っていない、または配分が1件も無いなら出す意味がない
@@ -66,13 +71,10 @@ export default function TagAllocationPanel({ masked = false }) {
       {/* 凡例はここに1回だけ。バーの中には書かない */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 15px', padding: '11px 0 8px', marginBottom: 4, borderBottom: '1px solid var(--bd)' }}>
         {used.map((t) => (
-          <span key={t.tagId} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--tx2)' }}>
+          <span key={t.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--tx2)' }}>
             <span style={{ width: 8, height: 8, borderRadius: '50%', background: t.color, flex: 'none' }} />{t.name}
           </span>
         ))}
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: 'var(--tx3)' }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: FREE_COLOR, flex: 'none' }} />未配分
-        </span>
       </div>
 
       {rows.map((r) => {
@@ -80,7 +82,8 @@ export default function TagAllocationPanel({ masked = false }) {
         // 積み上げバーにマイナスは描けないので、正の配分と未配分だけで幅を出す
         const segs = [
           ...r.items.filter((i) => i.amount > 0).map((i) => ({ ...i, key: i.tagId })),
-          ...(r.free > 0 ? [{ key: '__free', name: '未配分', color: FREE_COLOR, amount: r.free }] : []),
+          // 未配分の呼び名と色は口座一覧の「デフォルトタグ」に従う（未設定なら (未配分)/#888）
+          ...(r.free > 0 ? [{ key: '__free', name: r.defaultTag, color: r.defaultColor, amount: r.free }] : []),
         ];
         const segTotal = segs.reduce((s, x) => s + x.amount, 0);
         const negatives = r.items.filter((i) => i.amount < 0);
@@ -130,7 +133,7 @@ export default function TagAllocationPanel({ masked = false }) {
                 ))}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', alignItems: 'center', gap: 12, fontSize: 12.5, padding: '3px 0', color: r.free < 0 ? 'var(--red)' : 'var(--tx3)' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: FREE_COLOR, flex: 'none' }} />
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: r.defaultColor, flex: 'none' }} />
                     {r.free < 0 ? '配分超過' : r.defaultTag}
                   </span>
                   <span className="mono" style={{ minWidth: 74, textAlign: 'right' }}>{m(faBal(r.free))}</span>

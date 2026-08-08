@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { fa, uid, today, TAX_RATES } from '../../utils/format';
+import { tagCount, resolveSplits, presetLineSplits } from '../../utils/journalTags';
 import { useToast } from '../Common/Toast';
 import Modal from '../Common/Modal';
 import InfoTip from '../Common/InfoTip';
 import SplitModal from './SplitModal';
 
-const emptyLine = (side = 'dr') => ({ id: uid(), accountId: '', side, amount: '', taxRate: 0, splits: [] });
+const emptyLine = (side = 'dr') => ({ id: uid(), accountId: '', side, amount: '', taxRate: 0, splits: [], presetSplits: [], presetAmount: 0 });
+
 
 // ポイント利用の目印（摘要に追記）＋編集時の検出に使用
 const POINT_MARK = '（ポイント利用）';
@@ -65,13 +67,18 @@ export default function JournalModal({ open, onClose, editId, preset = null, def
       setDate(today());
       setDesc(preset.desc || '');
       setPointAmt('');
+      // プリセットのタグは presetSplits として持ち回り、保存時に確定した金額へ割り当てる。
+      // ここで splits を作ってしまうと、金額0（＝都度入力）のときにタグが落ち、
+      // 金額を入れ直したときも古い金額のまま残ってしまう。
       setLines((preset.lines || []).map((l) => ({
         id: uid(),
         accountId: l.accountId,
         side: l.side,
         amount: l.amount ? l.amount : '',
         taxRate: 0,
-        splits: l.tagId && l.amount ? [{ tagId: l.tagId, amount: l.amount }] : [],
+        splits: [],
+        presetSplits: presetLineSplits(l),
+        presetAmount: l.amount || 0,
       })));
     } else {
       setDate(defaultDate || today());
@@ -86,6 +93,14 @@ export default function JournalModal({ open, onClose, editId, preset = null, def
   const drTotal = lines.filter((l) => l.side === 'dr').reduce((s, l) => s + (parseFloat(l.amount) || 0), 0);
   const crTotal = lines.filter((l) => l.side === 'cr').reduce((s, l) => s + (parseFloat(l.amount) || 0), 0);
   const mismatch = Math.abs(drTotal - crTotal) > 0.01 && (drTotal > 0 || crTotal > 0);
+
+  // タグ編集を開いたとき、プリセット由来のタグを「行の全額に付いている」状態として見せる。
+  // 保存時に作る split と同じ形なので、開いてそのまま閉じても結果は変わらない。
+  const splitLine = useMemo(() => {
+    const l = lines.find((x) => x.id === splitLineId);
+    if (!l || l.splits?.length || !l.presetSplits?.length) return l;
+    return { ...l, splits: resolveSplits(l, parseFloat(l.amount) || 0) };
+  }, [lines, splitLineId]);
 
   const updateLine = useCallback((id, field, value) => {
     setLines((prev) => prev.map((l) => l.id === id ? { ...l, [field]: value } : l));
@@ -103,13 +118,17 @@ export default function JournalModal({ open, onClose, editId, preset = null, def
     if (saving) return; // 多重送信ガード（「記帳する」連打対策）
     if (!date) { toast('日付を入力してください'); return; }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { toast('日付は YYYY-MM-DD 形式で入力してください'); return; }
-    let validLines = lines.filter((l) => l.accountId && parseFloat(l.amount) > 0).map((l) => ({
-      accountId: l.accountId,
-      side: l.side,
-      amount: parseFloat(l.amount),
-      taxRate: l.taxRate || 0,
-      ...(l.splits?.length ? { splits: l.splits.filter((s) => s.tagId && s.amount > 0) } : {}),
-    }));
+    let validLines = lines.filter((l) => l.accountId && parseFloat(l.amount) > 0).map((l) => {
+      const amount = parseFloat(l.amount);
+      const splits = resolveSplits(l, amount);
+      return {
+        accountId: l.accountId,
+        side: l.side,
+        amount,
+        taxRate: l.taxRate || 0,
+        ...(splits.length ? { splits } : {}),
+      };
+    });
 
     // ポイント分を「出金（貸方）から差し引き → 雑収入へ振替」。合計（使用額）は変えない。
     let finalDesc = desc;
@@ -215,10 +234,10 @@ export default function JournalModal({ open, onClose, editId, preset = null, def
             {TAX_RATES.map((r) => <option key={r} value={r}>{r === 0 ? '無' : `${r}%`}</option>)}
           </select>
           <button
-            className={`je-tag-btn ${line.splits?.length ? 'has' : ''}`}
+            className={`je-tag-btn ${tagCount(line) ? 'has' : ''}`}
             onClick={() => setSplitLineId(line.id)}
           >
-            {line.splits?.length ? `🏷${line.splits.length}` : '🏷'}
+            {tagCount(line) ? `🏷${tagCount(line)}` : '🏷'}
           </button>
           <button className="btn btn-d btn-s" onClick={() => removeLine(line.id)} style={{ padding: '5px 7px' }}>✕</button>
         </div>
@@ -245,8 +264,11 @@ export default function JournalModal({ open, onClose, editId, preset = null, def
       <SplitModal
         open={splitLineId !== null}
         onClose={() => setSplitLineId(null)}
-        line={lines.find((l) => l.id === splitLineId)}
-        onApply={(splits) => updateLine(splitLineId, 'splits', splits)}
+        line={splitLine}
+        // 手動で開いて確定したらプリセットのタグは役目を終える（空にしても復活させない）
+        onApply={(splits) => setLines((prev) => prev.map((l) => (
+          l.id === splitLineId ? { ...l, splits, presetSplits: [] } : l
+        )))}
       />
     </Modal>
   );

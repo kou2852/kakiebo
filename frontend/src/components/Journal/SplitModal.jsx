@@ -4,7 +4,8 @@ import { fa } from '../../utils/format';
 import Modal from '../Common/Modal';
 
 // 仕訳行のタグ分割（kakeibo.html の openSplitM/saveSplits を踏襲）
-export default function SplitModal({ open, onClose, line, onApply }) {
+// ratioHint: プリセット編集から開いたとき。金額が都度入力(0)なら、入れた数字は比率として扱う。
+export default function SplitModal({ open, onClose, line, onApply, ratioHint = false }) {
   const { accounts, tags } = useData();
   const [splits, setSplits] = useState([]);
 
@@ -22,6 +23,8 @@ export default function SplitModal({ open, onClose, line, onApply }) {
 
   const sum = splits.reduce((s, x) => s + (parseFloat(x.amount) || 0), 0);
   const rem = lineAmount - sum;
+  // 金額が決まっていない（都度入力の）プリセットでは「残り」に意味が無い
+  const ratioMode = ratioHint && lineAmount === 0;
 
   const updateSplit = (i, field, value) => {
     setSplits((prev) => prev.map((s, idx) => idx === i
@@ -56,9 +59,15 @@ export default function SplitModal({ open, onClose, line, onApply }) {
         <button className="btn btn-p" onClick={handleApply}>適用</button>
       </>}>
 
-      <div style={{ fontSize: 13, color: 'var(--tx2)', marginBottom: 12 }}>
-        {acctName} — <span className="mono">{fa(lineAmount)}</span>
+      <div style={{ fontSize: 13, color: 'var(--tx2)', marginBottom: ratioMode ? 6 : 12 }}>
+        {acctName}{ratioMode ? ' — 金額は記帳時に入力' : <> — <span className="mono">{fa(lineAmount)}</span></>}
       </div>
+      {ratioMode && (
+        <div style={{ fontSize: 11.5, color: 'var(--tx3)', lineHeight: 1.75, marginBottom: 12 }}>
+          このプリセットは金額を都度入力するため、ここに入れた数字は<strong style={{ color: 'var(--tx2)' }}>比率</strong>として扱われます
+          （例：<span className="mono">70</span> と <span className="mono">30</span> なら 7:3 で分けます）。
+        </div>
+      )}
 
       <div id="sp-lines">
         {splits.map((s, i) => (
@@ -78,7 +87,9 @@ export default function SplitModal({ open, onClose, line, onApply }) {
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--bd)' }}>
         <span style={{ fontSize: 12, color: 'var(--tx3)' }}>合計 <span className="mono">{fa(sum)}</span></span>
-        <span style={{ fontSize: 12 }}>残り <span className="mono" style={{ color: Math.abs(rem) < 0.01 ? 'var(--grn)' : 'var(--red)' }}>{fa(rem)}</span></span>
+        {!ratioMode && (
+          <span style={{ fontSize: 12 }}>残り <span className="mono" style={{ color: Math.abs(rem) < 0.01 ? 'var(--grn)' : 'var(--red)' }}>{fa(rem)}</span></span>
+        )}
       </div>
     </Modal>
   );

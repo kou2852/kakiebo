@@ -3,12 +3,14 @@ import { useData } from '../../contexts/DataContext';
 import { uid } from '../../utils/format';
 import { useToast } from '../Common/Toast';
 import Modal from '../Common/Modal';
+import SplitModal from '../Journal/SplitModal';
+import { tagCount, presetLineSplits } from '../../utils/journalTags';
 
-const emptyLine = (side = 'dr') => ({ accountId: '', side, amount: 0, tagId: '' });
+const emptyLine = (side = 'dr') => ({ id: uid(), accountId: '', side, amount: 0, splits: [] });
 
 // プリセット編集（kakeibo.html の openPE/savePE を踏襲）
 export default function PresetModal({ open, onClose, editId, walletId, type }) {
-  const { accounts, tags, wallets, presets, savePresets } = useData();
+  const { accounts, wallets, presets, savePresets } = useData();
   const toast = useToast();
 
   const [wlt, setWlt] = useState('');
@@ -16,6 +18,7 @@ export default function PresetModal({ open, onClose, editId, walletId, type }) {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [lines, setLines] = useState([emptyLine('dr'), emptyLine('cr')]);
+  const [splitLineId, setSplitLineId] = useState(null);
 
   const sortedAccounts = useMemo(
     () => [...accounts].sort((a, b) => (a.code || '').localeCompare(b.code || '')),
@@ -28,7 +31,10 @@ export default function PresetModal({ open, onClose, editId, walletId, type }) {
       const p = presets.find((x) => x.id === editId);
       if (p) {
         setWlt(p.walletId); setPtype(p.type); setName(p.name); setDesc(p.desc || '');
-        setLines((p.lines?.length ? p.lines : [emptyLine('dr'), emptyLine('cr')]).map((l) => ({ ...l })));
+        // 旧形式（1行1タグの tagId）は splits へ寄せて読み込む
+        setLines((p.lines?.length ? p.lines : [emptyLine('dr'), emptyLine('cr')]).map((l) => ({
+          ...l, id: uid(), splits: presetLineSplits(l),
+        })));
       }
     } else {
       setWlt(walletId || wallets[0]?.id || '');
@@ -36,6 +42,7 @@ export default function PresetModal({ open, onClose, editId, walletId, type }) {
       setName(''); setDesc('');
       setLines([emptyLine('dr'), emptyLine('cr')]);
     }
+    setSplitLineId(null);
   }, [open, editId, presets, wallets, walletId, type]);
 
   const updateLine = (i, field, value) => {
@@ -53,10 +60,16 @@ export default function PresetModal({ open, onClose, editId, walletId, type }) {
     });
   };
 
+  const splitLine = lines.find((l) => l.id === splitLineId);
+
   const handleSave = async () => {
     if (!name.trim()) { toast('名前を入力してください'); return; }
+    // tagId は書き出さない（旧形式。読み込み時に splits へ寄せてある）
     const validLines = lines.filter((l) => l.accountId).map((l) => ({
-      accountId: l.accountId, side: l.side, amount: l.amount || 0, tagId: l.tagId || '',
+      accountId: l.accountId,
+      side: l.side,
+      amount: l.amount || 0,
+      splits: (l.splits || []).filter((s) => s.tagId && s.amount > 0),
     }));
     if (validLines.length < 1) { toast('少なくとも1行入力してください'); return; }
     const data = { walletId: wlt, type: ptype, name: name.trim(), desc: desc.trim(), lines: validLines };
@@ -99,7 +112,7 @@ export default function PresetModal({ open, onClose, editId, walletId, type }) {
         </div>
       </div>
 
-      <div className="je-hdr" style={{ gridTemplateColumns: '2fr 100px 100px 110px 36px' }}>
+      <div className="je-hdr" style={{ gridTemplateColumns: '2fr 100px 100px 50px 36px' }}>
         <span>勘定科目</span><span>借方/貸方</span><span>金額(0=都度)</span><span>タグ</span><span />
       </div>
 
@@ -114,15 +127,24 @@ export default function PresetModal({ open, onClose, editId, walletId, type }) {
           </select>
           <input className="fc" type="number" min="0" step="1" placeholder="0"
             value={l.amount || ''} onChange={(e) => updateLine(i, 'amount', e.target.value)} />
-          <select className="fc" value={l.tagId} onChange={(e) => updateLine(i, 'tagId', e.target.value)}>
-            <option value="">(なし)</option>
-            {tags.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </select>
+          <button className={`je-tag-btn ${tagCount(l) ? 'has' : ''}`} onClick={() => setSplitLineId(l.id)}>
+            {tagCount(l) ? `🏷${tagCount(l)}` : '🏷'}
+          </button>
           <button className="btn btn-d btn-s" onClick={() => removeLine(i)} style={{ padding: '5px 7px' }}>✕</button>
         </div>
       ))}
 
       <button className="btn btn-g btn-s mt-6" onClick={addLine}>＋ 行追加</button>
+
+      <SplitModal
+        open={splitLineId !== null}
+        onClose={() => setSplitLineId(null)}
+        line={splitLine}
+        ratioHint
+        onApply={(splits) => setLines((prev) => prev.map((l) => (
+          l.id === splitLineId ? { ...l, splits } : l
+        )))}
+      />
     </Modal>
   );
 }

@@ -199,7 +199,8 @@ svg .bar-hover:hover { opacity: 1; filter: brightness(1.2); cursor: pointer; }
 .je-tag-btn.has { background: var(--acb); border-color: var(--ac); color: var(--ac); }
 .rec-line { display: grid; grid-template-columns: 2fr 100px 110px 110px 36px; gap: 5px; align-items: center; margin-bottom: 6px; }
 .split-line { display: grid; grid-template-columns: 1fr 120px 32px; gap: 6px; align-items: center; margin-bottom: 5px; }
-.pe-line { display: grid; grid-template-columns: 2fr 100px 100px 110px 36px; gap: 5px; align-items: center; margin-bottom: 6px; }
+/* タグ列は仕訳入力(.je-line)と同じ50px。旧セレクトボックス時代の110pxのままだとボタンが間延びする */
+.pe-line { display: grid; grid-template-columns: 2fr 100px 100px 50px 36px; gap: 5px; align-items: center; margin-bottom: 6px; }
 .info-b { background: var(--bg3); border: 1px solid var(--bd); border-radius: 5px; padding: 10px 14px; font-size: 11px; color: var(--tx3); line-height: 1.8; }
 .info-b code { color: var(--ac); font-family: 'JetBrains Mono', monospace; }
 .csv-drop { border: 2px dashed var(--bd2); border-radius: 7px; padding: 28px; text-align: center; cursor: pointer; transition: .2s; }
