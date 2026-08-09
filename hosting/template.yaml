@@ -5,6 +5,13 @@ Parameters:
   Stage:
     Type: String
     AllowedValues: [prod, dev]
+  ResponseHeadersPolicyId:
+    Type: String
+    # 既定は AWS 管理の SecurityHeadersPolicy（CSPを含まない）。
+    # prod は CSP 入りの手動作成ポリシー kurofukubo-app-csp-ro を指す。
+    # 2026-08-09 時点の prod の値: e87c6dbd-6c9d-4e86-9896-1e373a31cb5e
+    Default: 67f7725c-6f97-4210-82d7-5512b31e9d03
+    Description: CloudFront のレスポンスヘッダーポリシーID。prod は CSP 入りの自作ポリシーを指定すること（管理ポリシーのままだと CSP が配信されない）。
 
 Resources:
   # Private bucket. No public access; served only through CloudFront OAC.
@@ -60,8 +67,13 @@ Resources:
           Compress: true
           # Managed-CachingOptimized
           CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
-          # Managed-SecurityHeadersPolicy (HSTS / nosniff / X-Frame-Options / Referrer-Policy)
-          ResponseHeadersPolicyId: 67f7725c-6f97-4210-82d7-5512b31e9d03
+          # 【重要】ここに AWS 管理の SecurityHeadersPolicy(67f7725c-...) を直書きしないこと。
+          # 管理ポリシーには CSP が含まれないため、書き戻すと Content-Security-Policy が
+          # 配信から消える。画面は正常に見えるので消えたことに気づけない。
+          # 本番(prod)で実際に使っているのは手動作成の kurofukubo-app-csp-ro で、
+          # HSTS/nosniff/X-Frame-Options/Referrer-Policy に加えて CSP を強制モードで返す。
+          # 既定値は管理ポリシー（devや新規構築向け）。prod では必ず現行IDを渡すこと。
+          ResponseHeadersPolicyId: !Ref ResponseHeadersPolicyId
         # SPA: let the client router handle unknown paths
         CustomErrorResponses:
           - ErrorCode: 403
