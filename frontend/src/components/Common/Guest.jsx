@@ -11,7 +11,9 @@ export function GuestBanner() {
   const { hasSampleData, clearSampleData } = useData();
   return (
     <div style={{
-      position: 'sticky', top: 0, zIndex: 60, marginBottom: 12,
+      // ページヘッダーを sticky にしたため、ここも貼り付けると同じ場所を奪い合う。
+      // スクロール中に必要なのは期間や操作ボタンなので、この帯は普通に流す。
+      marginBottom: 12,
       display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
       background: 'var(--warn)', border: '1px solid var(--ac)', borderRadius: 7,
       padding: '8px 14px', fontSize: 12, color: 'var(--ac)',

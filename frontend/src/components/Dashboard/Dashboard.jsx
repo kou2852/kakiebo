@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { fa, fas, faBal, PIE_COLORS } from '../../utils/format';
-import { calcBalances, accountBalance, filterByPeriod, getPeriodRange, monthlyTrend, netWorthTrend } from '../../utils/bookkeeping';
+import { calcBalances, accountBalance, balancesAsOf, filterByPeriod, getPeriodRange, monthlyTrend, netWorthTrend } from '../../utils/bookkeeping';
 import { pendingCounts, generateRecurring } from '../../utils/autoGen';
 import { useToast } from '../Common/Toast';
 import PeriodBar from './PeriodBar';
@@ -17,6 +17,13 @@ import Ad from '../Common/Ad';
 import { RegisterCard } from '../Common/Guest';
 import SetupChecklist from '../Onboarding/SetupChecklist';
 import { AD_CONFIG } from '../../config/tiers';
+
+// 期間開始日の前日。ここまでの残高と期間末の残高の差が「期間中の増減」になる
+const prevDay = (d) => {
+  const t = new Date(`${d}T00:00:00`);
+  t.setDate(t.getDate() - 1);
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+};
 
 export default function Dashboard() {
   const { accounts, journals, wallets, budgets, recurring, addJournal, saveRecurring, loading } = useData();
@@ -49,8 +56,12 @@ export default function Dashboard() {
 
   const { start, end } = useMemo(() => getPeriodRange(period, custom), [period, custom]);
 
-  // 全期間残高 (資産・負債)
-  const allBal = useMemo(() => calcBalances(journals, accounts), [journals, accounts]);
+  // 資産・負債・純資産はストック（一時点の残高）なので「期間末時点」で見る。
+  // 全期間の残高を出したまま見出しだけ期間名にすると、「先月」を選んでも
+  // 今日の純資産が「純資産 — 先月」として出てしまい、表示が嘘になる。
+  const allBal = useMemo(() => balancesAsOf(journals, accounts, end), [journals, accounts, end]);
+  // 期間が始まる前日時点の残高。期間中にいくら増減したかを出すために使う
+  const beforeBal = useMemo(() => balancesAsOf(journals, accounts, prevDay(start)), [journals, accounts, start]);
 
   // 期間内残高 (収益・費用)
   const periodJournals = useMemo(() => filterByPeriod(journals, start, end), [journals, start, end]);
@@ -105,11 +116,21 @@ export default function Dashboard() {
   // 月次推移・純資産推移
   const trend = useMemo(() => monthlyTrend(journals, accounts), [journals, accounts]);
   const nwTrend = useMemo(() => netWorthTrend(journals, accounts), [journals, accounts]);
-  const nwDelta = nwTrend.length >= 2 ? nwTrend[nwTrend.length - 1].net - nwTrend[nwTrend.length - 2].net : netProfit;
+  // 期間中に純資産がいくら動いたか。期間末の残高 − 期間開始前日の残高。
+  // 「前月末比」を出していたが、期間を先月にしても今月比のままでちぐはぐだった。
+  const beforeNet = useMemo(() => (
+    accounts.filter((a) => a.type === 'asset').reduce((s, a) => s + accountBalance(a.id, accounts, beforeBal), 0)
+    - accounts.filter((a) => a.type === 'liability').reduce((s, a) => s + accountBalance(a.id, accounts, beforeBal), 0)
+  ), [accounts, beforeBal]);
+  const nwDelta = netWorth - beforeNet;
   const periodNote = period === 'all' ? '全期間'
     : period === 'year' ? `${start.slice(0, 4)}年`
     : period === 'custom' ? '指定期間'
     : `${start.slice(0, 4)}年${parseInt(start.slice(5, 7), 10)}月`;
+  // ストックは「いつ時点か」を示す。過去の期間を選んだときに今日の数字だと誤解させない
+  const today = new Date().toISOString().slice(0, 10);
+  const asOfNote = (period === 'all' || end >= today) ? '現在'
+    : `${parseInt(end.slice(5, 7), 10)}/${parseInt(end.slice(8, 10), 10)}時点`;
 
   if (loading) return <p className="nd">読み込み中...</p>;
 
@@ -157,7 +178,9 @@ export default function Dashboard() {
             <button className="tg-hero" onClick={() => setVis((v) => ({ ...v, net: !v.net }))}>{vis.net ? '非表示' : '表示'}</button>
           </div>
           <div style={{ fontSize: 'clamp(26px,7vw,40px)', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', marginTop: 8, fontVariantNumeric: 'tabular-nums', wordBreak: 'break-all' }}>{mask(faBal(netWorth), vis.net)}</div>
-          <div style={{ fontSize: 12.5, color: '#c8f5e9', marginTop: 6, fontWeight: 700 }}>前月末比　{mask(fas(nwDelta), vis.net)}</div>
+          <div style={{ fontSize: 12.5, color: '#c8f5e9', marginTop: 6, fontWeight: 700 }}>
+            {period === 'all' ? '累計' : '期間中の増減'}　{mask(fas(nwDelta), vis.net)}
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', flex: '2 1 300px' }}>
           <div style={glass}><div style={glassLabel}>収入</div><div style={{ ...glassVal, color: '#fff' }}>{mask(fas(totalIncome), vis.net)}</div></div>
@@ -174,7 +197,7 @@ export default function Dashboard() {
             <button className="tg-pill" onClick={() => setVis((v) => ({ ...v, assets: !v.assets }))}>{vis.assets ? '非表示' : '表示'}</button>
           </div>
           <div style={{ fontSize: 23, fontWeight: 800, color: 'var(--tx)', marginTop: 7, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{mask(faBal(totalAsset), vis.assets)}</div>
-          <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 4 }}>資産合計</div>
+          <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 4 }}>{asOfNote}の資産合計</div>
         </div>
         <div style={statCard}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -182,7 +205,7 @@ export default function Dashboard() {
             <button className="tg-pill" onClick={() => setVis((v) => ({ ...v, liab: !v.liab }))}>{vis.liab ? '非表示' : '表示'}</button>
           </div>
           <div style={{ fontSize: 23, fontWeight: 800, color: 'var(--red)', marginTop: 7, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{mask(faBal(totalLiability), vis.liab)}</div>
-          <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 4 }}>借入金・カード</div>
+          <div style={{ fontSize: 11, color: 'var(--tx3)', marginTop: 4 }}>{asOfNote}の借入金・カード</div>
         </div>
       </div>
 
@@ -207,7 +230,7 @@ export default function Dashboard() {
       <InvestmentPanel masked={!vis.brk} />
 
       {/* 今月の予算 */}
-      <BudgetPanel />
+      <BudgetPanel period={period} start={start} end={end} />
 
       {/* 純資産の推移 */}
       <div className="card mt-16" data-tour="nw-trend">

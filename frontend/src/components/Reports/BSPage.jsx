@@ -113,14 +113,16 @@ export default function BSPage() {
 
   return (
     <div>
-      <div className="pg-header pg-header-row">
-        <div>
-          <div className="pg-title">貸借対照表<InfoTip text="ある時点で「持っているもの（資産）」と「借りているもの（負債）」、その差の純資産を一覧にしたもの。今の財産状況がわかります。" /></div>
-          <div className="pg-sub">資産・負債・純資産のバランスを表示します</div>
+      <div className="pg-header">
+        <div className="pg-header-row">
+          <div>
+            <div className="pg-title">貸借対照表<InfoTip text="ある時点で「持っているもの（資産）」と「借りているもの（負債）」、その差の純資産を一覧にしたもの。今の財産状況がわかります。" /></div>
+            <div className="pg-sub">資産・負債・純資産のバランスを表示します</div>
+          </div>
+          <ExportMenu onCSV={exportCSV} onPDF={exportPDF} />
         </div>
-        <ExportMenu onCSV={exportCSV} onPDF={exportPDF} />
+        <PeriodBar value={period} onChange={setPeriod} custom={custom} onCustomChange={setCustom} inline />
       </div>
-      <PeriodBar value={period} onChange={setPeriod} custom={custom} onCustomChange={setCustom} />
       <div ref={reportRef}>
       <ReportPrintHeader title="貸借対照表" start={start} end={end} />
       <div className="rpt-grid">

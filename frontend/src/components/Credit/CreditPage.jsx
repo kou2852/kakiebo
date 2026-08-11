@@ -44,12 +44,17 @@ export default function CreditPage() {
 
   return (
     <div>
+      {/* 期間切り替えはヘッダー内に入れて一緒に画面上部へ貼り付ける。
+          カード未登録のときは期間を変える意味がないので出さない（ヘッダーも固定されない）。 */}
       <div className="pg-header">
         <div className="pg-title">
           クレジット
           <InfoTip text="カード利用は発生月に費用計上され、引き落としは締め日後の引落日に口座から出ます。この画面では締め期間（利用）ごとに、引落予定日・金額・引落済みかどうかを1画面でまとめて確認できます。" />
         </div>
         <div className="pg-sub">利用と次回の引き落としをまとめて管理します</div>
+        {cards.length > 0 && (
+          <PeriodBar value={period} onChange={setPeriod} custom={custom} onCustomChange={setCustom} inline />
+        )}
       </div>
 
       {cards.length === 0 ? (
@@ -63,7 +68,6 @@ export default function CreditPage() {
         </div>
       ) : (
         <>
-        <PeriodBar value={period} onChange={setPeriod} custom={custom} onCustomChange={setCustom} />
         {cards.map((c) => {
           const allCycles = creditCardCycles(c, journals, accounts);
           const cycles = allCycles.filter((cy) => cy.settleDate >= start && cy.settleDate <= end);

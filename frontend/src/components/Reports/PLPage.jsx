@@ -60,14 +60,16 @@ export default function PLPage() {
 
   return (
     <div>
-      <div className="pg-header pg-header-row">
-        <div>
-          <div className="pg-title">損益計算書<InfoTip text="一定期間の「収入（収益）」と「支出（費用）」、その差の利益をまとめたもの。期間中にいくら稼ぎ・使ったかがわかります。" /></div>
-          <div className="pg-sub">期間の収入と支出をまとめます</div>
+      <div className="pg-header">
+        <div className="pg-header-row">
+          <div>
+            <div className="pg-title">損益計算書<InfoTip text="一定期間の「収入（収益）」と「支出（費用）」、その差の利益をまとめたもの。期間中にいくら稼ぎ・使ったかがわかります。" /></div>
+            <div className="pg-sub">期間の収入と支出をまとめます</div>
+          </div>
+          <ExportMenu onCSV={exportCSV} onPDF={exportPDF} />
         </div>
-        <ExportMenu onCSV={exportCSV} onPDF={exportPDF} />
+        <PeriodBar value={period} onChange={setPeriod} custom={custom} onCustomChange={setCustom} inline />
       </div>
-      <PeriodBar value={period} onChange={setPeriod} custom={custom} onCustomChange={setCustom} />
       <div style={{ maxWidth: 560 }} ref={reportRef}>
         <ReportPrintHeader title="損益計算書" start={start} end={end} />
         <div className="card">

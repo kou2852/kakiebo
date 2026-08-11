@@ -22,6 +22,8 @@ const LOG_BUCKET = 'kakeibo-cf-logs-117953360790';
 const LOG_PREFIX = 'app/'; // app.kurofukubo.com のCloudFrontログ
 const USER_POOL_ID = 'ap-northeast-1_ddBDF3HKK'; // kakeibo-users-prod
 const TABLE = 'kakeibo-prod'; // DynamoDB（ご意見は固定PK 'FEEDBACK' 配下）
+// 未確認サインアップの掃除ジョブ。設定ではなく実行ログを見て「本当に動いたか」を確認する
+const CLEANUP_LOG_GROUP = '/aws/lambda/kakeibo-saas-prod-CleanupUnconfirmedFunction-GvWvO3WXvqhh';
 const CACHE_DIR = join(__dirname, '.cache-cflogs');
 
 // analyze-cflogs.mjs と同一の判定ルール
@@ -70,16 +72,154 @@ function syncLogs(days) {
   }
 }
 
-// 登録ユーザー数（Cognito）。件数のみ取得しPII(メール等)は一切扱わない。
-// EstimatedNumberOfUsers はCognito側で定期更新のため数日ラグが出ることがある。
-function getRegisteredUsers() {
-  const r = spawnSync('aws', [
-    'cognito-idp', 'describe-user-pool', '--user-pool-id', USER_POOL_ID,
-    '--query', 'UserPool.EstimatedNumberOfUsers', '--output', 'text', '--profile', PROFILE,
-  ], { encoding: 'utf8' });
-  if (r.status !== 0) return null; // 認証切れ等でも他の数字は出す
-  const n = Number((r.stdout || '').trim());
-  return Number.isFinite(n) ? n : null;
+// 登録ユーザー数（Cognito）。状態別に数えたいので list-users を使う（実数なのでラグが無い）。
+// --attributes-to-get sub でメール等の属性はCognito側で除外される＝PIIは受け取らない。
+// UserStatus は属性ではなく上位フィールドなので、この指定でも取得できる。
+// UNCONFIRMED＝メール登録で確認コードを通していない人。利用に至っていないため本数から除く。
+function getRegisteredUsers(days) {
+  let users;
+  try {
+    users = awsJson([
+      'cognito-idp', 'list-users', '--user-pool-id', USER_POOL_ID,
+      '--attributes-to-get', 'sub', '--query', 'Users[].[UserStatus,UserCreateDate]',
+    ], '登録ユーザー数の取得');
+  } catch { return null; } // 認証切れ等でも他の数字は出す
+  if (!Array.isArray(users)) return null;
+  const by = {};
+  for (const [s] of users) by[s] = (by[s] || 0) + 1;
+  const unconfirmed = by.UNCONFIRMED || 0;
+
+  // 期間内の新規登録。ログのビーコンではなく Cognito の作成日時を正とする。
+  // ビーコン(registered)は Google のログインも数えてしまうので獲得数には使えない。
+  const since = days ? Date.now() - days * 86400000 : null;
+  const inPeriod = since == null ? null
+    : users.filter(([s, created]) => s !== 'UNCONFIRMED' && new Date(created).getTime() >= since).length;
+
+  // 本数は「全件 − 未確認」。RESET_REQUIRED 等の未知の状態が出ても本数側に入り取りこぼさない
+  return {
+    total: users.length - unconfirmed,
+    unconfirmed,
+    google: by.EXTERNAL_PROVIDER || 0, // Googleログイン。確認コードの概念がなく常に確認済み
+    email: by.CONFIRMED || 0,          // メール登録で確認コードを通した人
+    inPeriod,                          // 期間内の新規登録（null = 期間指定なし）
+  };
+}
+
+// ── 「状態」タブ ──────────────────────────────────────────────
+// この製品は静かに壊れる事故を繰り返している（確認メールが7日間1通も出ていない、
+// プリセットのタグが記帳に載らない、削除が保存されない、CSPが記録のみで強制されていない）。
+// いずれも画面上は正常に見えるため、指標を眺めるだけでは気づけない。
+// そこで「常に真であるべきこと」を明示的に検証する。1つでも赤ければ即調べる。
+
+const iso = (d) => new Date(d).toISOString().slice(0, 19);
+
+/** 監視の4指標（遅延・流量・エラー・飽和）を CloudWatch から1回で取る */
+function getSignals() {
+  const q = (Id, Namespace, MetricName, Stat, Dimensions) => ({
+    Id, MetricStat: { Metric: { Namespace, MetricName, ...(Dimensions ? { Dimensions } : {}) }, Period: 86400, Stat },
+  });
+  const api = [{ Name: 'ApiName', Value: 'kakeibo-saas-prod' }];
+  let r;
+  try {
+    r = awsJson(['cloudwatch', 'get-metric-data', '--region', 'ap-northeast-1',
+      '--start-time', iso(Date.now() - 86400000), '--end-time', iso(Date.now()),
+      '--metric-data-queries', JSON.stringify([
+        q('count', 'AWS/ApiGateway', 'Count', 'Sum', api),
+        q('e5', 'AWS/ApiGateway', '5XXError', 'Sum', api),
+        q('e4', 'AWS/ApiGateway', '4XXError', 'Sum', api),
+        q('p99', 'AWS/ApiGateway', 'Latency', 'p99', api),
+        q('lerr', 'AWS/Lambda', 'Errors', 'Sum'),
+        q('linv', 'AWS/Lambda', 'Invocations', 'Sum'),
+        q('lthr', 'AWS/Lambda', 'Throttles', 'Sum'),
+        q('dthr', 'AWS/DynamoDB', 'ThrottledRequests', 'Sum', [{ Name: 'TableName', Value: TABLE }]),
+      ]),
+    ], '監視指標の取得');
+  } catch { return null; }
+  const v = {};
+  for (const m of r.MetricDataResults || []) v[m.Id] = m.Values?.[0] ?? 0;
+  return {
+    requests: v.count, err5: v.e5, err4: v.e4, p99: v.p99,
+    lambdaErrors: v.lerr, lambdaInvocations: v.linv, lambdaThrottles: v.lthr,
+    ddbThrottles: v.dthr,
+    errorRate: v.count ? (v.e5 / v.count) * 100 : 0,
+  };
+}
+
+/** 当月のAWS費用。Cost Explorer は us-east-1 固定で、1リクエストあたり課金がある */
+function getCost() {
+  const now = new Date();
+  const start = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-01`;
+  const end = now.toISOString().slice(0, 10);
+  if (start === end) return { amount: 0, start, end }; // 月初は期間が空になる
+  try {
+    const r = awsJson(['ce', 'get-cost-and-usage', '--region', 'us-east-1',
+      '--time-period', `Start=${start},End=${end}`, '--granularity', 'MONTHLY', '--metrics', 'UnblendedCost',
+    ], '費用の取得');
+    return { amount: Number(r.ResultsByTime?.[0]?.Total?.UnblendedCost?.Amount || 0), start, end };
+  } catch { return null; }
+}
+
+/** 前提チェック。ok / warn / bad と、判断に使った実測値を返す */
+function getChecks() {
+  const out = [];
+  const add = (level, label, value, note) => out.push({ level, label, value, note });
+
+  // 1) メール送信の経路。SESがサンドボックスのまま SesIdentityArn を入れると
+  //    未検証アドレスへ確認コードが1通も届かなくなる（2026-08-02〜09 に実際に起きた）
+  let pool = null; let ses = null;
+  try {
+    pool = awsJson(['cognito-idp', 'describe-user-pool', '--user-pool-id', USER_POOL_ID,
+      '--query', 'UserPool.EmailConfiguration'], 'メール設定の取得');
+  } catch { /* 認証切れ等 */ }
+  try {
+    ses = awsJson(['sesv2', 'get-account', '--region', 'ap-northeast-1',
+      '--query', '{prod:ProductionAccessEnabled}'], 'SES状態の取得');
+  } catch { /* noop */ }
+  const sending = pool?.EmailSendingAccount || '不明';
+  if (pool == null) add('warn', 'メール送信の経路', '取得できず');
+  else if (sending === 'DEVELOPER' && ses && ses.prod === false) {
+    add('bad', 'メール送信の経路', 'SES経由 × サンドボックス',
+      '未検証アドレスに確認コードが届きません。SesIdentityArn を空にしてください');
+  } else add('ok', 'メール送信の経路', sending === 'COGNITO_DEFAULT' ? 'Cognito標準送信' : sending);
+
+  // 2) 確認されないまま滞留しているサインアップ。放置すると本人が再登録できない
+  try {
+    const us = awsJson(['cognito-idp', 'list-users', '--user-pool-id', USER_POOL_ID,
+      '--query', 'Users[?UserStatus==`UNCONFIRMED`].UserCreateDate'], '未確認ユーザーの取得');
+    const oldest = (us || []).reduce((m, d) => Math.max(m, (Date.now() - new Date(d).getTime()) / 86400000), 0);
+    if (!us?.length) add('ok', '未確認のまま滞留', 'なし');
+    else add(oldest >= 3 ? 'warn' : 'ok', '未確認のまま滞留',
+      `${us.length}件 / 最長 ${oldest.toFixed(1)}日`, oldest >= 3 ? '掃除ジョブが次回削除します' : null);
+  } catch { add('warn', '未確認のまま滞留', '取得できず'); }
+
+  // 3) 掃除ジョブが実際に動いているか（EventBridge の設定ではなく実行ログを見る）
+  try {
+    const ev = awsJson(['logs', 'filter-log-events',
+      '--log-group-name', CLEANUP_LOG_GROUP, '--filter-pattern', 'CLEANUP_UNCONFIRMED',
+      '--start-time', String(Date.now() - 3 * 86400000), '--region', 'ap-northeast-1',
+      '--query', 'events[-1].timestamp'], '掃除ジョブの確認');
+    if (!ev) add('warn', '掃除ジョブの前回実行', '直近3日で実行なし', 'スケジュールを確認してください');
+    else {
+      const h = (Date.now() - Number(ev)) / 3600000;
+      add(h > 30 ? 'warn' : 'ok', '掃除ジョブの前回実行', `${h.toFixed(0)}時間前`);
+    }
+  } catch { add('warn', '掃除ジョブの前回実行', '取得できず'); }
+
+  return { checks: out, emailSending: sending, sesProduction: ses?.prod ?? null };
+}
+
+/** 本番が実際に返しているヘッダーを見る。設定ではなく配信結果を確認する */
+async function getLiveHeaders() {
+  try {
+    const r = await fetch('https://app.kurofukubo.com/', { method: 'HEAD' });
+    const csp = r.headers.get('content-security-policy');
+    const ro = r.headers.get('content-security-policy-report-only');
+    return {
+      csp: csp ? (ro ? 'both' : 'enforce') : (ro ? 'report-only' : 'none'),
+      hsts: !!r.headers.get('strict-transport-security'),
+      bundle: null,
+    };
+  } catch { return null; }
 }
 
 // aws cli 実行の共通ラッパ。日本語が届くため UTF-8 を強制する（Windows既定の cp932 だと落ちる）。
@@ -194,6 +334,69 @@ function getFeedback() {
 }
 
 // キャッシュ内の.gzを全パースし、直近days日で集計
+/**
+ * 訪問者ごとに計測イベントを時系列で並べる。
+ * 「32%が記帳に到達」のような率は、どこで何をして帰ったかまでは教えてくれない。
+ * D30が0%という状況では、率よりも一人ひとりの実際の順序のほうが答えに近い。
+ *
+ * 同一人物の判定はIP。IPv6は再接続で変わり、モバイル回線は共有されるため厳密ではない。
+ * IPは画面へ返さない（個人特定を避けるため通し番号に置き換える）。
+ */
+function buildJourneys(rows, isBot, isSelf) {
+  const byIp = new Map();
+  for (const r of rows) {
+    if (isBot(r) || isSelf(r.ip)) continue;
+    const p = byIp.get(r.ip) || {
+      ev: [], days: new Set(), first: `${r.date} ${r.time}`, last: `${r.date} ${r.time}`,
+      ref: '', mobile: /Mobile|Android|iPhone/.test(dec(r.ua)),
+    };
+    p.days.add(r.date);
+    if (`${r.date} ${r.time}` > p.last) p.last = `${r.date} ${r.time}`;
+    if (!p.ref) {
+      const ref = dec(r.ref || '');
+      if (ref && ref !== '-' && !ref.includes('app.kurofukubo')) {
+        try { p.ref = new URL(ref).hostname; } catch { /* 不正なURLは無視 */ }
+      }
+    }
+    const m = dec(r.uri).match(/^\/_e\/([\w.-]+)/);
+    if (m && m[1] !== 'csp-report') p.ev.push({ e: m[1], t: r.time.slice(0, 5) });
+    byIp.set(r.ip, p);
+  }
+
+  const list = [];
+  let n = 0;
+  for (const p of byIp.values()) {
+    if (!p.ev.length) continue; // 計測イベントが1つも無い＝アプリを開いていない
+    p.ev.sort((a, b) => a.t.localeCompare(b.t));
+    // 同じイベントの連続は1つに畳む（journal_added ×48 のような繰り返しを読みやすくする）
+    const seq = [];
+    for (const x of p.ev) {
+      const last = seq[seq.length - 1];
+      if (last && last.e === x.e) last.n++;
+      else seq.push({ e: x.e, n: 1 });
+    }
+    list.push({
+      id: ++n,
+      first: p.first, days: p.days.size,
+      minutes: Math.round((new Date(p.last.replace(' ', 'T') + 'Z') - new Date(p.first.replace(' ', 'T') + 'Z')) / 60000),
+      mobile: p.mobile, ref: p.ref || '直接',
+      seq, last: p.ev[p.ev.length - 1].e,
+      writes: p.ev.filter((x) => x.e === 'journal_added').length,
+      registered: p.ev.some((x) => x.e === 'registered'),
+    });
+  }
+  list.sort((a, b) => b.seq.length - a.seq.length);
+
+  // 最後のイベント別＝どこで消えたか
+  const dropoff = {};
+  for (const p of list) dropoff[p.last] = (dropoff[p.last] || 0) + 1;
+
+  return {
+    visitors: list,
+    dropoff: Object.entries(dropoff).map(([e, n2]) => ({ e, n: n2 })).sort((a, b) => b.n - a.n),
+  };
+}
+
 function analyze(days) {
   const wanted = new Set(lastDays(days));
   const files = existsSync(CACHE_DIR) ? readdirSync(CACHE_DIR).filter((f) => f.endsWith('.gz')) : [];
@@ -330,7 +533,10 @@ function analyze(days) {
     { key: 'app_first', label: '起動（新規訪問）', count: n('app_first') },
     { key: 'guest_first', label: 'ゲスト開始', count: n('guest_first') },
     { key: 'first_journal', label: '初回記帳', count: n('first_journal') },
-    { key: 'registered', label: '登録', count: n('registered') },
+    // ログのビーコン。Google は「このブラウザで初めてログインした」時点で発火するため、
+    // 既存ユーザーの別端末ログインも数える＝獲得数ではない。実際の登録数は
+    // 上部KPI（Cognito由来）が正。同じ画面で「登録」が2つ並んで取り違えるのを避け、名前を分けた。
+    { key: 'registered', label: '初回ログイン(端末別)', count: n('registered') },
   ];
   const base = funnel[0].count;
   for (const f of funnel) f.rate = base ? Number(((f.count / base) * 100).toFixed(1)) : null;
@@ -364,7 +570,8 @@ function analyze(days) {
   return {
     generatedAt: new Date().toISOString(),
     period: { from: dates[0] || null, to: dates[dates.length - 1] || null, days },
-    registeredUsers: getRegisteredUsers(),
+    journeys: buildJourneys(rows, isBot, isSelf),
+    registeredUsers: getRegisteredUsers(days),
     fileCount: files.length,
     totalRows: rows.length,
     selfIps: [...selfIps],
@@ -421,6 +628,41 @@ const HTML = /* html */ `<!doctype html><html lang="ja"><head><meta charset="utf
 
   /* ── 2カラム ── */
   .cols{display:grid;grid-template-columns:1.35fr 1fr;gap:14px;align-items:start}
+  /* ── 状態タブ ── */
+  .verdict{display:flex;align-items:baseline;gap:12px;border-radius:10px;padding:13px 17px;margin-bottom:14px;border:1px solid}
+  .verdict b{font-size:17px;font-weight:800}
+  .verdict span{font-size:12.5px;color:var(--tx2)}
+  .v-ok{background:rgba(21,160,106,.08);border-color:var(--grn)}   .v-ok b{color:var(--grn)}
+  .v-warn{background:rgba(224,160,32,.10);border-color:#c98a12}    .v-warn b{color:#c98a12}
+  .v-bad{background:rgba(224,85,106,.08);border-color:var(--red)}  .v-bad b{color:var(--red)}
+  .chk{display:grid;grid-template-columns:18px 1fr auto;gap:10px;align-items:baseline;
+    padding:7px 0;border-bottom:1px solid var(--bd);font-size:13px}
+  .chk:last-child{border-bottom:0}
+  .chk-v{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11.5px;color:var(--tx2);white-space:nowrap}
+  .chk-note{font-size:11px;color:var(--tx3);line-height:1.6}
+  .st-ok{color:var(--grn)} .st-warn{color:#c98a12} .st-bad{color:var(--red)}
+  /* ── 深掘り：訪問者の行動 ── */
+  .drop-row{display:grid;grid-template-columns:52px 1fr auto;gap:9px;align-items:center;
+    padding:5px 7px;border-radius:6px;cursor:pointer;font-size:12.5px;transition:.12s}
+  .drop-row:hover{background:var(--bg3)}
+  .drop-row.on{background:var(--acb);outline:1px solid var(--ac)}
+  .drop-n{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11.5px;color:var(--tx2);text-align:right}
+  .drop-bar{height:14px;background:var(--bg3);border-radius:3px;overflow:hidden}
+  .drop-bar i{display:block;height:100%;background:var(--ac);border-radius:3px}
+  .drop-e{color:var(--tx2);white-space:nowrap}
+  .btn-clear{font:inherit;font-size:11.5px;border:1px solid var(--bd2);background:var(--bg1);
+    color:var(--tx2);border-radius:6px;padding:4px 11px;cursor:pointer}
+  .btn-clear:hover{border-color:var(--ac);color:var(--ac)}
+  .jrow{padding:8px 0;border-bottom:1px solid var(--bd)}
+  .jrow:last-child{border-bottom:0}
+  .jmeta{display:flex;gap:9px;flex-wrap:wrap;align-items:center;font-size:11px;color:var(--tx3);margin-bottom:4px}
+  .jmeta .jref{color:var(--tx2)}
+  .jb{font-size:9.5px;font-weight:700;border-radius:3px;padding:1px 6px}
+  .jb-reg{background:rgba(13,148,136,.14);color:var(--ac)}
+  .jb-w{background:rgba(21,160,106,.14);color:var(--grn)}
+  .jseq{display:flex;flex-wrap:wrap;gap:3px;align-items:center;font-size:11px;line-height:1.9}
+  .jseq i{color:var(--tx3);font-style:normal}
+  .jev{background:var(--bg3);border:1px solid var(--bd);border-radius:4px;padding:1px 6px;color:var(--tx2);white-space:nowrap}
   .cols3{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
 
   /* ── ファネル ── */
@@ -565,9 +807,11 @@ const HTML = /* html */ `<!doctype html><html lang="ja"><head><meta charset="utf
 <header>
   <h1>kurofukubo 管理ダッシュボード</h1>
   <span class="tabs">
-    <button id="tab-access" class="on">アクセス</button>
-    <button id="tab-feedback">ご意見</button>
+    <button id="tab-status" class="on">状態</button>
+    <button id="tab-access">成長</button>
+    <button id="tab-deep">深掘り</button>
     <button id="tab-inquiry">問い合わせ</button>
+    <button id="tab-feedback">ご意見</button>
   </span>
   <span class="meta" id="period">—</span>
   <span class="grow"></span>
@@ -605,7 +849,7 @@ const EV_MAP = {
   guest_return:    {g:'継続',    ja:'既存ゲストの再訪',       u:'回'},
   journal_added:   {g:'獲得',    ja:'ゲストの記帳',           u:'回'},
   first_journal:   {g:'獲得',    ja:'初回記帳',               u:'人'},
-  registered:      {g:'獲得',    ja:'登録',                   u:'人'},
+  registered:      {g:'獲得',    ja:'初回ログイン(端末別)',    u:'回'},
   retain_d1:       {g:'継続',    ja:'1日後に再訪',            u:'人'},
   retain_d7:       {g:'継続',    ja:'7日後に再訪',            u:'人'},
   retain_d30:      {g:'継続',    ja:'30日後に再訪',           u:'人'},
@@ -631,16 +875,24 @@ function evInfo(name){
 }
 const GROUPS = ['獲得','ツアー','継続','アンケート','その他'];
 
-let tab = 'access';
+// 状態=毎日30秒（壊れていないか） / 成長=週1回（伸びているか）
+// 深掘り=必要時（なぜそうなったか） / 問い合わせ=毎日（返信する）
+let tab = 'status';
+let statsCache = null; // 成長と深掘りは同じデータを使うので取り直さない
+// 読み込みは数秒〜数十秒かかる。待っている間にタブを切り替えると、
+// 後から返ってきた古い応答が新しい画面を上書きしてしまう。世代番号で捨てる。
+let gen = 0;
+const stale = (g) => g !== gen;
 
 function setTab(t){
   tab = t;
-  $('#tab-access').className = t==='access' ? 'on' : '';
-  $('#tab-feedback').className = t==='feedback' ? 'on' : '';
-  $('#tab-inquiry').className = t==='inquiry' ? 'on' : '';
-  // 期間の切替はアクセスタブでしか意味がないため隠す
-  $('#period-picker').style.display = t==='access' ? '' : 'none';
-  $('#period').style.display = t==='access' ? '' : 'none';
+  gen++; // 進行中の読み込みの結果を無効にする
+  for (const k of ['status','access','deep','inquiry','feedback'])
+    $('#tab-'+(k==='access'?'access':k)).className = t===k ? 'on' : '';
+  // 期間の切替が意味を持つのは成長と深掘りだけ
+  const showPeriod = (t==='access' || t==='deep');
+  $('#period-picker').style.display = showPeriod ? '' : 'none';
+  $('#period').style.display = showPeriod ? '' : 'none';
   load();
 }
 
@@ -745,19 +997,90 @@ function renderInquiries(d){
   });
 }
 
+// 毎日30秒で見る画面。壊れていないかだけを判定する。
+// この製品は「静かに壊れる」事故を繰り返しているので、指標を眺めるのではなく
+// 常に真であるべきことを明示的に検証して、緑／黄／赤で出す。
+async function loadStatus(){
+  const g = gen;
+  $('#refresh').disabled = true; $('#refresh').textContent = '取得中…';
+  $('#root').innerHTML = '<p class="muted">AWSに問い合わせ中…（数秒かかります）</p>';
+  try{
+    const r = await fetch('/api/status');
+    const d = await r.json();
+    if(stale(g)) return; // 待っている間にタブが変わった
+    if(!r.ok || d.error){ $('#root').innerHTML = '<div class="err">'+esc(d.error||'エラー')+'</div>'; return; }
+    renderStatus(d);
+  }catch(e){ if(!stale(g)) $('#root').innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
+  finally{ if(!stale(g)){ $('#refresh').disabled = false; $('#refresh').textContent = '更新'; } }
+}
+
+function renderStatus(d){
+  const ico = { ok:'<span class="st-ok">●</span>', warn:'<span class="st-warn">▲</span>', bad:'<span class="st-bad">✕</span>' };
+  const row = (lv,label,val,note) =>
+    '<div class="chk">'+ico[lv]+'<span>'+esc(label)+(note?'<br><span class="chk-note">'+esc(note)+'</span>':'')+'</span>'
+    + '<span class="chk-v">'+esc(String(val))+'</span></div>';
+
+  const c = d.checks||{}; const s = d.signals; const hd = d.headers;
+  const worst = (c.checks||[]).reduce((m,x)=> x.level==='bad'?'bad':(x.level==='warn'&&m!=='bad'?'warn':m), 'ok');
+
+  let h = '';
+  // 総合判定を最初に出す。緑ならここで閉じてよい、が設計意図。
+  const okAll = worst==='ok' && s && s.err5===0 && s.lambdaErrors===0;
+  h += '<div class="verdict '+(okAll?'v-ok':(worst==='bad'?'v-bad':'v-warn'))+'">'
+     + '<b>'+(okAll?'異常なし':(worst==='bad'?'要対応':'注意'))+'</b>'
+     + '<span>'+(okAll?'このまま閉じて構いません':'下の赤／黄を確認してください')+'</span></div>';
+
+  h += '<div class="cols">';
+  h += '<section><h3>前提チェック</h3><p class="hint">常に真であるべきこと。画面が正常に見えても、ここが崩れると静かに壊れる</p>';
+  for (const x of (c.checks||[])) h += row(x.level, x.label, x.value, x.note);
+  h += row(hd ? (hd.csp==='enforce'?'ok':'bad') : 'warn', 'CSP が強制モード',
+        hd ? ({enforce:'enforce', 'report-only':'記録のみ', none:'なし', both:'両方'})[hd.csp] : '取得できず',
+        hd && hd.csp!=='enforce' ? '記録するだけで実際には防いでいません' : null);
+  h += '</section>';
+
+  h += '<section><h3>監視の4指標（24時間）</h3><p class="hint">遅延・流量・エラー・飽和。1つのシステムで4つしか測れないならこの4つ</p>';
+  if(!s) h += '<p class="muted">取得できませんでした</p>';
+  else{
+    h += row(s.err5>0?'bad':'ok', 'エラー率（5xx）', s.errorRate.toFixed(2)+'%  ('+s.err5+'/'+s.requests+')');
+    h += row(s.p99>3000?'bad':(s.p99>1000?'warn':'ok'), '遅延 p99', Math.round(s.p99)+' ms',
+          s.p99>1000 ? '1秒超。Lambdaのコールドスタートの可能性' : null);
+    h += row('ok', '流量（API呼び出し）', s.requests+' 回');
+    h += row(s.lambdaErrors>0?'bad':'ok', 'Lambda エラー', s.lambdaErrors+' / '+s.lambdaInvocations+' 実行');
+    h += row((s.lambdaThrottles+s.ddbThrottles)>0?'bad':'ok', 'スロットル（飽和）',
+          'Lambda '+s.lambdaThrottles+' / DynamoDB '+s.ddbThrottles);
+  }
+  h += row(d.inquiriesWaiting>0?'warn':'ok', '返信待ちの問い合わせ', (d.inquiriesWaiting??'—')+' 件',
+        d.inquiriesWaiting>0 ? '「問い合わせ」タブで返信してください' : null);
+  h += row(d.cost ? (d.cost.amount>20?'warn':'ok') : 'warn', '当月のAWS費用',
+        d.cost ? '$'+d.cost.amount.toFixed(2) : '取得できず');
+  h += '</section></div>';
+
+  h += '<p class="foot"><span>緑がすべてなら、この画面を閉じて構いません。'
+     + '赤・黄が出たときだけ「深掘り」へ。</span><span>取得時刻: '+esc(d.generatedAt)+'</span></p>';
+  $('#root').innerHTML = h;
+}
+
 async function load(){
+  if(tab==='status') return loadStatus();
   if(tab==='feedback') return loadFeedback();
   if(tab==='inquiry') return loadInquiries();
   const days = $('#days').value;
+  // 成長と深掘りは同じ集計を使う。期間が同じなら取り直さない（S3同期が重いため）
+  if(statsCache && statsCache.__days === days){
+    return tab==='deep' ? renderDeep(statsCache) : render(statsCache);
+  }
+  const g = gen;
   $('#refresh').disabled = true; $('#refresh').textContent = '取得中…';
   $('#root').innerHTML = '<p class="muted">S3からログを同期して集計中…（初回・長期間は少し時間がかかります）</p>';
   try{
     const r = await fetch('/api/stats?days='+days);
     const d = await r.json();
+    d.__days = days; statsCache = d; // 取得自体は無駄にしない（次のタブで使う）
+    if(stale(g)) return;
     if(!r.ok || d.error){ $('#root').innerHTML = '<div class="err">'+esc(d.error||'エラー')+'</div>'; return; }
-    render(d);
-  }catch(e){ $('#root').innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
-  finally{ $('#refresh').disabled = false; $('#refresh').textContent = '更新'; }
+    if(tab==='deep') renderDeep(d); else render(d);
+  }catch(e){ if(!stale(g)) $('#root').innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
+  finally{ if(!stale(g)){ $('#refresh').disabled = false; $('#refresh').textContent = '更新'; } }
 }
 
 // 獲得ファネルと継続。人数は「ブラウザごとに1回だけ送るイベント」の数。
@@ -842,7 +1165,12 @@ function render(d){
   // 1. 主役の数字
   let h = '<div class="band"><h2>いま</h2><span class="hint">bot・self を除いた人間のアクセス</span></div>';
   h += '<div class="lead">';
-  h += lead(d.registeredUsers==null?'—':d.registeredUsers, '人', '登録ユーザー数', 'Cognito（数日ラグあり）', true);
+  const ru = d.registeredUsers;
+  // 「この期間に何人増えたか」。ログのビーコン(registered)ではなく Cognito の登録日時を数える。
+  // ビーコンは Google の別端末ログインも拾うので獲得数としては使えない。
+  h += lead(ru==null||ru.inPeriod==null?'—':ru.inPeriod, '人', 'この期間の新規登録', 'Cognito の登録日時', true);
+  h += lead(ru==null?'—':ru.total, '人', '登録ユーザー数（累計）',
+    ru==null ? 'Cognito' : 'Google '+ru.google+' / メール '+ru.email+(ru.unconfirmed?'（未確認 '+ru.unconfirmed+'）':''));
   h += lead(o.humanDistinct, '人', '実人数', '重複IPを除いた人数');
   h += lead(o.human, '回', '人間の訪問（オープン）', '1人あたり '+(o.humanDistinct?(o.human/o.humanDistinct).toFixed(1):'—')+'回');
   h += '</div>';
@@ -895,6 +1223,62 @@ function render(d){
        + '<span>self 合計 '+o.self+'回</span></div>';
   }
   h += '</section>';
+
+  // 「成長」はここまで。以降は「深掘り」タブへ分離した（毎週見る数字と、
+  // 疑問が出たときだけ掘る材料を同じ画面に混ぜない）。
+  $('#root').innerHTML = h;
+}
+
+// 深掘り：なぜそうなったかを調べに来る場所。普段は開かない。
+let jFilter = null; // 「どこで消えたか」で選んだ最後のイベント。null = 絞り込みなし
+
+function journeySection(d){
+  const j = d.journeys;
+  if(!j || !j.visitors.length) return '';
+  const vis = jFilter ? j.visitors.filter(v=>v.last===jFilter) : j.visitors;
+  const total = j.visitors.length;
+
+  let h = '<div class="band"><h2>訪問者の行動</h2><span class="hint">'
+        + '率では「どこで何をして帰ったか」が分からない。1行＝1人の実際の順序</span></div>';
+  h += '<div class="cols">';
+
+  // どこで消えたか（クリックで下の一覧を絞る）
+  h += '<section><h3>どこで消えたか</h3><p class="hint">最後に記録されたイベント。クリックでその人たちだけに絞る</p>';
+  const max = Math.max(...j.dropoff.map(x=>x.n), 1);
+  for(const x of j.dropoff){
+    const on = jFilter===x.e;
+    h += '<div class="drop-row'+(on?' on':'')+'" data-ev="'+esc(x.e)+'">'
+       + '<span class="drop-n">'+x.n+'人</span>'
+       + '<span class="drop-bar"><i style="width:'+Math.round(x.n/max*100)+'%"></i></span>'
+       + '<span class="drop-e">'+esc(evInfo(x.e).ja)+'</span></div>';
+  }
+  if(jFilter) h += '<div style="margin-top:8px"><button class="btn-clear" id="j-clear">絞り込みを解除</button></div>';
+  h += '</section>';
+
+  // 行動列
+  h += '<section><h3>行動列'+(jFilter?'（絞り込み中 '+vis.length+'/'+total+'人）':'（'+total+'人）')+'</h3>';
+  h += '<p class="hint">IPは表示しない。同一人物の判定はIPなので厳密ではない</p>';
+  if(!vis.length) h += '<p class="muted">該当なし</p>';
+  for(const v of vis.slice(0,25)){
+    const badge = v.registered ? '<span class="jb jb-reg">登録</span>'
+                : v.writes ? '<span class="jb jb-w">記帳'+v.writes+'</span>' : '';
+    h += '<div class="jrow"><div class="jmeta">'
+       + '<span>'+esc(v.first.slice(5,16))+'</span>'
+       + '<span>'+(v.mobile?'スマホ':'PC')+'</span>'
+       + '<span>'+v.days+'日</span>'
+       + '<span>'+v.minutes+'分</span>'
+       + '<span class="jref">'+esc(v.ref)+'</span>'
+       + badge + '</div><div class="jseq">'
+       + v.seq.map(s=>'<span class="jev">'+esc(evInfo(s.e).ja)+(s.n>1?' ×'+s.n:'')+'</span>').join('<i>→</i>')
+       + '</div></div>';
+  }
+  if(vis.length>25) h += '<p class="muted">ほか '+(vis.length-25)+'人</p>';
+  h += '</section></div>';
+  return h;
+}
+
+function renderDeep(d){
+  let h = journeySection(d);
 
   // 4. 自前イベント（種類ごと）
   h += '<div class="band"><h2>自前イベント計測</h2><span class="hint">/_e/*（bot・self除外）／「人」= ブラウザごとに1回、「回」= 毎回</span></div>';
@@ -1015,14 +1399,29 @@ function render(d){
 
   h += '<p class="foot"><span>集計時刻 '+esc(d.generatedAt)+'</span><span>対象ログファイル '+d.fileCount+'件・'+d.totalRows+'行</span><span>自分IP '+d.selfIps.length+'件</span></p>';
   $('#root').innerHTML = h;
+
+  // 「どこで消えたか」を押すと行動列をその集団だけに絞る。
+  // 同じ行を押したら解除（トグル）。データは取り直さず描き直すだけ。
+  document.querySelectorAll('.drop-row').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      jFilter = (jFilter === el.dataset.ev) ? null : el.dataset.ev;
+      renderDeep(d);
+    });
+  });
+  const clr = $('#j-clear');
+  if(clr) clr.addEventListener('click', ()=>{ jFilter = null; renderDeep(d); });
 }
 
-$('#refresh').addEventListener('click', load);
-$('#days').addEventListener('change', load);
+// 「更新」は明示的な取り直し。キャッシュを捨ててから読む
+$('#refresh').addEventListener('click', () => { statsCache = null; load(); });
+$('#days').addEventListener('change', load); // 期間が変わればキャッシュのキーが外れる
+$('#tab-status').addEventListener('click', () => setTab('status'));
 $('#tab-access').addEventListener('click', () => setTab('access'));
+$('#tab-deep').addEventListener('click', () => setTab('deep'));
 $('#tab-feedback').addEventListener('click', () => setTab('feedback'));
 $('#tab-inquiry').addEventListener('click', () => setTab('inquiry'));
-load();
+// 初期表示も setTab を通す。直接 load() を呼ぶと期間セレクタの出し分けが効かない
+setTab('status');
 </script></body></html>`;
 
 const server = createServer((req, res) => {
@@ -1043,6 +1442,29 @@ const server = createServer((req, res) => {
       res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ error: e.message }));
     }
+    return;
+  }
+  // 「状態」タブ。壊れていないかを1画面で見るための束ね。
+  // AWS への問い合わせが複数走るため数秒かかる（毎日1回開くだけの想定）。
+  if (url.pathname === '/api/status') {
+    (async () => {
+      try {
+        const inq = (() => { try { return getInquiries(); } catch { return null; } })();
+        const data = {
+          checks: getChecks(),
+          signals: getSignals(),
+          cost: getCost(),
+          headers: await getLiveHeaders(),
+          inquiriesWaiting: inq ? inq.waiting : null,
+          generatedAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        };
+        res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(data));
+      } catch (e) {
+        res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    })();
     return;
   }
   if (url.pathname === '/api/inquiries') {

@@ -116,14 +116,17 @@ export default function LedgerPage() {
 
   return (
     <div>
-      <div className="pg-header pg-header-row">
-        <div>
-          <div className="pg-title">仕訳帳</div>
-          <div className="pg-sub">すべての取引履歴を確認します</div>
+      {/* 期間切り替えはヘッダー内に入れて一緒に画面上部へ貼り付ける（下の絞り込みは流す） */}
+      <div className="pg-header">
+        <div className="pg-header-row">
+          <div>
+            <div className="pg-title">仕訳帳</div>
+            <div className="pg-sub">すべての取引履歴を確認します</div>
+          </div>
+          <ExportMenu onCSV={exportCSV} onPDF={exportPDF} />
         </div>
-        <ExportMenu onCSV={exportCSV} onPDF={exportPDF} />
+        <PeriodBar value={period} onChange={setPeriod} custom={custom} onCustomChange={setCustom} inline />
       </div>
-      <PeriodBar value={period} onChange={setPeriod} custom={custom} onCustomChange={setCustom} />
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, alignItems: 'center', flexWrap: 'wrap' }}>
         <input type="text" className="fc" placeholder="🔍 摘要・科目で検索" value={search} onChange={(e) => setSearch(e.target.value)}
           style={{ maxWidth: 240, padding: '6px 10px', fontSize: 12 }} />

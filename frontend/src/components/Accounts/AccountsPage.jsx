@@ -235,22 +235,24 @@ export default function AccountsPage() {
 
   return (
     <div>
-      <div className="pg-header pg-header-row">
-        <div>
-          <div className="pg-title">勘定科目・口座管理</div>
-          <div className="pg-sub">科目と口座を管理します</div>
+      {/* タブもヘッダーに入れて一緒に画面上部へ貼り付ける。
+          科目一覧は縦に長く、区分を切り替えるたびに上まで戻るのが手間だったため。 */}
+      <div className="pg-header">
+        <div className="pg-header-row">
+          <div>
+            <div className="pg-title">勘定科目・口座管理</div>
+            <div className="pg-sub">科目と口座を管理します</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-p" onClick={openNewAccount}>＋ 科目</button>
+            <button className="btn btn-p" onClick={openNewWallet}>＋ 口座</button>
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-p" onClick={openNewAccount}>＋ 科目</button>
-          <button className="btn btn-p" onClick={openNewWallet}>＋ 口座</button>
+        <div className="tab-bar">
+          {Object.entries(ACCOUNT_TYPES).map(([k, v]) => (
+            <div key={k} className={`tab ${tab === k ? 'on' : ''}`} onClick={() => setTab(k)}>{v}</div>
+          ))}
         </div>
-      </div>
-
-      {/* タブ */}
-      <div className="tab-bar">
-        {Object.entries(ACCOUNT_TYPES).map(([k, v]) => (
-          <div key={k} className={`tab ${tab === k ? 'on' : ''}`} onClick={() => setTab(k)}>{v}</div>
-        ))}
       </div>
 
       <div className="card" data-tour="quick-account" style={{ marginBottom: 14, padding: '12px 16px' }}>

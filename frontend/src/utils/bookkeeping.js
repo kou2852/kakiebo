@@ -37,6 +37,17 @@ export function filterByPeriod(journals, start, end) {
 }
 
 /**
+ * 指定日「時点」の残高。資産・負債・純資産はストック（ある一時点の残高）なので、
+ * 期間で切り出すのではなく、その日までの全仕訳を積み上げて求める。
+ *
+ * 収益・費用（フロー）は filterByPeriod で期間内だけを合計するのが正しく、
+ * ここと混同すると「7月の資産構成」が「7月に動いた資産」になってしまう。
+ */
+export function balancesAsOf(journals, accounts, date) {
+  return calcBalances(journals.filter((j) => j.date <= date), accounts);
+}
+
+/**
  * 期間の開始日・終了日を計算。
  */
 export function getPeriodRange(mode, custom = {}) {

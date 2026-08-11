@@ -76,13 +76,18 @@ export default function CalendarPage() {
 
   return (
     <div>
-      <div className="pg-header"><div className="pg-title">カレンダー</div><div className="pg-sub">日次の収入・支出を一覧します</div></div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-        <button className="btn btn-g btn-s" onClick={() => nav(-1)}>◀ 前月</button>
-        <span style={{ fontSize: 16, fontWeight: 500, minWidth: 120, textAlign: 'center' }}>{year}年{month + 1}月</span>
-        <button className="btn btn-g btn-s" onClick={() => nav(1)}>次月 ▶</button>
-        <button className="btn btn-p btn-s" onClick={goToday}>今日</button>
+      {/* 月送りはヘッダー内に入れて一緒に画面上部へ貼り付ける */}
+      <div className="pg-header pg-header-row">
+        <div>
+          <div className="pg-title">カレンダー</div>
+          <div className="pg-sub">日次の収入・支出を一覧します</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button className="btn btn-g btn-s" onClick={() => nav(-1)}>◀ 前月</button>
+          <span style={{ fontSize: 16, fontWeight: 500, minWidth: 120, textAlign: 'center' }}>{year}年{month + 1}月</span>
+          <button className="btn btn-g btn-s" onClick={() => nav(1)}>次月 ▶</button>
+          <button className="btn btn-p btn-s" onClick={goToday}>今日</button>
+        </div>
       </div>
 
       <div className="card">

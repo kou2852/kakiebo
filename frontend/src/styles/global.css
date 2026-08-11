@@ -3,9 +3,14 @@
 /* ── リセット・ベース ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* iOS Safariはbody単体のoverflow-x:hiddenを無視することがあるため、htmlにも同じ指定が必要 */
+/* iOS Safariはbody単体のoverflow-x:hiddenを無視することがあるため、htmlにも同じ指定が必要。
+   ただし overflow-x:hidden は overflow-y を auto に変えてスクロールコンテナを作るため、
+   中の position:sticky（画面上部に貼り付くページヘッダー）が効かなくなる。
+   clip は同じく横溢れを止めるがスクロールコンテナを作らないので sticky が生きる。
+   clip 非対応の古いブラウザは hidden にフォールバックする（sticky が効かないだけ）。 */
 html {
   overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
@@ -16,6 +21,7 @@ body {
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  overflow-x: clip; /* 理由は html 側のコメント参照 */
   /* iOS Safariの端でのラバーバンド横スワイプ誤爆を防止（横スクロール自体は元々不要な画面） */
   overscroll-behavior-x: none;
 }
@@ -127,6 +133,24 @@ input[type="date"].fc::-webkit-calendar-picker-indicator { margin-left: auto; pa
 .pg-sub { color: var(--tx3); font-size: 12.5px; margin-top: 6px; }
 .pg-header-row { align-items: flex-end; }
 .pg-header { margin-bottom: 24px; }
+/* 期間の切替や「＋科目」などの操作を、スクロールを戻さずに押せるよう画面上部に貼り付ける。
+   対象は操作できるもの（ボタン・期間バー・タブ）を含むヘッダーだけ。
+   タイトルしか無いヘッダーまで固定すると、何も押せないのに縦を食うだけになる。 */
+.pg-header:has(button, select, input, .pbar, .tab-bar) {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--bg0);
+  /* 左右だけ .main の padding を打ち消して、下を流れるカードを背景で隠す。
+     上に負のマージンを入れるとゲスト帯や広告の上に乗ってしまうので入れない。 */
+  margin: 0 -32px 20px;
+  padding: 14px 32px 12px;
+  border-bottom: 1px solid var(--bd);
+}
+/* ヘッダーに取り込んだタブは、ヘッダー自身の下線と二重にならないようにする */
+.pg-header .tab-bar { margin: 10px -32px -12px; padding: 0 32px; border-bottom: 0; }
+/* ヘッダー内に置いた期間バーはタイトル行との間だけ空ける */
+.pg-header .pbar { margin-top: 10px; }
 .pg-header-row { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; }
 
 /* ── バッジ ── */
@@ -312,6 +336,23 @@ svg .bar-hover:hover { opacity: 1; filter: brightness(1.2); cursor: pointer; }
   .s-overlay.open { display: block; }
   /* 固定ヘッダー(48px)とコンテンツが重ならないよう上部に余白を確保 */
   .main { margin-left: 0; padding: 60px 14px 40px; }
+  /* 固定ヘッダー(48px)の真下に貼り付ける。左右は .main の padding(14px) を打ち消す */
+  .pg-header:has(button, select, input, .pbar, .tab-bar) {
+    top: 48px; margin: 0 -14px 14px; padding: 10px 14px 9px;
+  }
+  .pg-header .tab-bar { margin: 8px -14px -9px; padding: 0 14px; }
+  /* 固定ヘッダー内の期間バーは折り返すと2段になって画面を圧迫するので、1段の横スクロールにする */
+  .pg-header .pbar { margin-top: 8px; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; }
+  .pg-header .pbtn { flex: none; }
+  /* 説明文が長いと右のボタンが下の行に落ちてヘッダーが1段分高くなるため、
+     タイトル側を縮めて説明文の方を折り返させる。
+     ただしタイトルが潰れるほど縮めない（min-width）。潰すと右側の操作が
+     細い列に押し込まれて何段にも折り返し、かえってヘッダーが高くなる。
+     右側は縮めず、収まらなければ行ごと下に落とす。 */
+  .pg-header.pg-header-row > :first-child,
+  .pg-header .pg-header-row > :first-child { flex: 1 1 0; min-width: 120px; }
+  .pg-header.pg-header-row > :nth-child(2),
+  .pg-header .pg-header-row > :nth-child(2) { flex: none; }
   .pg-title { font-size: 20px; }
   .g2, .g3 { grid-template-columns: 1fr; }
   .form-row { grid-template-columns: 1fr; }

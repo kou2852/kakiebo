@@ -47,14 +47,16 @@ export default function CFPage() {
 
   return (
     <div>
-      <div className="pg-header pg-header-row">
-        <div>
-          <div className="pg-title">キャッシュフロー計算書<InfoTip text="一定期間に現金・預金が実際にいくら増減したかを、営業・投資・財務の活動別に示したもの。手元の「お金の流れ」がわかります。" /></div>
-          <div className="pg-sub">お金の出入りを活動別に表示します</div>
+      <div className="pg-header">
+        <div className="pg-header-row">
+          <div>
+            <div className="pg-title">キャッシュフロー計算書<InfoTip text="一定期間に現金・預金が実際にいくら増減したかを、営業・投資・財務の活動別に示したもの。手元の「お金の流れ」がわかります。" /></div>
+            <div className="pg-sub">お金の出入りを活動別に表示します</div>
+          </div>
+          <ExportMenu onCSV={exportCSV} onPDF={exportPDF} />
         </div>
-        <ExportMenu onCSV={exportCSV} onPDF={exportPDF} />
+        <PeriodBar value={period} onChange={setPeriod} custom={custom} onCustomChange={setCustom} inline />
       </div>
-      <PeriodBar value={period} onChange={setPeriod} custom={custom} onCustomChange={setCustom} />
 
       <div ref={reportRef}>
       <ReportPrintHeader title="キャッシュフロー計算書" start={start} end={end} />
