@@ -120,10 +120,20 @@ input[type="date"].fc::-webkit-calendar-picker-indicator { margin-left: auto; pa
 /* ── モーダル ── */
 .mo { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(2px); }
 .mo.open { display: flex; }
-.md { background: var(--bg2); border: 1px solid var(--bd2); border-radius: 16px; padding: 22px; width: 92%; max-width: 660px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 60px -20px rgba(20,24,40,.45); }
+/* padding-top は .md-t 側で持つ。ここに padding があると、貼り付いた .md-t が
+   その分だけ下に押し下げられ（sticky は親のコンテンツボックス内に制限されるため）、
+   上にできた隙間を中身が流れて見えてしまう。 */
+.md { background: var(--bg2); border: 1px solid var(--bd2); border-radius: 16px; padding: 0 22px 22px; width: 92%; max-width: 660px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 60px -20px rgba(20,24,40,.45); }
 .md-w { max-width: 1040px; width: 96%; }
 .md-handle { display: none; }
-.md-t { font-family: inherit; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 18px; color: var(--tx); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+/* スクロールするのは .md なので、その中でタイトルと✕を上に貼り付ける。
+   チートシートやはじめかたのように縦に長いモーダルで、閉じるのに
+   一番上まで戻る必要があったため。
+   左右のマイナスマージンは .md の padding を打ち消して全幅にするもの。
+   上の余白は .md から移してここが持つ（理由は .md のコメント参照）。 */
+.md-t { font-family: inherit; font-size: 18px; font-weight: 800; letter-spacing: -0.01em; color: var(--tx); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  position: sticky; top: 0; z-index: 2; background: var(--bg2);
+  margin: 0 -22px 10px; padding: 22px 22px 12px; border-bottom: 1px solid var(--bd); }
 .md-x { flex-shrink: 0; min-width: 32px; min-height: 32px; margin: -6px -6px 0 0; padding: 0; background: none; border: 0; font-size: 24px; line-height: 1; font-weight: 400; color: var(--tx3); cursor: pointer; }
 .md-x:hover { color: var(--tx); }
 .md-f { display: flex; justify-content: flex-end; gap: 7px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--bd); }
@@ -323,8 +333,10 @@ svg .bar-hover:hover { opacity: 1; filter: brightness(1.2); cursor: pointer; }
 
 @media (max-width: 768px) {
   .mo { align-items: flex-end; }
-  .md { width: 100%; max-width: none; max-height: 90vh; max-height: 90dvh; border-radius: 16px 16px 0 0; border-bottom: 0; padding: 10px 18px calc(18px + env(safe-area-inset-bottom, 0px)); }
-  .md-handle { display: block; width: 38px; height: 4px; margin: 0 auto 14px; border-radius: 999px; background: var(--bd2); }
+  .md { width: 100%; max-width: none; max-height: 90vh; max-height: 90dvh; border-radius: 16px 16px 0 0; border-bottom: 0; padding: 0 18px calc(18px + env(safe-area-inset-bottom, 0px)); }
+  .md-handle { display: block; width: 38px; height: 4px; margin: 10px auto 12px; border-radius: 999px; background: var(--bd2); }
+  /* モバイルは .md の左右 padding が 18px。上の余白はハンドルが持つので控えめにする */
+  .md-t { margin: 0 -18px 10px; padding: 8px 18px 10px; }
   .journal-fab { position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 80; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 52px; padding: 0 18px; border: 1px solid var(--ac2); border-radius: 999px; background: var(--ac); color: var(--ac-tx); box-shadow: var(--csh); font: inherit; font-weight: 700; cursor: pointer; }
   /* iOS Safari/Chromeはinputのfont-sizeが16px未満だとフォーカス時に自動ズームし、画面がずれたように見える。モバイルのみ16px以上に引き上げて防止 */
   .fc { font-size: 16px; }
@@ -348,11 +360,10 @@ svg .bar-hover:hover { opacity: 1; filter: brightness(1.2); cursor: pointer; }
      タイトル側を縮めて説明文の方を折り返させる。
      ただしタイトルが潰れるほど縮めない（min-width）。潰すと右側の操作が
      細い列に押し込まれて何段にも折り返し、かえってヘッダーが高くなる。
-     右側は縮めず、収まらなければ行ごと下に落とす。 */
+     右側は既定の flex:0 1 auto のままにする。flex:none にすると縮まず、
+     ボタンが画面外へはみ出して押せなくなる（overflow-x:clip で見えないまま消える）。 */
   .pg-header.pg-header-row > :first-child,
   .pg-header .pg-header-row > :first-child { flex: 1 1 0; min-width: 120px; }
-  .pg-header.pg-header-row > :nth-child(2),
-  .pg-header .pg-header-row > :nth-child(2) { flex: none; }
   .pg-title { font-size: 20px; }
   .g2, .g3 { grid-template-columns: 1fr; }
   .form-row { grid-template-columns: 1fr; }
