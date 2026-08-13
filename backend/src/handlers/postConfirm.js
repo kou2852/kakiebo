@@ -1,4 +1,4 @@
-import { batchPut, putItem } from '../lib/db.js';
+import { batchPut, putItem, getItem } from '../lib/db.js';
 
 /** デフォルト勘定科目 (既存HTMLから移植) */
 const DEFAULT_ACCOUNTS = [
@@ -60,9 +60,21 @@ export async function seedDefaults(userId, email) {
  * Cognito PostConfirmation トリガー。
  * 新規ユーザー確認完了時にデフォルト勘定科目を投入する。
  * 注: 外部IdP(Google)経由のユーザーでは発火しないため postAuth 側でも初期化する。
+ *
+ * このトリガーは新規登録の確認だけでなく、パスワード再設定の完了でも発火する
+ * (triggerSource = PostConfirmation_ConfirmForgotPassword)。区別せずに投入すると
+ * 既存利用者の科目が固定IDのまま上書きされ、変更した名称・コード・カード設定が失われる。
+ * 実際に 2026-08 に別経路(ゲストデータの取り込み)で同じ壊れ方をした事故があり、
+ * こちらは同じ結果を招く未発火の経路として塞ぐ。
  */
 export async function handler(event) {
+  if (event.triggerSource !== 'PostConfirmation_ConfirmSignUp') return event;
+
   const userId = event.request.userAttributes.sub;
+  // 初期化済みなら何もしない。確認コードの再送→再確認などで二重に走っても壊さない。
+  // 判定は postAuth と同じく PROFILE の有無で行う。
+  if (await getItem(userId, 'PROFILE')) return event;
+
   await seedDefaults(userId, event.request.userAttributes.email);
   return event;
 }

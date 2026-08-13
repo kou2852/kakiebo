@@ -7,6 +7,7 @@ import { setupEncryption, unlock as cryptoUnlock, recover as cryptoRecover, chan
 import { readBundle, writeBundle, readCipher, clearEncryption } from '../utils/cryptoStore';
 import { saveDek, loadDek, clearDek } from '../utils/dekStore';
 import { track, trackOnce } from '../utils/track';
+import { DEFAULT_ACCOUNTS, DEFAULT_PRESETS, planGuestMigration } from '../utils/guestMigration';
 
 const DataContext = createContext(null);
 
@@ -16,21 +17,6 @@ const GUEST_KEY = 'kk4_guest'; // ゲストのデータは通常の kk4 と分�
 // 解錠できないまま持ち出すバックアップの識別子。インポート時にこれで平文JSONと見分ける。
 export const ENC_BACKUP_TYPE = 'kurofukubo-encrypted-backup';
 
-// デフォルト勘定科目
-const DEFAULT_ACCOUNTS = [
-  {id:'a01',code:'1001',name:'現金',type:'asset',sys:1},{id:'a02',code:'1002',name:'普通預金',type:'asset',sys:1},{id:'a03',code:'1003',name:'定期預金',type:'asset',sys:1},{id:'a04',code:'1101',name:'売掛金',type:'asset',sys:1},{id:'a05',code:'1201',name:'有価証券',type:'asset',sys:1},{id:'a06',code:'1301',name:'固定資産',type:'asset',sys:1},
-  {id:'b01',code:'2001',name:'買掛金',type:'liability',sys:1},{id:'b02',code:'2002',name:'未払金',type:'liability',sys:1},{id:'b03',code:'2101',name:'クレジットカード',type:'liability',sys:1},{id:'b04',code:'2201',name:'借入金',type:'liability',sys:1},
-  {id:'c01',code:'3001',name:'元入金',type:'equity',sys:1},{id:'c02',code:'3101',name:'繰越利益',type:'equity',sys:1},
-  {id:'d01',code:'4001',name:'給与収入',type:'income',sys:1},{id:'d02',code:'4002',name:'副業収入',type:'income',sys:1},{id:'d03',code:'4003',name:'利子収入',type:'income',sys:1},{id:'d04',code:'4004',name:'雑収入',type:'income',sys:1},{id:'d05',code:'4005',name:'評価損益',type:'income',sys:1},
-  {id:'e01',code:'5001',name:'食費',type:'expense',sys:1},{id:'e02',code:'5002',name:'日用品費',type:'expense',sys:1},{id:'e03',code:'5003',name:'光熱費',type:'expense',sys:1},{id:'e04',code:'5004',name:'通信費',type:'expense',sys:1},{id:'e05',code:'5005',name:'交通費',type:'expense',sys:1},{id:'e06',code:'5006',name:'医療費',type:'expense',sys:1},{id:'e07',code:'5007',name:'娯楽費',type:'expense',sys:1},{id:'e08',code:'5008',name:'衣服費',type:'expense',sys:1},{id:'e09',code:'5009',name:'住居費',type:'expense',sys:1},{id:'e10',code:'5010',name:'保険料',type:'expense',sys:1},{id:'e11',code:'5011',name:'教育費',type:'expense',sys:1},{id:'e12',code:'5012',name:'雑費',type:'expense',sys:1},
-];
-
-// デフォルトプリセット（手動作成と同じ扱い・特別フラグなし。口座未登録のため walletId は空）
-const DEFAULT_PRESETS = [
-  { id: 'pd1', walletId: '', type: 'out', name: '食費（カード払い）', desc: '', lines: [{ accountId: 'e01', side: 'dr', amount: 0, tagId: '' }, { accountId: 'b03', side: 'cr', amount: 0, tagId: '' }] },
-  { id: 'pd2', walletId: '', type: 'in', name: '給与（入金）', desc: '', lines: [{ accountId: 'a02', side: 'dr', amount: 0, tagId: '' }, { accountId: 'd01', side: 'cr', amount: 0, tagId: '' }] },
-  { id: 'pd3', walletId: '', type: 'out', name: '現金引き出し', desc: '', lines: [{ accountId: 'a01', side: 'dr', amount: 0, tagId: '' }, { accountId: 'a02', side: 'cr', amount: 0, tagId: '' }] },
-];
 
 function loadLocal(key = STORAGE_KEY) {
   try {
@@ -184,19 +170,27 @@ export function DataProvider({ children }) {
     // 本番: APIから読む
     (async () => {
       try {
+        // E2E暗号化が有効なら暗号文を取得（取得失敗時は通常ロードへフォールバック）。
+        // ゲスト移行の可否判定にも使うため、移行より先に取得する。
+        let ed = null;
+        try { ed = await api.encdata.get(); encRev.current = ed?.rev || 0; } catch { ed = null; }
+
         // ゲスト登録直後の移行。暗号化ゲストは（解錠済みdekで）復号して移行する。
+        // 既存アカウントへ流し込むと利用者の科目が既定名に戻るため、新規のときだけ実行する。
         let g = null;
         const guestRaw = localStorage.getItem(GUEST_KEY);
         if (guestRaw) { try { g = JSON.parse(guestRaw); } catch {} }
         else if (hasEncryption(GUEST_KEY) && dek) { try { g = await loadEncrypted(GUEST_KEY, dek); } catch {} }
-        if (g && (g.journals?.length || g.accounts?.length)) await api.data.importAll(g);
+        // served は判定のために取得した内容。移行しなければそのまま初期表示に使う
+        const plan = await planGuestMigration({
+          guest: g, encBundle: ed?.bundle, fetchServer: () => api.data.exportAll(),
+        });
+        let served = plan.served;
+        if (plan.migrate) await api.data.importAll(plan.payload);
         localStorage.removeItem(GUEST_KEY);
         localStorage.removeItem(`${GUEST_KEY}__enc`);
         localStorage.removeItem(`${GUEST_KEY}__encmeta`);
 
-        // E2E暗号化が有効なら暗号文を取得（取得失敗時は通常ロードへフォールバック）
-        let ed = null;
-        try { ed = await api.encdata.get(); encRev.current = ed?.rev || 0; } catch { ed = null; }
         if (ed && ed.bundle) {
           setEncEnabled(true); setEncBundle(ed.bundle);
           const k = dek || await loadDek('api'); // 端末保持の鍵で自動解錠
@@ -205,7 +199,7 @@ export function DataProvider({ children }) {
           catch { await clearDek('api'); setEncLocked(true); }
           setLoading(false); return;
         }
-        applyDataset(await api.data.exportAll());
+        applyDataset(served ?? await api.data.exportAll());
         setLoading(false);
       } catch (err) {
         console.warn('API unavailable, falling back to localStorage:', err.message);
