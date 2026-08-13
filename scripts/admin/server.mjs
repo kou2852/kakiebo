@@ -95,6 +95,19 @@ function getRegisteredUsers(days) {
   const inPeriod = since == null ? null
     : users.filter(([s, created]) => s !== 'UNCONFIRMED' && new Date(created).getTime() >= since).length;
 
+  // 日別の新規登録。日付は UTC で切る（CloudFrontログの日付と揃えないと1日ずれて比較できない）。
+  const dayMap = {};
+  for (const [s, created] of users) {
+    if (s === 'UNCONFIRMED') continue;
+    const t = new Date(created).getTime();
+    if (since != null && t < since) continue;
+    const day = new Date(created).toISOString().slice(0, 10);
+    const e = (dayMap[day] ||= { date: day, count: 0, google: 0, email: 0 });
+    e.count++;
+    if (s === 'EXTERNAL_PROVIDER') e.google++; else e.email++;
+  }
+  const byDay = Object.keys(dayMap).sort().map((k) => dayMap[k]);
+
   // 本数は「全件 − 未確認」。RESET_REQUIRED 等の未知の状態が出ても本数側に入り取りこぼさない
   return {
     total: users.length - unconfirmed,
@@ -102,6 +115,7 @@ function getRegisteredUsers(days) {
     google: by.EXTERNAL_PROVIDER || 0, // Googleログイン。確認コードの概念がなく常に確認済み
     email: by.CONFIRMED || 0,          // メール登録で確認コードを通した人
     inPeriod,                          // 期間内の新規登録（null = 期間指定なし）
+    byDay,                             // 期間内の新規登録の日別内訳（登録があった日のみ）
   };
 }
 
@@ -145,19 +159,9 @@ function getSignals() {
   };
 }
 
-/** 当月のAWS費用。Cost Explorer は us-east-1 固定で、1リクエストあたり課金がある */
-function getCost() {
-  const now = new Date();
-  const start = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-01`;
-  const end = now.toISOString().slice(0, 10);
-  if (start === end) return { amount: 0, start, end }; // 月初は期間が空になる
-  try {
-    const r = awsJson(['ce', 'get-cost-and-usage', '--region', 'us-east-1',
-      '--time-period', `Start=${start},End=${end}`, '--granularity', 'MONTHLY', '--metrics', 'UnblendedCost',
-    ], '費用の取得');
-    return { amount: Number(r.ResultsByTime?.[0]?.Total?.UnblendedCost?.Amount || 0), start, end };
-  } catch { return null; }
-}
+// 当月のAWS費用の表示は撤去した。Cost Explorer API は1リクエスト $0.01 の従量課金で、
+// この画面を開くだけで請求の最大費目になっていた（2026-08は21回で$0.21）。費用は
+// Billing コンソール（無料）か Budgets のアラートで見る。
 
 /** 前提チェック。ok / warn / bad と、判断に使った実測値を返す */
 function getChecks() {
@@ -1051,8 +1055,6 @@ function renderStatus(d){
   }
   h += row(d.inquiriesWaiting>0?'warn':'ok', '返信待ちの問い合わせ', (d.inquiriesWaiting??'—')+' 件',
         d.inquiriesWaiting>0 ? '「問い合わせ」タブで返信してください' : null);
-  h += row(d.cost ? (d.cost.amount>20?'warn':'ok') : 'warn', '当月のAWS費用',
-        d.cost ? '$'+d.cost.amount.toFixed(2) : '取得できず');
   h += '</section></div>';
 
   h += '<p class="foot"><span>緑がすべてなら、この画面を閉じて構いません。'
@@ -1195,6 +1197,24 @@ function render(d){
 
   // 3. 日別オープン（人間 / bot を別スケールで）
   h += '<div class="band"><h2>推移</h2><span class="hint">直近'+d.period.days+'日</span></div>';
+
+  // 日別の新規登録。件数が少ないので棒グラフにせず、登録があった日だけを新しい順に並べる。
+  if(ru && ru.byDay){
+    h += '<section><h3>日別の新規登録 <small>Cognito の登録日時（UTC）。未確認は除く</small></h3>';
+    if(!ru.byDay.length){
+      h += '<p class="muted">この期間の登録はありません</p>';
+    }else{
+      h += '<div class="chips">';
+      for(const r of [...ru.byDay].reverse()){
+        h += '<span class="chip k">'+r.date.slice(5).replace('-','/')+' <b>'+r.count+'</b>'
+           + '<span style="color:var(--tx3);font-size:11px">'
+           + (r.google?' Google'+r.google:'') + (r.email?' メール'+r.email:'') + '</span></span>';
+      }
+      h += '</div>';
+    }
+    h += '</section>';
+  }
+
   h += '<section><h3>日別オープン <small>人間（回）</small></h3>';
   if(!d.byDay.length){
     h += '<p class="muted">データなし</p>';
@@ -1453,7 +1473,6 @@ const server = createServer((req, res) => {
         const data = {
           checks: getChecks(),
           signals: getSignals(),
-          cost: getCost(),
           headers: await getLiveHeaders(),
           inquiriesWaiting: inq ? inq.waiting : null,
           generatedAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
