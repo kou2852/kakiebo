@@ -6,6 +6,16 @@ import { trackOnce } from '../../utils/track';
 // 「何のサービスか」を確かめる手段が無かった。どこを押されたか分けて測れるよう utm_content を変える。
 const lpUrl = (where) => `https://kurofukubo.com/?utm_source=app&utm_medium=auth&utm_content=${where}`;
 
+// この端末でアプリを使ったことがあるか。検索から素のURLに来た人には、フォームより先に
+// 「何ができるか」と「登録なしで試せること」を見せる。使ったことのある人には出さない。
+// ツアー完了(kk_onboarded)と登録済み(kk_ev_registered)を痕跡として見る。どちらも
+// 実際に使い始めた人にしか付かない。
+function isFirstVisit() {
+  try {
+    return !localStorage.getItem('kk_onboarded') && !localStorage.getItem('kk_ev_registered');
+  } catch { return false; } // localStorage が使えない環境では出さない（従来どおりの画面）
+}
+
 // Cognito の英語エラーを日本語化（前方一致）
 const ERROR_JA = [
   ['Incorrect username or password', 'メールアドレスまたはパスワードが正しくありません'],
@@ -39,6 +49,8 @@ export default function AuthPage() {
   const [code, setCode] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  // 判定は初回描画時に一度だけ。ゲスト開始で localStorage が変わっても画面が入れ替わらないようにする
+  const [firstVisit] = useState(isFirstVisit);
 
   // ログイン画面に当たった人数。guest_first / registered との差が「入口での離脱」になる。
   useEffect(() => { trackOnce('auth_view'); }, []);
@@ -115,6 +127,30 @@ export default function AuthPage() {
           </p>
         </a>
 
+        {/* 初回訪問の着地。検索から来るとフォームが最初に見えるため、
+            何ができるかと「登録なしで試せる」を先に出す。 */}
+        {firstVisit && mode === 'login' && (
+          <div style={{ marginBottom: 22 }}>
+            <ul style={{ margin: '0 0 16px', padding: 0, listStyle: 'none', fontSize: 12.5, color: 'var(--tx2)', lineHeight: 1.9 }}>
+              <li>✓ 現金・預金・証券・NISA/iDeCo・ローンまで、<strong>純資産</strong>が一画面で見える</li>
+              <li>✓「食費 1200 現金」の一行入力。簿記の知識がなくても記帳できる</li>
+              <li>✓ 銀行・カードとの自動連携なし。家計データを外部に渡さない</li>
+            </ul>
+            <button type="button" className="btn btn-p" onClick={loginAsGuest}
+              style={{ width: '100%', justifyContent: 'center', padding: '12px 0', fontSize: 15, gap: 8 }}>
+              👤 登録なしで試す
+            </button>
+            <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--tx3)', margin: '6px 0 0' }}>
+              メールアドレスの入力は不要。データはこの端末にのみ保存されます
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '20px 0 0', color: 'var(--tx3)', fontSize: 11 }}>
+              <span style={{ flex: 1, height: 1, background: 'var(--bd)' }} />
+              アカウントをお持ちの方
+              <span style={{ flex: 1, height: 1, background: 'var(--bd)' }} />
+            </div>
+          </div>
+        )}
+
         {signupBlocked && (
           <div style={{ background: 'var(--bg3)', border: '1px solid var(--bd)', borderRadius: 7, padding: '14px 16px', fontSize: 13, color: 'var(--tx2)', lineHeight: 1.8, textAlign: 'center' }}>
             ⚠️ メールアドレスでの新規登録は現在一時停止しています。<br />
@@ -186,13 +222,18 @@ export default function AuthPage() {
                 Googleでログイン
               </button>
             )}
-            <button type="button" className="btn btn-g" onClick={loginAsGuest}
-              style={{ width: '100%', justifyContent: 'center', padding: '10px 0', fontSize: 14, gap: 8 }}>
-              👤 ゲストとして試す
-            </button>
-            <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--tx3)', marginTop: 6 }}>
-              ※ データはこの端末にのみ保存されます
-            </p>
+            {/* 初回訪問では上に出しているので、ここには重ねて出さない */}
+            {!(firstVisit && mode === 'login') && (
+              <>
+                <button type="button" className="btn btn-g" onClick={loginAsGuest}
+                  style={{ width: '100%', justifyContent: 'center', padding: '10px 0', fontSize: 14, gap: 8 }}>
+                  👤 ゲストとして試す
+                </button>
+                <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--tx3)', marginTop: 6 }}>
+                  ※ データはこの端末にのみ保存されます
+                </p>
+              </>
+            )}
           </>
         )}
 
