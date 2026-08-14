@@ -507,6 +507,26 @@ function analyze(days) {
   }
   const byDevice = Object.entries(devCnt).map(([name, count]) => ({ name, count, distinct: devIps[name].size }));
 
+  // プラットフォーム別。ネイティブアプリを作るかの判断に、iOS と Android の比率が要る。
+  // UA削減でOSのバージョンは丸められるため、細かい版の分布は取れない（種別までが限界）。
+  const platform = (ua) => {
+    if (/iphone|ipod/i.test(ua)) return 'iPhone';
+    if (/ipad/i.test(ua)) return 'iPad';
+    if (/android/i.test(ua)) return /mobile/i.test(ua) ? 'Android スマホ' : 'Android タブレット';
+    if (/macintosh|mac os x/i.test(ua)) return 'Mac';
+    if (/windows/i.test(ua)) return 'Windows';
+    if (/linux|cros/i.test(ua)) return 'Linux / ChromeOS';
+    return '判定不能'; // アプリ内ブラウザやUAを削る設定。実態のモバイル比率はこの分だけ高い可能性がある
+  };
+  const pfCnt = {}, pfIps = {};
+  for (const r of humanOpens) {
+    const k = platform(dec(r.ua));
+    pfCnt[k] = (pfCnt[k] || 0) + 1;
+    (pfIps[k] ||= new Set()).add(r.ip);
+  }
+  const byPlatform = Object.entries(pfCnt).sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => ({ name, count, distinct: pfIps[name].size }));
+
   // 参照元 上位
   const refCnt = {};
   for (const r of humanOpens) { const k = r.ref && r.ref !== '-' ? r.ref : '(直接/なし)'; refCnt[k] = (refCnt[k] || 0) + 1; }
@@ -583,7 +603,7 @@ function analyze(days) {
       total: opens.length, bot: botOpens.length, self: selfOpens.length,
       human: humanOpens.length, humanDistinct: humanIps.size,
     },
-    byDay, bySrc, byArticle, byDevice, excluded, refs, botUa, events,
+    byDay, bySrc, byArticle, byDevice, byPlatform, excluded, refs, botUa, events,
   };
 }
 
@@ -1402,7 +1422,29 @@ function renderDeep(d){
        + '<td class="num">'+(devTotal?(r.count/devTotal*100).toFixed(0)+'%':'—')+'</td></tr>';
   }
   if(!devTotal) h += '<tr><td class="muted" colspan="4">データなし</td></tr>';
-  h += '</table></div></section>';
+  h += '</table></div>';
+
+  // プラットフォーム別。ネイティブアプリの判断に iOS / Android の比率を見る
+  h += '<h3 style="margin:20px 0 8px">プラットフォーム別 <small>OS判定。「判定不能」はアプリ内ブラウザ等でUAが削られたもの</small></h3>';
+  const pf = d.byPlatform||[];
+  const pfTotal = pf.reduce((s,x)=>s+x.count,0);
+  if(!pfTotal){
+    h += '<p class="muted">データなし</p>';
+  }else{
+    const mob = pf.filter(r=>/iPhone|iPad|Android/.test(r.name)).reduce((s,x)=>s+x.count,0);
+    const ios = pf.filter(r=>/iPhone|iPad/.test(r.name)).reduce((s,x)=>s+x.count,0);
+    h += '<div class="wrap"><table><tr><th>プラットフォーム</th><th class="num">起動</th><th class="num">実人数</th><th class="num">構成比</th></tr>';
+    for(const r of pf){
+      h += '<tr><td>'+esc(r.name)+'</td><td class="num">'+r.count+'</td><td class="num muted">'+r.distinct+'</td>'
+         + '<td class="num">'+(r.count/pfTotal*100).toFixed(0)+'%</td></tr>';
+    }
+    h += '</table></div>';
+    h += '<div class="sub" style="margin-top:10px"><span class="t">モバイル</span>'
+       + '<span class="i">全体に占める割合 <b>'+(mob/pfTotal*100).toFixed(0)+'%</b></span>'
+       + '<span class="i">うち iOS <b>'+(mob?(ios/mob*100).toFixed(0):'—')+'%</b></span>'
+       + '<span class="i">うち Android <b>'+(mob?((mob-ios)/mob*100).toFixed(0):'—')+'%</b></span></div>';
+  }
+  h += '</section>';
   h += '</div>';
 
   // 7. 参考情報（折りたたみ）
