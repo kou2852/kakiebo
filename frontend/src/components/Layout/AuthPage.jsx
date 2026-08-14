@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { trackOnce } from '../../utils/track';
 
+// 紹介サイトへの導線。検索から素のURL(app.kurofukubo.com/)に来ると、いきなりログイン画面が出て
+// 「何のサービスか」を確かめる手段が無かった。どこを押されたか分けて測れるよう utm_content を変える。
+const lpUrl = (where) => `https://kurofukubo.com/?utm_source=app&utm_medium=auth&utm_content=${where}`;
+
 // Cognito の英語エラーを日本語化（前方一致）
 const ERROR_JA = [
   ['Incorrect username or password', 'メールアドレスまたはパスワードが正しくありません'],
@@ -98,15 +102,18 @@ export default function AuthPage() {
         background: 'var(--bg2)', border: '1px solid var(--bd)', borderRadius: 16,
         padding: 32, width: '100%', maxWidth: 380, boxShadow: 'var(--csh)',
       }}>
-        <h1 style={{
-          fontFamily: 'inherit', fontSize: 22, fontWeight: 800, letterSpacing: '-0.01em',
-          color: 'var(--ac)', textAlign: 'center', marginBottom: 4,
-        }}>
-          kurofukubo
-        </h1>
-        <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--tx3)', marginBottom: 24 }}>
-          純資産まで見える複式簿記の家計簿
-        </p>
+        <a href={lpUrl('logo')} style={{ textDecoration: 'none', display: 'block' }}
+          title="kurofukubo とは？ サービス紹介へ">
+          <h1 style={{
+            fontFamily: 'inherit', fontSize: 22, fontWeight: 800, letterSpacing: '-0.01em',
+            color: 'var(--ac)', textAlign: 'center', marginBottom: 4,
+          }}>
+            kurofukubo
+          </h1>
+          <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--tx3)', marginBottom: 24 }}>
+            純資産まで見える複式簿記の家計簿
+          </p>
+        </a>
 
         {signupBlocked && (
           <div style={{ background: 'var(--bg3)', border: '1px solid var(--bd)', borderRadius: 7, padding: '14px 16px', fontSize: 13, color: 'var(--tx2)', lineHeight: 1.8, textAlign: 'center' }}>
@@ -218,6 +225,14 @@ export default function AuthPage() {
             <a href="#" onClick={(e) => { e.preventDefault(); go('login'); }}
               style={{ color: 'var(--ac)' }}>ログインに戻る</a>
           )}
+
+          {/* ロゴのリンクは気づかれにくいので、行き先を明示した導線も置く。
+              「ゲストとして試す」より弱く見せて、離脱を誘わないようにする。 */}
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--bd)' }}>
+            <a href={lpUrl('footer')} style={{ color: 'var(--tx3)', fontSize: 11 }}>
+              kurofukubo とは？ 使い方とサービス紹介
+            </a>
+          </div>
         </div>
       </div>
     </div>
