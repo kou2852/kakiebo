@@ -207,6 +207,38 @@ Resources:
       # CORS はゲートウェイ MOCK ではなく Lambda 側で ALLOWED_ORIGIN 環境変数から返す
       # （MOCK だと AllowedOrigin 変更が再デプロイで反映されない問題を回避）。
       # 各関数に Authorizer: NONE の OPTIONS イベントを定義してプリフライトを通す。
+      # アクセスログ。どのエンドポイントが呼ばれたかが残らず、2026-08 の障害では
+      # 「どの API がデータを書いたか」の特定に Lambda の実行時刻からの消去法を要した。
+      AccessLogSetting:
+        DestinationArn: !GetAtt ApiAccessLogGroup.Arn
+        Format: '{"time":"$context.requestTime","requestId":"$context.requestId","ip":"$context.identity.sourceIp","sub":"$context.authorizer.claims.sub","method":"$context.httpMethod","path":"$context.path","status":"$context.status","error":"$context.error.message","len":"$context.responseLength","ms":"$context.responseLatency"}'
+
+  # アクセスログの保存先。保持期間を切らないと無期限に増え続ける。
+  ApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/apigateway/${AWS::StackName}'
+      RetentionInDays: 90
+
+  # API Gateway が CloudWatch Logs へ書き込むためのロール。アカウント単位の設定で、
+  # 未設定（cloudwatchRoleArn = null）のままだとアクセスログの有効化自体が失敗する。
+  ApiCloudWatchRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: apigateway.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+
+  # リージョン内で1つだけの設定。このスタックが所有するため、スタック削除で設定も外れる。
+  ApiAccount:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn: !GetAtt ApiCloudWatchRole.Arn
 
   # ── Lambda Functions ──
   JournalsFunction:
