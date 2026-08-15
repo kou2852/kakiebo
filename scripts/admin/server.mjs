@@ -42,22 +42,31 @@ const isOutdatedUa = (ua) => {
   return false;
 };
 
-// 直近 days 日ぶんの日付文字列(YYYY-MM-DD)を返す
+// 集計と表示は日本時間で行う。CloudFront のログはUTCなので、日付だけを見ると
+// 朝9時より前の利用が前日に計上され、見ている感覚と1日ずれる。
+// 日付+時刻から +9時間して、本当のJST日に振り直す。
+const JST_OFFSET = 9 * 3600 * 1000;
+const jstDay = (date, time) => new Date(Date.parse(`${date}T${time}Z`) + JST_OFFSET).toISOString().slice(0, 10);
+const jstDayOfIso = (iso) => new Date(Date.parse(iso) + JST_OFFSET).toISOString().slice(0, 10);
+
+// 直近 days 日ぶんの日付文字列(YYYY-MM-DD、JST)を返す
 function lastDays(days) {
   const out = [];
-  const now = new Date();
+  const now = Date.now() + JST_OFFSET;
   for (let i = 0; i < days; i++) {
-    const d = new Date(now.getTime() - i * 86400000);
-    out.push(d.toISOString().slice(0, 10));
+    out.push(new Date(now - i * 86400000).toISOString().slice(0, 10));
   }
   return out;
 }
 
 // S3から直近days日ぶんのログを増分同期（ファイル名: app/<distId>.YYYY-MM-DD-HH.hash.gz）
+// ファイル名はUTC日なので、JSTの当日ぶんを取りこぼさないよう前後1日を余分に取る。
 function syncLogs(days) {
   if (!existsSync(CACHE_DIR)) mkdirSync(CACHE_DIR, { recursive: true });
   const includes = [];
-  for (const d of lastDays(days)) { includes.push('--include', `*.${d}-*.gz`); }
+  const span = new Set(lastDays(days + 1));
+  span.add(new Date(Date.now() + 86400000).toISOString().slice(0, 10)); // JST当日の残り＝UTC翌日
+  for (const d of span) { includes.push('--include', `*.${d}-*.gz`); }
   const args = [
     's3', 'sync', `s3://${LOG_BUCKET}/${LOG_PREFIX}`, CACHE_DIR,
     '--exclude', '*', ...includes, '--profile', PROFILE,
@@ -95,13 +104,13 @@ function getRegisteredUsers(days) {
   const inPeriod = since == null ? null
     : users.filter(([s, created]) => s !== 'UNCONFIRMED' && new Date(created).getTime() >= since).length;
 
-  // 日別の新規登録。日付は UTC で切る（CloudFrontログの日付と揃えないと1日ずれて比較できない）。
+  // 日別の新規登録。日付はJSTで切る（アクセスログ側もJSTに揃えてあるため）。
   const dayMap = {};
   for (const [s, created] of users) {
     if (s === 'UNCONFIRMED') continue;
     const t = new Date(created).getTime();
     if (since != null && t < since) continue;
-    const day = new Date(created).toISOString().slice(0, 10);
+    const day = jstDayOfIso(created);
     const e = (dayMap[day] ||= { date: day, count: 0, google: 0, email: 0 });
     e.count++;
     if (s === 'EXTERNAL_PROVIDER') e.google++; else e.email++;
@@ -346,16 +355,35 @@ function getFeedback() {
  * 同一人物の判定はIP。IPv6は再接続で変わり、モバイル回線は共有されるため厳密ではない。
  * IPは画面へ返さない（個人特定を避けるため通し番号に置き換える）。
  */
+// 実際に触っていた時間。最初と最後の差を取ると離席がそのまま入るため
+// （例: 5分使って2時間放置し1分使った人が「128分」になっていた）、
+// 30分以上あいたらセッションの切れ目とみなし、各セッションの長さを足す。
+const SESSION_GAP_MS = 30 * 60 * 1000;
+function sessionTime(times) {
+  const t = [...times].sort((a, b) => a - b);
+  if (!t.length) return { minutes: 0, sessions: 0 };
+  let total = 0, start = t[0], prev = t[0], sessions = 1;
+  for (const x of t) {
+    if (x - prev > SESSION_GAP_MS) { total += prev - start; start = x; sessions++; }
+    prev = x;
+  }
+  total += prev - start;
+  return { minutes: Math.round(total / 60000), sessions };
+}
+
 function buildJourneys(rows, isBot, isSelf) {
   const byIp = new Map();
   for (const r of rows) {
     if (isBot(r) || isSelf(r.ip)) continue;
     const p = byIp.get(r.ip) || {
-      ev: [], days: new Set(), first: `${r.date} ${r.time}`, last: `${r.date} ${r.time}`,
+      ev: [], days: new Set(), times: [], first: `${r.date} ${r.time}`, last: `${r.date} ${r.time}`,
       ref: '', mobile: /Mobile|Android|iPhone/.test(dec(r.ua)),
     };
     p.days.add(r.date);
-    if (`${r.date} ${r.time}` > p.last) p.last = `${r.date} ${r.time}`;
+    const at = `${r.date} ${r.time}`;
+    if (at > p.last) p.last = at;
+    if (at < p.first) p.first = at; // ログの読み込み順に依存しないよう最小値を取る
+    p.times.push(Date.parse(`${r.date}T${r.time}Z`)); // 滞在時間の算出用
     if (!p.ref) {
       const ref = dec(r.ref || '');
       if (ref && ref !== '-' && !ref.includes('app.kurofukubo')) {
@@ -363,7 +391,8 @@ function buildJourneys(rows, isBot, isSelf) {
       }
     }
     const m = dec(r.uri).match(/^\/_e\/([\w.-]+)/);
-    if (m && m[1] !== 'csp-report') p.ev.push({ e: m[1], t: r.time.slice(0, 5) });
+    // ts は並べ替え用（日付を含む）。t は表示用の時刻のみ
+    if (m && m[1] !== 'csp-report') p.ev.push({ e: m[1], t: r.time.slice(0, 5), ts: at });
     byIp.set(r.ip, p);
   }
 
@@ -371,7 +400,8 @@ function buildJourneys(rows, isBot, isSelf) {
   let n = 0;
   for (const p of byIp.values()) {
     if (!p.ev.length) continue; // 計測イベントが1つも無い＝アプリを開いていない
-    p.ev.sort((a, b) => a.t.localeCompare(b.t));
+    // 日付込みで並べる。時刻だけで並べると、複数日にまたがる訪問者の順序が入れ替わる
+    p.ev.sort((a, b) => a.ts.localeCompare(b.ts));
     // 同じイベントの連続は1つに畳む（journal_added ×48 のような繰り返しを読みやすくする）
     const seq = [];
     for (const x of p.ev) {
@@ -382,14 +412,15 @@ function buildJourneys(rows, isBot, isSelf) {
     list.push({
       id: ++n,
       first: p.first, days: p.days.size,
-      minutes: Math.round((new Date(p.last.replace(' ', 'T') + 'Z') - new Date(p.first.replace(' ', 'T') + 'Z')) / 60000),
+      ...sessionTime(p.times),
       mobile: p.mobile, ref: p.ref || '直接',
       seq, last: p.ev[p.ev.length - 1].e,
       writes: p.ev.filter((x) => x.e === 'journal_added').length,
       registered: p.ev.some((x) => x.e === 'registered'),
     });
   }
-  list.sort((a, b) => b.seq.length - a.seq.length);
+  // 初回アクセスの新しい順。最近の訪問者が上に来る
+  list.sort((a, b) => b.first.localeCompare(a.first));
 
   // 最後のイベント別＝どこで消えたか
   const dropoff = {};
@@ -405,6 +436,9 @@ function analyze(days) {
   const wanted = new Set(lastDays(days));
   const files = existsSync(CACHE_DIR) ? readdirSync(CACHE_DIR).filter((f) => f.endsWith('.gz')) : [];
   const rows = [];
+  // self判定に使う selftest の送信元は、期間で絞る前に集める。期間内の行だけから集めると
+  // self の集合が期間ごとに変わり、同じ日の数字が期間の切替でずれる（7日と90日で違う値が出る）。
+  const selfIps = new Set();
   for (const f of files) {
     let txt;
     try { txt = gunzipSync(readFileSync(join(CACHE_DIR, f))).toString('utf8'); } catch { continue; }
@@ -412,14 +446,13 @@ function analyze(days) {
       if (!line || line[0] === '#') continue;
       const c = line.split('\t');
       if (c.length < 12) continue;
-      if (!wanted.has(c[0])) continue; // 期間外を除外
-      rows.push({ date: c[0], time: c[1], ip: c[4], uri: c[7], status: c[8], ref: c[9], ua: c[10], q: c[11] });
+      if (/selftest/i.test(dec(c[11]))) selfIps.add(c[4]); // 期間外の行からも拾う
+      const date = jstDay(c[0], c[1]);                     // UTCログ → JST日
+      if (!wanted.has(date)) continue;                     // 期間外を除外
+      rows.push({ date, time: c[1], ip: c[4], uri: c[7], status: c[8], ref: c[9], ua: c[10], q: c[11] });
     }
   }
 
-  // self判定: selftestクエリを送ったIP + 既知プレフィックス
-  const selfIps = new Set();
-  for (const r of rows) if (/selftest/i.test(dec(r.q))) selfIps.add(r.ip);
   const isSelf = (ip) => SELF_PREFIXES.some((p) => ip.startsWith(p)) || selfIps.has(ip);
 
   const dates = rows.map((r) => r.date).filter(Boolean).sort();
@@ -462,10 +495,14 @@ function analyze(days) {
   // 日別オープン
   const byDayMap = {};
   for (const r of opens) {
-    const d = (byDayMap[r.date] ||= { human: 0, bot: 0, self: 0 });
-    if (isBot(r)) d.bot++; else if (isSelf(r.ip)) d.self++; else d.human++;
+    const d = (byDayMap[r.date] ||= { human: 0, bot: 0, self: 0, ips: new Set() });
+    if (isBot(r)) d.bot++; else if (isSelf(r.ip)) d.self++; else { d.human++; d.ips.add(r.ip); }
   }
-  const byDay = Object.entries(byDayMap).sort().map(([date, c]) => ({ date, ...c }));
+  // 日別の実端末数。IPは日をまたぐ名寄せには使えない（IPv6が入れ替わる）が、
+  // 1日のうちなら概ね端末数に対応する。DAUの近似としてここで出す。
+  // 同一日・同一UAで別IPになる組が2割ほどあるため、真値よりやや大きく出る。
+  const byDay = Object.entries(byDayMap).sort()
+    .map(([date, c]) => ({ date, human: c.human, bot: c.bot, self: c.self, distinct: c.ips.size }));
 
   // 媒体別(utm_source)。タグなし＝Xとは限らない（アプリ内ブラウザ等でリファラ/UTMが落ちるSNS全般が該当しうる）
   const srcOf = (r) => {
@@ -1235,6 +1272,30 @@ function render(d){
     h += '</section>';
   }
 
+  // 日別の実端末数（DAUの近似）。棒＝端末数、数字も端末数。回数は下の帯で見る。
+  h += '<section><h3>日別の実端末数 <small>重複IPを除いた台数。DAUの近似（IPが入れ替わる分やや多め）</small></h3>';
+  if(!d.byDay.length){
+    h += '<p class="muted">データなし</p>';
+  }else{
+    const maxD = Math.max(1, ...d.byDay.map(r=>r.distinct||0));
+    h += '<div class="chart">';
+    for(const r of d.byDay){
+      h += '<div class="col" title="'+r.date+' 実端末'+(r.distinct||0)+'台 / 訪問'+r.human+'回">'
+         + '<div class="v">'+(r.distinct||0)+'</div>'
+         + '<div class="track"><div class="b" style="height:'+Math.max(2,Math.round((r.distinct||0)/maxD*100))+'%"></div></div>'
+         + '<div class="x">'+r.date.slice(5).replace('-','/')+'</div></div>';
+    }
+    h += '</div>';
+    const ds = d.byDay.map(r=>r.distinct||0);
+    const fixed = ds.slice(0,-1); // 当日は集計途中なので平均・最大から外す
+    h += '<div class="sub" style="margin-top:12px"><span class="t">実端末数</span>'
+       + '<span class="i">直近（確定日） <b>'+(fixed.length?fixed[fixed.length-1]:'—')+'</b> 台</span>'
+       + '<span class="i">平均 <b>'+(fixed.length?(fixed.reduce((a,b)=>a+b,0)/fixed.length).toFixed(1):'—')+'</b> 台</span>'
+       + '<span class="i">最大 <b>'+(fixed.length?Math.max(...fixed):'—')+'</b> 台</span>'
+       + '<span class="i muted">当日は集計途中のため平均・最大から除外</span></div>';
+  }
+  h += '</section>';
+
   h += '<section><h3>日別オープン <small>人間（回）</small></h3>';
   if(!d.byDay.length){
     h += '<p class="muted">データなし</p>';
@@ -1244,7 +1305,7 @@ function render(d){
     h += '<div class="chart">';
     for(const r of d.byDay){
       const md = r.date.slice(5).replace('-','/');
-      h += '<div class="col" title="'+r.date+' 人間'+r.human+' / bot'+r.bot+' / self'+r.self+'">'
+      h += '<div class="col" title="'+r.date+' 人間'+r.human+'回 / 実端末'+(r.distinct||0)+'台 / bot'+r.bot+'">'
          + '<div class="v">'+r.human+'</div>'
          + '<div class="track"><div class="b" style="height:'+Math.max(2,Math.round(r.human/maxH*100))+'%"></div></div>'
          + '<div class="x">'+md+'</div></div>';
@@ -1275,8 +1336,12 @@ let jFilter = null; // 「どこで消えたか」で選んだ最後のイベン
 function journeySection(d){
   const j = d.journeys;
   if(!j || !j.visitors.length) return '';
-  const vis = jFilter ? j.visitors.filter(v=>v.last===jFilter) : j.visitors;
-  const total = j.visitors.length;
+  // 起動しただけで何もしなかった人は行動列から外す（読んでも情報が無いため）。
+  // 「どこで消えたか」の集計には残す。そこでは「起動で消えた人数」自体が知りたい数字なので。
+  const acted = j.visitors.filter(v=>v.seq.some(s=>s.e!=='app_open'));
+  const skipped = j.visitors.length - acted.length;
+  const vis = jFilter ? acted.filter(v=>v.last===jFilter) : acted;
+  const total = acted.length;
 
   let h = '<div class="band"><h2>訪問者の行動</h2><span class="hint">'
         + '率では「どこで何をして帰ったか」が分からない。1行＝1人の実際の順序</span></div>';
@@ -1297,7 +1362,8 @@ function journeySection(d){
 
   // 行動列
   h += '<section><h3>行動列'+(jFilter?'（絞り込み中 '+vis.length+'/'+total+'人）':'（'+total+'人）')+'</h3>';
-  h += '<p class="hint">IPは表示しない。同一人物の判定はIPなので厳密ではない</p>';
+  h += '<p class="hint">新しい順。IPは表示しない。同一人物の判定はIPなので厳密ではない'
+     + (skipped?'／起動しただけの '+skipped+'人は除外（「どこで消えたか」には含む）':'')+'</p>';
   if(!vis.length) h += '<p class="muted">該当なし</p>';
   for(const v of vis.slice(0,25)){
     const badge = v.registered ? '<span class="jb jb-reg">登録</span>'
@@ -1306,7 +1372,7 @@ function journeySection(d){
        + '<span>'+esc(v.first.slice(5,16))+'</span>'
        + '<span>'+(v.mobile?'スマホ':'PC')+'</span>'
        + '<span>'+v.days+'日</span>'
-       + '<span>'+v.minutes+'分</span>'
+       + '<span>'+v.minutes+'分'+(v.sessions>1?'／'+v.sessions+'回':'')+'</span>'
        + '<span class="jref">'+esc(v.ref)+'</span>'
        + badge + '</div><div class="jseq">'
        + v.seq.map(s=>'<span class="jev">'+esc(evInfo(s.e).ja)+(s.n>1?' ×'+s.n:'')+'</span>').join('<i>→</i>')
