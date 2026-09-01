@@ -53,3 +53,8 @@ scripts/admin/.cache-cflogs/
 
 # sam package の出力（S3のオブジェクトURIが入るだけの生成物）
 backend/packaged-*.yaml
+
+# 動画の制作元データ（Remotion の素材と中間出力。合計 700MB 超）。
+# LP が配信するのは lp/video/ 配下だけで、こちらは成果物を作るための作業場。
+# git に入れると clone のたびに全員が取得することになり、消しても履歴からは消えない。
+/video/
