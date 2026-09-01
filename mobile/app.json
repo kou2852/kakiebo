@@ -19,7 +19,7 @@
     "android": {
       "package": "com.kurofukubo.app",
       "adaptiveIcon": {
-        "backgroundColor": "#0d9488",
+        "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
