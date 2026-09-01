@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kurofukubo 入力画面 — 現在の実装</title>
+<style>
+/* いま実機で動いているものを、そのまま起こしたもの。デザイン案ではない。
+   配色は src/theme.js のトークンと同じ値を使っている。 */
+:root {
+  --bg0:#e8eaed; --bg1:#ffffff; --bg2:#ffffff; --bg3:#f8fafa; --bg4:#eef1f4;
+  --bd:#e6ebec; --bd2:#d7dde0;
+  --tx:#23262d; --tx2:#71767f; --tx3:#93a09e;
+  --ac:#0d9488; --acb:rgba(13,148,136,.10); --acTx:#ffffff;
+  --red:#e0556a; --grn:#15a06a;
+  --page:#dfe2e5;
+  --frame:0 2px 6px rgba(16,24,32,.10), 0 24px 48px -28px rgba(16,24,32,.45);
+}
+[data-theme="dark"] {
+  --bg0:#151b1a; --bg1:#1a211f; --bg2:#1f2725; --bg3:#29322f; --bg4:#34403d;
+  --bd:#34403d; --bd2:#44504d;
+  --tx:#e9f1f0; --tx2:#9fadaa; --tx3:#7b8987;
+  --ac:#2dd4bf; --acb:rgba(45,212,191,.14); --acTx:#04201c;
+  --red:#f0697e; --grn:#34d399;
+  --page:#0d1211;
+  --frame:0 2px 6px rgba(0,0,0,.4), 0 24px 48px -28px rgba(0,0,0,.8);
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body {
+  background:var(--page); color:var(--tx); padding:26px 20px 60px;
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI","Segoe UI","Noto Sans JP",sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.num { font-variant-numeric:tabular-nums; }
+
+.head { max-width:1400px; margin:0 auto 24px; text-align:center; position:relative; }
+.head h1 { font-size:20px; font-weight:800; }
+.head p { color:var(--tx2); font-size:13px; margin-top:6px; }
+.tg { position:absolute; right:0; top:0; background:var(--bg1); color:var(--tx);
+  border:1px solid var(--bd); border-radius:999px; padding:9px 16px; font:inherit; font-size:13px;
+  font-weight:600; cursor:pointer; }
+
+.row { max-width:1400px; margin:0 auto; display:flex; flex-wrap:wrap; gap:26px; justify-content:center; align-items:flex-start; }
+figure { width:300px; }
+figcaption { text-align:center; margin-bottom:10px; }
+figcaption b { font-size:13.5px; }
+figcaption span { display:block; color:var(--tx2); font-size:11.5px; margin-top:4px; }
+
+/* iPhone 15 Pro（393×852）を 0.763 倍 */
+.phone { width:300px; height:650px; background:var(--bg0); border-radius:32px; overflow:hidden;
+  box-shadow:var(--frame); border:1px solid var(--bd); display:flex; flex-direction:column; }
+.phone.tall { height:900px; }
+
+.nav { background:var(--bg1); border-bottom:1px solid var(--bd); padding:12px 16px; text-align:center; position:relative; }
+.nav .t { font-size:14px; font-weight:700; }
+.nav .back { position:absolute; left:14px; top:12px; color:var(--ac); font-size:13px; }
+
+/* Screen: padding 14, gap 12 */
+.body { flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:12px; }
+.body::-webkit-scrollbar { width:5px; }
+.body::-webkit-scrollbar-thumb { background:var(--bd2); border-radius:3px; }
+
+/* Card: bg1, border 1px bd, radius 14, padding 14, gap 10 */
+.card { background:var(--bg1); border:1px solid var(--bd); border-radius:14px; padding:14px;
+  display:flex; flex-direction:column; gap:10px; }
+.card > .title { font-size:11px; letter-spacing:1px; font-weight:600; color:var(--tx3); }
+
+/* Field: gap 5, label 11px tx2 600 */
+.field { display:flex; flex-direction:column; gap:5px; }
+.field > label { font-size:11px; font-weight:600; color:var(--tx2); }
+
+/* Input: bg3, border 1.5 bd2, radius 9, 15px, padding 10/12 */
+.input { background:var(--bg3); border:1.5px solid var(--bd2); border-radius:9px; color:var(--tx);
+  font:inherit; font-size:15px; padding:10px 12px; width:100%; }
+.input.amount { font-size:28px; font-weight:800; text-align:right; }
+.input.ph { color:var(--tx3); }
+
+/* ChipRow: 横スクロール、gap 7、chip radius 999 padding 7/13 */
+.chips { display:flex; gap:7px; overflow-x:auto; padding-bottom:2px; }
+.chips::-webkit-scrollbar { height:0; }
+.chip { background:var(--bg3); border:1px solid var(--bd); border-radius:999px; padding:7px 13px;
+  font-size:13px; color:var(--tx2); white-space:nowrap; flex:none; }
+.chip.on { background:var(--acb); border-color:var(--ac); color:var(--ac); font-weight:700; }
+
+/* Button: radius 999, padding 12/18 */
+.btn { border-radius:999px; padding:12px 18px; text-align:center; font-size:14px; font-weight:700;
+  background:var(--ac); color:var(--acTx); }
+.btn.ghost { background:transparent; border:1.5px solid var(--bd2); color:var(--tx2); }
+.btn.off { opacity:.45; }
+
+.note { color:var(--tx3); font-size:11px; text-align:center; }
+.kv { display:flex; justify-content:space-between; align-items:center; }
+.kv .k { color:var(--tx2); font-size:13px; }
+.kv .v { color:var(--tx); font-size:14px; font-weight:700; }
+.sum { border-top:1px solid var(--bd); padding-top:8px; }
+.diff-ok { color:var(--grn); font-size:15px; font-weight:800; }
+.diff-ng { color:var(--red); font-size:15px; font-weight:800; }
+.line { display:flex; flex-direction:column; gap:6px; padding-bottom:8px; }
+.line + .line { border-top:1px solid var(--bd); padding-top:10px; }
+.amtrow { display:flex; align-items:center; gap:8px; }
+.diffbtn { border:1px solid var(--ac); color:var(--ac); border-radius:999px; padding:6px 11px;
+  font-size:11px; font-weight:700; white-space:nowrap; }
+.del { color:var(--red); font-size:16px; padding:7px; }
+
+.tabs { display:flex; justify-content:space-around; background:var(--bg1); border-top:1px solid var(--bd); padding:8px 0 12px; }
+.tabs span { font-size:9px; color:var(--tx3); display:flex; flex-direction:column; align-items:center; gap:3px; }
+.tabs span.on { color:var(--ac); font-weight:700; }
+.tabs i { width:19px; height:19px; border:1.6px solid currentColor; border-radius:5px; display:block; }
+.tabs span.on i { border-width:2px; }
+.adbar { background:var(--bg1); border-top:1px solid var(--bd); height:50px; display:grid; place-items:center;
+  color:var(--tx3); font-size:10px; letter-spacing:.5px; }
+
+.note-box { max-width:1400px; margin:30px auto 0; background:var(--bg1); border:1px solid var(--bd);
+  border-radius:14px; padding:16px 18px; font-size:12.5px; line-height:1.8; color:var(--tx2); }
+.note-box b { color:var(--tx); }
+.note-box code { background:var(--bg3); padding:1px 5px; border-radius:4px; font-size:11.5px; }
+</style>
+</head>
+<body>
+
+<div class="head">
+  <h1>入力画面 — 現在の実装</h1>
+  <p>デザイン案ではなく、いま TestFlight で動いているものをそのまま起こしたもの</p>
+  <button class="tg" id="tg">ダークにする</button>
+</div>
+
+<div class="row">
+
+  <!-- 簡易入力 -->
+  <figure>
+    <figcaption><b>入力タブ ／ 簡易</b><span>1対1の仕訳。支出・収入・振替</span></figcaption>
+    <div class="phone tall">
+      <div class="nav"><span class="t">仕訳入力</span></div>
+      <div class="body">
+        <div class="btn ghost">レシート・利用控えを撮って記帳</div>
+
+        <div class="card">
+          <div class="title">一行で記帳</div>
+          <input class="input" value="食費 1200 現金" readonly>
+          <div class="kv">
+            <span style="color:var(--tx2);font-size:13px">食費<span style="color:var(--tx3)">　←　</span>現金</span>
+            <span class="v num">¥1,200</span>
+          </div>
+          <div class="btn">この内容で記帳</div>
+        </div>
+
+        <div class="chips">
+          <span class="chip on">簡易</span><span class="chip">複合仕訳</span>
+        </div>
+
+        <div class="card">
+          <div class="title">プリセット</div>
+          <div class="chips">
+            <span class="chip">食費（カード払い）</span><span class="chip">給与（入金）</span><span class="chip">現金引き出し</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="chips">
+            <span class="chip on">支出</span><span class="chip">収入</span><span class="chip">振替</span>
+          </div>
+          <div class="field"><label>金額</label>
+            <input class="input amount num" value="1200" readonly></div>
+          <div class="field"><label>日付</label>
+            <input class="input num" value="2026-08-31" readonly></div>
+          <div class="field"><label>摘要</label>
+            <input class="input ph" value="コンビニ など" readonly></div>
+        </div>
+
+        <div class="card">
+          <div class="title">費目</div>
+          <div class="chips">
+            <span class="chip on">食費</span><span class="chip">日用品費</span><span class="chip">光熱費</span><span class="chip">通信費</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="title">支払方法</div>
+          <div class="chips">
+            <span class="chip on">現金</span><span class="chip">普通預金</span><span class="chip">クレジットカード</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="title">タグ</div>
+          <div class="chips">
+            <span class="chip on">なし</span><span class="chip">生活費</span><span class="chip">固定費</span>
+          </div>
+        </div>
+
+        <div class="btn">保存</div>
+        <div class="note">オフラインでも保存されます（端末内 → 接続時に自動同期）</div>
+      </div>
+      <div class="adbar">広告（タブバー直上・固定）</div>
+      <div class="tabs">
+        <span><i></i>ホーム</span><span class="on"><i></i>入力</span><span><i></i>仕訳帳</span><span><i></i>レポート</span><span><i></i>設定</span>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 複合仕訳 -->
+  <figure>
+    <figcaption><b>入力タブ ／ 複合仕訳</b><span>借方・貸方が複数行になる仕訳</span></figcaption>
+    <div class="phone tall">
+      <div class="nav"><span class="t">仕訳入力</span></div>
+      <div class="body">
+        <div class="btn ghost">レシート・利用控えを撮って記帳</div>
+
+        <div class="chips">
+          <span class="chip">簡易</span><span class="chip on">複合仕訳</span>
+        </div>
+
+        <div class="card">
+          <div class="field"><label>日付</label><input class="input num" value="2026-08-25" readonly></div>
+          <div class="field"><label>摘要</label><input class="input" value="給与" readonly></div>
+        </div>
+
+        <div class="card">
+          <div class="title">借方（増える側・費用）</div>
+          <div class="line">
+            <div class="chips"><span class="chip on">普通預金</span><span class="chip">現金</span><span class="chip">食費</span></div>
+            <div class="amtrow"><input class="input num" style="text-align:right;font-size:17px;font-weight:700" value="332,412" readonly>
+              <span class="del">×</span></div>
+            <div class="chips"><span class="chip on">タグなし</span><span class="chip">生活費</span></div>
+          </div>
+          <div class="line">
+            <div class="chips"><span class="chip">普通預金</span><span class="chip on">保険料</span><span class="chip">租税公課</span></div>
+            <div class="amtrow"><input class="input num" style="text-align:right;font-size:17px;font-weight:700" value="62,000" readonly>
+              <span class="del">×</span></div>
+            <div class="chips"><span class="chip on">タグなし</span><span class="chip">固定費</span></div>
+          </div>
+          <div class="line">
+            <div class="chips"><span class="chip">保険料</span><span class="chip on">租税公課</span></div>
+            <div class="amtrow"><input class="input num ph" style="text-align:right;font-size:17px;font-weight:700" value="0" readonly>
+              <span class="diffbtn">差額 ¥22,000</span><span class="del">×</span></div>
+            <div class="chips"><span class="chip on">タグなし</span></div>
+          </div>
+          <div class="btn ghost">借方（増える側・費用）に行を追加</div>
+        </div>
+
+        <div class="card">
+          <div class="title">貸方（減る側・収益）</div>
+          <div class="line">
+            <div class="chips"><span class="chip on">給与収入</span><span class="chip">副業収入</span></div>
+            <div class="amtrow"><input class="input num" style="text-align:right;font-size:17px;font-weight:700" value="416,412" readonly></div>
+            <div class="chips"><span class="chip on">タグなし</span></div>
+          </div>
+          <div class="btn ghost">貸方（減る側・収益）に行を追加</div>
+        </div>
+
+        <div class="card">
+          <div class="kv"><span class="k">借方合計</span><span class="v num">¥394,412</span></div>
+          <div class="kv"><span class="k">貸方合計</span><span class="v num">¥416,412</span></div>
+          <div class="kv sum"><span class="k">差額</span><span class="diff-ng num">−¥22,000</span></div>
+          <div style="color:var(--tx3);font-size:11px">借方と貸方が一致しないと保存できません。複式簿記では必ず同額になります。</div>
+        </div>
+
+        <div class="btn off">記帳する</div>
+      </div>
+      <div class="adbar">広告（タブバー直上・固定）</div>
+      <div class="tabs">
+        <span><i></i>ホーム</span><span class="on"><i></i>入力</span><span><i></i>仕訳帳</span><span><i></i>レポート</span><span><i></i>設定</span>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 一致した状態 -->
+  <figure>
+    <figcaption><b>複合仕訳 ／ 一致した状態</b><span>差額が0になると保存できる</span></figcaption>
+    <div class="phone">
+      <div class="nav"><span class="back">‹ 戻る</span><span class="t">仕訳を編集</span></div>
+      <div class="body">
+        <div class="chips"><span class="chip">簡易</span><span class="chip on">複合仕訳</span></div>
+
+        <div class="card">
+          <div class="title">借方（増える側・費用）</div>
+          <div class="line">
+            <div class="chips"><span class="chip on">普通預金</span></div>
+            <div class="amtrow"><input class="input num" style="text-align:right;font-size:17px;font-weight:700" value="332,412" readonly><span class="del">×</span></div>
+          </div>
+          <div class="line">
+            <div class="chips"><span class="chip on">保険料</span></div>
+            <div class="amtrow"><input class="input num" style="text-align:right;font-size:17px;font-weight:700" value="62,000" readonly><span class="del">×</span></div>
+          </div>
+          <div class="line">
+            <div class="chips"><span class="chip on">租税公課</span></div>
+            <div class="amtrow"><input class="input num" style="text-align:right;font-size:17px;font-weight:700" value="22,000" readonly><span class="del">×</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="kv"><span class="k">借方合計</span><span class="v num">¥416,412</span></div>
+          <div class="kv"><span class="k">貸方合計</span><span class="v num">¥416,412</span></div>
+          <div class="kv sum"><span class="k">差額</span><span class="diff-ok">一致</span></div>
+        </div>
+
+        <div class="btn">更新</div>
+        <div class="btn ghost">この仕訳を削除</div>
+      </div>
+    </div>
+  </figure>
+</div>
+
+<div class="note-box">
+  <b>デザイン案（prototype.html）との違い</b><br><br>
+
+  案では「クイック入力 / 詳細入力」の2択でしたが、実装は <b>「簡易 / 複合仕訳」</b>にしています。
+  一行入力は常に上に出したままにして、その下で仕訳の形を選ぶ構成です。
+  「詳細」という名前だと、複数行の仕訳を作れることが伝わらないためです。<br><br>
+
+  <b>この画面で率直に良くない点</b><br>
+  ・<b>縦に長い。</b> 簡易でカードが6枚積み上がり、複合仕訳では行が増えるほど際限なく伸びます<br>
+  ・<b>科目の選択が横スクロールのチップ列。</b> 科目が50件あると目的のものまで延々スクロールします。
+    検索や区分での絞り込みがありません<br>
+  ・複合仕訳で行が増えると、借方と貸方の対応が画面内に収まらず、差額を見るのに下までスクロールが要ります<br>
+  ・案にあった「金額を大きく見せる」構成に対し、実装は金額欄が他の入力と同じ扱いに近い<br><br>
+
+  ここは案の方が明確に優れています。移植するなら、まず<b>科目選択を全画面のシート＋検索</b>に変え、
+  <b>差額を画面下部に固定</b>するのが効きます。
+</div>
+
+<script>
+const btn = document.getElementById('tg'), root = document.documentElement;
+const apply = (d) => { root.setAttribute('data-theme', d ? 'dark' : 'light'); btn.textContent = d ? 'ライトにする' : 'ダークにする'; };
+apply(window.matchMedia('(prefers-color-scheme: dark)').matches);
+btn.onclick = () => apply(root.getAttribute('data-theme') !== 'dark');
+</script>
+</body>
+</html>

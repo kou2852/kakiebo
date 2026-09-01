@@ -1,0 +1,98 @@
+{
+  "expo": {
+    "name": "kurofukubo",
+    "slug": "kurofukubo",
+    "scheme": "kurofukubo",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kurofukubo.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSFaceIDUsageDescription": "保存した暗号化キーを取り出して家計簿を解錠します。"
+      }
+    },
+    "android": {
+      "package": "com.kurofukubo.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0d9488",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "保存した暗号化キーを取り出して家計簿を解錠します。"
+        }
+      ],
+      "expo-notifications",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511",
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "userTrackingUsageDescription": "広告の関連性を高めるために利用します。許可しなくてもアプリは通常どおり使えます。"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "レシートや利用控えの画像を読み取って記帳するために使います。画像は端末内で処理し、外部に送信しません。",
+          "cameraPermission": "レシートや利用控えを撮影して記帳するために使います。画像は端末内で処理し、外部に送信しません。"
+        }
+      ],
+      [
+        "expo-quick-actions",
+        {
+          "androidIcons": {},
+          "iosActions": [
+            {
+              "id": "quick",
+              "title": "一行で記帳",
+              "subtitle": "食費 1200 現金",
+              "icon": "compose",
+              "params": {
+                "href": "/add"
+              }
+            },
+            {
+              "id": "scan",
+              "title": "レシートを撮る",
+              "icon": "capture_photo",
+              "params": {
+                "href": "/scan"
+              }
+            }
+          ]
+        }
+      ]
+    ],
+    "owner": "pokupoku_x_x_x",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "853c42d2-167c-455c-b7ec-e7594bf08f3f"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/853c42d2-167c-455c-b7ec-e7594bf08f3f"
+    }
+  }
+}

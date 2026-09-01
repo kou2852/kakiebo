@@ -1,0 +1,41 @@
+{
+  "passphrase": "test-passphrase-12345",
+  "bundle": {
+    "v": 2,
+    "kdf": "PBKDF2-SHA256",
+    "cipher": "AES-256-GCM",
+    "iterations": 600000,
+    "salt": "qoOeXeu30uDcvSYMOiUf3A==",
+    "wrappedDEK": "hjscFzjpJwj+YBZoKdzjEsuli3rdaDyaSJKtpAG8BA7rGoVlvROmppssbfnDfDAPtGyNCuz5Nryijcna"
+  },
+  "ct": "4iL0Tlol0DlYDmpJxKCuMHi6p1S+wML636o8bgANz8x2emLQGGOB5zJtfWvytlNt5QpU9YKSYVDSaUvxsW8mwm5qP/+aSuc8wF8HfYNW+/vQSK2buJlWgn1Tw0tp5HlOcmyNhCtad4wys6pteTg8aEe80XKiI4BSaKAELccmaeY63hoyEREwZfJCcaUkwPu4xh11F8keX+p24pkOx/fDPvJVnLTdKhuKnMm+n2Z3bjVY1b5DwUS/4enCWyvylDZoU5e8clOhf3HVBgZ3mLA3Q3D5MXMkpynv3CIL2duBS5uPSSPgHkRriZLEW8dJ/ZTY6dl3/CJHTn5OEXaElmgOmV7i",
+  "expectedPlaintext": {
+    "journals": [
+      {
+        "id": "j1",
+        "date": "2026-08-29",
+        "desc": "テスト仕訳",
+        "lines": [
+          {
+            "accountId": "e01",
+            "side": "dr",
+            "amount": 1200
+          },
+          {
+            "accountId": "a01",
+            "side": "cr",
+            "amount": 1200
+          }
+        ]
+      }
+    ],
+    "accounts": [
+      {
+        "id": "a01",
+        "name": "現金",
+        "type": "asset"
+      }
+    ]
+  },
+  "kdfMs": 207
+}

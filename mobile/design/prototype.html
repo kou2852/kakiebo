@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kurofukubo モバイル デザイン案 — ダッシュボード型</title>
+<style>
+/* ───────────────────────────────────────────────
+   配色トークン。ライト/ダークは data-theme で切り替える。
+   ティールはブランド色として維持し、他は最小限に絞る。
+   金額は増減の向きだけ色で示す（正=ティール / 負=レッド）。
+   ─────────────────────────────────────────────── */
+:root {
+  --ac:      #0f7a6c;   /* ブランドのティール */
+  --ac-deep: #0b6055;   /* ヒーローカードの濃い側 */
+  --ac-soft: #e6f2f0;   /* ティールの薄い面 */
+  --ac-tx:   #ffffff;
+
+  --page: #eceef0;      /* 台紙 */
+  --bg0:  #f4f5f6;      /* 画面の地 */
+  --bg1:  #ffffff;      /* カード */
+  --bg2:  #f0f2f3;      /* 入力欄・チップの地 */
+  --bd:   #e5e8ea;      /* 区切り線 */
+  --bd2:  #d5dadd;
+
+  --tx:  #16191c;
+  --tx2: #6b747c;
+  --tx3: #9aa2a9;
+
+  --pos: #0f7a6c;       /* 増加・収入 */
+  --neg: #cf4436;       /* 減少・支出 */
+  --warn: #d98324;
+
+  --shadow: 0 1px 2px rgba(16,24,32,.05), 0 12px 28px -18px rgba(16,24,32,.30);
+  --frame: 0 2px 6px rgba(16,24,32,.10), 0 24px 48px -28px rgba(16,24,32,.45);
+}
+
+[data-theme="dark"] {
+  --ac:      #2dd4bf;
+  --ac-deep: #0d5b52;
+  --ac-soft: rgba(45,212,191,.14);
+  --ac-tx:   #04201c;
+
+  --page: #0d1211;
+  --bg0:  #151b1a;
+  --bg1:  #1c2321;
+  --bg2:  #262e2c;
+  --bd:   #2c3533;
+  --bd2:  #3b4644;
+
+  --tx:  #e9f1f0;
+  --tx2: #9fadaa;
+  --tx3: #7b8987;
+
+  --pos: #34d399;
+  --neg: #f0697e;
+  --warn: #e0a020;
+
+  --shadow: 0 1px 2px rgba(0,0,0,.35), 0 12px 28px -18px rgba(0,0,0,.60);
+  --frame: 0 2px 6px rgba(0,0,0,.4), 0 24px 48px -28px rgba(0,0,0,.8);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--page);
+  color: var(--tx);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI",
+               "Segoe UI", "Noto Sans JP", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  padding: 28px 20px 60px;
+  transition: background .2s, color .2s;
+}
+
+/* 金額は桁を揃える。RN では fontVariant:['tabular-nums'] に対応する。 */
+.num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+
+/* ── ページヘッダ ── */
+.page-head { max-width: 1560px; margin: 0 auto 26px; text-align: center; position: relative; }
+.page-head h1 { font-size: 21px; font-weight: 800; letter-spacing: -.01em; display: inline-flex; align-items: center; gap: 10px; }
+.page-head .badge {
+  width: 26px; height: 26px; border-radius: 50%; background: var(--ac); color: var(--ac-tx);
+  display: grid; place-items: center; font-size: 13px; font-weight: 700;
+}
+.page-head p { color: var(--tx2); font-size: 13px; margin-top: 7px; }
+.toggle {
+  position: absolute; right: 0; top: 0;
+  background: var(--bg1); color: var(--tx); border: 1px solid var(--bd);
+  border-radius: 999px; padding: 9px 16px; font: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer; box-shadow: var(--shadow);
+}
+.toggle:hover { border-color: var(--bd2); }
+
+/* ── 端末の並び ── */
+.row { max-width: 1560px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 26px; justify-content: center; align-items: flex-start; }
+.row + .row { margin-top: 34px; }
+
+figure { width: 268px; }
+figcaption { text-align: center; margin-bottom: 10px; }
+figcaption .t { font-size: 13.5px; font-weight: 700; display: inline-flex; align-items: center; gap: 7px; }
+figcaption .n {
+  width: 19px; height: 19px; border-radius: 50%; background: var(--ac); color: var(--ac-tx);
+  display: grid; place-items: center; font-size: 11px; font-weight: 700;
+}
+figcaption .s { display: block; color: var(--tx2); font-size: 11.5px; margin-top: 4px; }
+
+/* iPhone 15 Pro 相当（393×852）を 0.682 倍で表示 */
+.phone {
+  width: 268px; height: 581px;
+  background: var(--bg0); border-radius: 30px; overflow: hidden;
+  box-shadow: var(--frame); border: 1px solid var(--bd);
+  display: flex; flex-direction: column; position: relative;
+}
+.phone.short { height: 300px; }
+
+/* ── ステータスバー ── */
+.sb { display: flex; justify-content: space-between; align-items: center; padding: 9px 16px 3px; font-size: 10.5px; font-weight: 700; }
+.sb .icons { display: flex; gap: 4px; align-items: center; color: var(--tx); }
+
+/* ── ナビゲーションバー（iOS の Large Title 相当） ── */
+.nav { display: flex; align-items: center; justify-content: space-between; padding: 6px 16px 10px; }
+.nav h2 { font-size: 21px; font-weight: 800; letter-spacing: -.02em; }
+.nav .acts { display: flex; gap: 12px; color: var(--tx2); }
+.nav .lite { font-size: 13px; font-weight: 600; color: var(--ac); }
+
+/* ── 本文 ── */
+.body { flex: 1; overflow: hidden; padding: 0 12px 8px; display: flex; flex-direction: column; gap: 9px; }
+.card { background: var(--bg1); border-radius: 13px; padding: 11px 12px; box-shadow: var(--shadow); }
+.card.tight { padding: 0; overflow: hidden; }
+
+.sect { font-size: 10px; font-weight: 700; color: var(--tx3); letter-spacing: .05em; padding: 2px 4px 0; }
+
+/* ── セグメンテッドコントロール ── */
+.seg { display: flex; background: var(--bg2); border-radius: 9px; padding: 2px; gap: 2px; }
+.seg span { flex: 1; text-align: center; font-size: 11px; font-weight: 600; color: var(--tx2); padding: 6px 4px; border-radius: 7px; white-space: nowrap; }
+.seg span.on { background: var(--ac); color: var(--ac-tx); box-shadow: 0 1px 3px rgba(0,0,0,.14); }
+.seg.pill { background: transparent; padding: 0; gap: 5px; }
+.seg.pill span { flex: none; padding: 5px 10px; border-radius: 999px; background: var(--bg2); font-size: 10.5px; }
+.seg.pill span.on { background: var(--ac); color: var(--ac-tx); }
+
+/* ── 行 ── */
+.li { display: flex; align-items: center; gap: 9px; padding: 9px 12px; }
+.li + .li { border-top: 1px solid var(--bd); }
+.li .ic { width: 17px; height: 17px; color: var(--tx2); flex: none; }
+.li .main { flex: 1; min-width: 0; }
+.li .k { font-size: 12px; font-weight: 600; }
+.li .sub { font-size: 10px; color: var(--tx3); margin-top: 1px; }
+.li .v { font-size: 11.5px; color: var(--tx3); }
+.li .v.strong { font-size: 12.5px; font-weight: 700; color: var(--tx); }
+.chev { color: var(--tx3); width: 12px; height: 12px; flex: none; }
+
+.pos { color: var(--pos); }
+.neg { color: var(--neg); }
+
+/* ── ヒーロー（純資産） ── */
+.hero { background: linear-gradient(155deg, var(--ac) 0%, var(--ac-deep) 100%); border-radius: 15px; padding: 13px 14px 8px; color: #fff; }
+.hero .lab { font-size: 10.5px; opacity: .85; }
+.hero .big { font-size: 27px; font-weight: 800; letter-spacing: -.02em; margin-top: 1px; }
+.hero .delta { font-size: 10.5px; opacity: .9; margin-top: 2px; }
+.hero .xaxis { display: flex; justify-content: space-between; font-size: 8.5px; opacity: .75; margin-top: 2px; }
+
+/* ── KPI 3分割 ── */
+.kpis { display: flex; }
+.kpis > div { flex: 1; text-align: center; padding: 2px 0; }
+.kpis > div + div { border-left: 1px solid var(--bd); }
+.kpis .kl { font-size: 9.5px; color: var(--tx3); }
+.kpis .kv { font-size: 13px; font-weight: 700; margin-top: 2px; }
+
+/* ── 進捗バー ── */
+.bar { height: 5px; border-radius: 3px; background: var(--bg2); overflow: hidden; display: flex; }
+.bar i { display: block; height: 100%; }
+
+/* ── クイックアクション（4分割） ── */
+.quad { display: flex; gap: 7px; }
+.quad > div { flex: 1; background: var(--bg1); border-radius: 11px; padding: 9px 3px; text-align: center; box-shadow: var(--shadow); }
+.quad .ic { color: var(--ac); width: 19px; height: 19px; }
+.quad .l { font-size: 8.5px; color: var(--tx2); margin-top: 4px; line-height: 1.3; }
+
+/* ── 入力欄 ── */
+.input { background: var(--bg1); border: 1px solid var(--bd); border-radius: 11px; padding: 11px 12px; font-size: 12px; color: var(--tx3); box-shadow: var(--shadow); }
+.btn { background: var(--ac); color: var(--ac-tx); border-radius: 11px; padding: 11px; text-align: center; font-size: 12.5px; font-weight: 700; }
+.btn.ghost { background: var(--bg1); color: var(--tx2); border: 1px solid var(--bd2); }
+
+/* ── タブバー ── */
+.tabs { display: flex; align-items: flex-end; justify-content: space-around; padding: 7px 6px 11px; background: var(--bg1); border-top: 1px solid var(--bd); position: relative; }
+.tabs .tab { display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--tx3); font-size: 8.5px; width: 46px; }
+.tabs .tab.on { color: var(--ac); font-weight: 700; }
+.tabs .tab svg { width: 18px; height: 18px; }
+.fab {
+  width: 42px; height: 42px; border-radius: 50%; background: var(--ac); color: var(--ac-tx);
+  display: grid; place-items: center; margin-top: -18px;
+  box-shadow: 0 4px 12px rgba(15,122,108,.4);
+}
+.fab svg { width: 21px; height: 21px; }
+
+/* ── 台帳の日付ヘッダ ── */
+.dayhead { display: flex; justify-content: space-between; align-items: baseline; padding: 3px 4px; }
+.dayhead .d { font-size: 10.5px; font-weight: 700; }
+.dayhead .m { font-size: 9.5px; color: var(--tx3); }
+.datecol { width: 22px; text-align: center; flex: none; }
+.datecol .dd { font-size: 13px; font-weight: 700; line-height: 1; }
+.datecol .dw { font-size: 8px; color: var(--tx3); }
+
+/* ── レポートの明細 ── */
+.dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+.rowline { display: flex; align-items: center; gap: 7px; padding: 5px 0; font-size: 11.5px; }
+.rowline .nm { flex: 1; color: var(--tx2); }
+.tot { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 5px; margin-bottom: 3px; border-bottom: 1px solid var(--bd); }
+.tot .l { font-size: 12px; font-weight: 700; }
+.tot .r { font-size: 13.5px; font-weight: 800; }
+
+/* ── カレンダー ── */
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px 0; text-align: center; }
+.cal .h { font-size: 9px; color: var(--tx3); padding-bottom: 3px; }
+.cal .h.sun { color: var(--neg); }
+.cal .h.sat { color: #5b8fc9; }
+.cal .c { font-size: 10.5px; padding: 4px 0 6px; position: relative; }
+.cal .c.mute { color: var(--tx3); }
+.cal .c.today { background: var(--ac); color: var(--ac-tx); border-radius: 50%; width: 20px; height: 20px; display: grid; place-items: center; margin: 2px auto 0; }
+.cal .c.sel { border: 1.5px solid var(--ac); color: var(--ac); border-radius: 50%; width: 20px; height: 20px; display: grid; place-items: center; margin: 2px auto 0; }
+.cal .c i { position: absolute; bottom: 1px; left: 50%; transform: translateX(-50%); width: 3px; height: 3px; border-radius: 50%; background: var(--ac); }
+
+/* ── モーダル用ヘッダ ── */
+.mh { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 8px; }
+.mh .t { font-size: 14px; font-weight: 700; }
+.mh .a { font-size: 12px; font-weight: 600; color: var(--ac); }
+.mh .x { color: var(--tx2); width: 15px; height: 15px; }
+
+/* ── カメラ ── */
+.cam { flex: 1; background: #1a1a1a; position: relative; display: grid; place-items: center; }
+.cam .paper { width: 96px; height: 148px; background: linear-gradient(178deg,#f7f5f0,#e9e5dc); border-radius: 3px; box-shadow: 0 8px 24px rgba(0,0,0,.5); padding: 8px 6px; }
+.cam .paper .l { height: 2px; background: #c9c3b6; border-radius: 1px; margin-bottom: 4px; }
+.cam .brk { position: absolute; width: 20px; height: 20px; border: 2px solid rgba(255,255,255,.85); }
+.cam .shutter { width: 44px; height: 44px; border-radius: 50%; background: #fff; border: 3px solid rgba(255,255,255,.4); }
+.cam .strip { display: flex; align-items: center; justify-content: space-around; padding: 12px 24px 16px; background: #111; color: #fff; }
+
+/* シートのつまみ（iOS のモーダル） */
+.grab { width: 34px; height: 4px; border-radius: 2px; background: var(--bd2); margin: 7px auto 0; }
+
+/* 横スクロールするチップ列。RN の ChipRow に対応する。端で切れて続きがあると分かるようにする。 */
+.scroller { overflow: hidden; position: relative; }
+.scroller::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 22px;
+  background: linear-gradient(90deg, transparent, var(--bg0)); pointer-events: none; }
+.scroller .seg.pill { flex-wrap: nowrap; width: max-content; }
+
+.note { max-width: 1560px; margin: 34px auto 0; background: var(--bg1); border-radius: 13px; padding: 16px 18px; box-shadow: var(--shadow); font-size: 12.5px; line-height: 1.75; color: var(--tx2); }
+.note b { color: var(--tx); }
+.note code { background: var(--bg2); padding: 1px 5px; border-radius: 4px; font-size: 11.5px; }
+</style>
+</head>
+<body>
+
+<!-- アイコンは1箇所に定義して <use> で参照する。外部依存を作らないため。 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="i-bell" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></g>
+  <g id="i-chart" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"><path d="M18 20V10M12 20V4M6 20v-6"/></g>
+  <g id="i-scan" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/></g>
+  <g id="i-search" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></g>
+  <g id="i-filter" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"><path d="M3 6h18M7 12h10M11 18h2"/></g>
+  <g id="i-download" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></g>
+  <g id="i-home" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></g>
+  <g id="i-plus-c" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></g>
+  <g id="i-plus" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></g>
+  <g id="i-book" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></g>
+  <g id="i-stats" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"><path d="M5 20v-7M12 20V7M19 20v-4"/></g>
+  <g id="i-gear" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 0 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 5.3 14H5a2 2 0 0 1 0-4h.1A1.6 1.6 0 0 0 6.6 7.3l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H11a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></g>
+  <g id="i-camera" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></g>
+  <g id="i-star" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.9L12 17.8 5.8 21l1.2-6.9-5-4.9 6.9-1z"/></g>
+  <g id="i-bookmark" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></g>
+  <g id="i-repeat" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 4v4h-4M21 12a9 9 0 0 1-15 6.7L3 16M3 20v-4h4"/></g>
+  <g id="i-chev" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></g>
+  <g id="i-list" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></g>
+  <g id="i-card" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></g>
+  <g id="i-tag" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 12 4.8H4v8l8.6 8.6a1.9 1.9 0 0 0 2.7 0l5.3-5.3a1.9 1.9 0 0 0 0-2.7z"/><path d="M7 8h.01"/></g>
+  <g id="i-scale" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M6 7l-3 7h6zM18 7l-3 7h6zM7 21h10"/></g>
+  <g id="i-wallet" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8a2 2 0 0 0-2-2H5a2 2 0 0 1 0-4h13v4M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M17 14h.01"/></g>
+  <g id="i-pie" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21.2 15.9A10 10 0 1 1 8.1 2.8M22 12A10 10 0 0 0 12 2v10z"/></g>
+  <g id="i-file" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></g>
+  <g id="i-lock" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></g>
+  <g id="i-check" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></g>
+  <g id="i-x" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></g>
+  <g id="i-help" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></g>
+  <g id="i-image" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></g>
+  <g id="i-flash" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></g>
+  <g id="i-cal" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 11h18"/></g>
+  <g id="i-wifi" fill="currentColor"><path d="M12 18a1.3 1.3 0 1 0 0 2.6A1.3 1.3 0 0 0 12 18zm0-4a5 5 0 0 1 3.5 1.4l1.2-1.3a6.8 6.8 0 0 0-9.4 0l1.2 1.3A5 5 0 0 1 12 14zm0-4.4c2.3 0 4.5.9 6.1 2.5l1.2-1.3a11 11 0 0 0-14.6 0l1.2 1.3A8.6 8.6 0 0 1 12 9.6z"/></g>
+  <g id="i-signal" fill="currentColor"><rect x="1" y="10" width="3" height="5" rx="1"/><rect x="6" y="7" width="3" height="8" rx="1"/><rect x="11" y="4" width="3" height="11" rx="1"/><rect x="16" y="1" width="3" height="14" rx="1" opacity=".35"/></g>
+  <g id="i-batt" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1" y="5" width="17" height="10" rx="3"/><path d="M20 9v2" stroke-linecap="round"/><rect x="3" y="7" width="11" height="6" rx="1.5" fill="currentColor" stroke="none"/></g>
+</defs></svg>
+
+<div class="page-head">
+  <h1><span class="badge">3</span>ダッシュボード型（配色 ①ミニマル・カード型）</h1>
+  <p>グラフと数値を大きく見せるダッシュボードレイアウト</p>
+  <button class="toggle" id="tg">ダークにする</button>
+</div>
+
+<!-- ══════════ 上段：主要5画面 ══════════ -->
+<div class="row">
+
+  <!-- ① ホーム -->
+  <figure>
+    <figcaption><span class="t"><span class="n">1</span>ホーム</span><span class="s">お金の現在地を一目で把握</span></figcaption>
+    <div class="phone">
+      <div class="sb"><span class="num">9:41</span><span class="icons"><svg width="13" height="9" viewBox="0 0 20 16"><use href="#i-signal"/></svg><svg width="12" height="12" viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg width="17" height="11" viewBox="0 0 22 20"><use href="#i-batt"/></svg></span></div>
+      <div class="nav"><h2>ホーム</h2><span class="acts"><svg width="17" height="17" viewBox="0 0 24 24"><use href="#i-bell"/></svg><svg width="17" height="17" viewBox="0 0 24 24"><use href="#i-chart"/></svg></span></div>
+      <div class="body">
+
+        <div class="hero">
+          <div class="lab">純資産（今日）</div>
+          <div class="big num">¥4,820,000</div>
+          <div class="delta num">前月比 +¥184,200（+4.0%）</div>
+          <svg viewBox="0 0 240 62" style="width:100%;height:52px;margin-top:4px" preserveAspectRatio="none">
+            <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#fff" stop-opacity=".28"/><stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+            </linearGradient></defs>
+            <path d="M8 50 L54 40 L100 43 L146 30 L192 26 L232 10 L232 62 L8 62 Z" fill="url(#g1)"/>
+            <polyline points="8,50 54,40 100,43 146,30 192,26 232,10" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <g fill="#fff"><circle cx="8" cy="50" r="2.6"/><circle cx="54" cy="40" r="2.6"/><circle cx="100" cy="43" r="2.6"/><circle cx="146" cy="30" r="2.6"/><circle cx="192" cy="26" r="2.6"/><circle cx="232" cy="10" r="3.4"/></g>
+          </svg>
+          <div class="xaxis"><span>3月</span><span>4月</span><span>5月</span><span>6月</span><span>7月</span><span>8月</span></div>
+        </div>
+
+        <div class="card">
+          <div class="sect" style="padding:0 0 6px">今月の収支（8/1〜8/30）</div>
+          <div class="kpis">
+            <div><div class="kl">収入</div><div class="kv num pos">¥417,178</div></div>
+            <div><div class="kl">支出</div><div class="kv num neg">¥334,778</div></div>
+            <div><div class="kl">収支</div><div class="kv num pos">+¥82,400</div></div>
+          </div>
+        </div>
+
+        <div class="card" style="display:flex;align-items:center;gap:10px">
+          <div style="flex:1">
+            <div class="sect" style="padding:0 0 5px">資産サマリー</div>
+            <div class="rowline" style="padding:2px 0"><span class="nm">資産</span><span class="num" style="font-weight:600">¥5,097,200</span></div>
+            <div class="rowline" style="padding:2px 0"><span class="nm">負債</span><span class="num" style="font-weight:600">¥277,200</span></div>
+            <div class="rowline" style="padding:2px 0"><span class="nm">純資産</span><span class="num" style="font-weight:700;color:var(--ac)">¥4,820,000</span></div>
+          </div>
+          <svg width="54" height="54" viewBox="0 0 42 42">
+            <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--bg2)" stroke-width="7"/>
+            <circle cx="21" cy="21" r="15.9" fill="none" stroke="var(--ac)" stroke-width="7" stroke-dasharray="72 28" stroke-dashoffset="25" stroke-linecap="round"/>
+          </svg>
+        </div>
+
+        <div class="card">
+          <div class="dayhead" style="padding:0 0 5px"><span class="sect" style="padding:0">実査の状況</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--tx2);margin-bottom:5px">
+            <span>確認済み <b class="num">6/8口座</b></span><span class="neg">未確認 <b class="num">2口座</b></span>
+          </div>
+          <div class="bar"><i style="width:75%;background:var(--ac)"></i><i style="width:25%;background:var(--neg);opacity:.6"></i></div>
+        </div>
+
+      </div>
+      <div class="tabs">
+        <span class="tab on"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg>ホーム</span>
+        <span class="tab"><svg viewBox="0 0 24 24"><use href="#i-book"/></svg>仕訳帳</span>
+        <span class="fab"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></span>
+        <span class="tab"><svg viewBox="0 0 24 24"><use href="#i-stats"/></svg>レポート</span>
+        <span class="tab"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg>設定</span>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ② 入力 -->
+  <figure>
+    <figcaption><span class="t"><span class="n">2</span>クイック記帳（＋から開くシート）</span><span class="s">最短3タップで素早く記帳</span></figcaption>
+    <div class="phone">
+      <div class="sb"><span class="num">9:41</span><span class="icons"><svg width="13" height="9" viewBox="0 0 20 16"><use href="#i-signal"/></svg><svg width="12" height="12" viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg width="17" height="11" viewBox="0 0 22 20"><use href="#i-batt"/></svg></span></div>
+      <div class="grab"></div>
+      <div class="nav" style="padding-top:2px"><h2>記帳する</h2><span class="acts"><svg width="17" height="17" viewBox="0 0 24 24"><use href="#i-scan"/></svg></span></div>
+      <div class="body">
+        <div class="seg"><span class="on">クイック入力</span><span>詳細入力</span></div>
+        <div class="input">例）食費 1200 現金</div>
+        <div class="btn">この内容で記帳</div>
+
+        <div class="sect" style="margin-top:2px">クイックアクション</div>
+        <div class="quad">
+          <div><svg class="ic" viewBox="0 0 24 24"><use href="#i-camera"/></svg><div class="l">レシート<br>撮影</div></div>
+          <div><svg class="ic" viewBox="0 0 24 24"><use href="#i-bookmark"/></svg><div class="l">プリセット</div></div>
+          <div><svg class="ic" viewBox="0 0 24 24"><use href="#i-file"/></svg><div class="l">CSV<br>取込</div></div>
+          <div><svg class="ic" viewBox="0 0 24 24"><use href="#i-repeat"/></svg><div class="l">定期取引</div></div>
+        </div>
+
+        <div class="sect" style="margin-top:2px">最近使ったプリセット</div>
+        <div class="card tight">
+          <div class="li"><span style="width:22px;height:22px;border-radius:7px;background:var(--ac-soft);display:grid;place-items:center;flex:none"><svg width="12" height="12" viewBox="0 0 24 24" style="color:var(--ac)"><use href="#i-tag"/></svg></span>
+            <span class="main"><span class="k">食費（カード）</span><div class="sub">支出 / カード</div></span><span class="v strong num">¥1,200</span></div>
+          <div class="li"><span style="width:22px;height:22px;border-radius:7px;background:var(--ac-soft);display:grid;place-items:center;flex:none"><svg width="12" height="12" viewBox="0 0 24 24" style="color:var(--ac)"><use href="#i-wallet"/></svg></span>
+            <span class="main"><span class="k">給与</span><div class="sub">収入 / 三井住友銀行</div></span><span class="v strong num pos">¥416,412</span></div>
+          <div class="li"><span style="width:22px;height:22px;border-radius:7px;background:var(--ac-soft);display:grid;place-items:center;flex:none"><svg width="12" height="12" viewBox="0 0 24 24" style="color:var(--ac)"><use href="#i-file"/></svg></span>
+            <span class="main"><span class="k">日用品（現金）</span><div class="sub">支出 / 現金</div></span><span class="v strong num">¥800</span></div>
+        </div>
+      </div>
+      <div class="tabs">
+        <span class="tab"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg>ホーム</span>
+        <span class="tab"><svg viewBox="0 0 24 24"><use href="#i-book"/></svg>仕訳帳</span>
+        <span class="fab"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></span>
+        <span class="tab"><svg viewBox="0 0 24 24"><use href="#i-stats"/></svg>レポート</span>
+        <span class="tab"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg>設定</span>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ③ 台帳 -->
+  <figure>
+    <figcaption><span class="t"><span class="n">3</span>仕訳帳（一覧）</span><span class="s">取引の流れを追いやすい一覧</span></figcaption>
+    <div class="phone">
+      <div class="sb"><span class="num">9:41</span><span class="icons"><svg width="13" height="9" viewBox="0 0 20 16"><use href="#i-signal"/></svg><svg width="12" height="12" viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg width="17" height="11" viewBox="0 0 22 20"><use href="#i-batt"/></svg></span></div>
+      <div class="nav"><h2>仕訳帳</h2><span class="acts"><svg width="16" height="16" viewBox="0 0 24 24"><use href="#i-search"/></svg><svg width="16" height="16" viewBox="0 0 24 24"><use href="#i-filter"/></svg></span></div>
+      <div class="body">
+        <div class="seg"><span class="on">一覧</span><span>カレンダー</span></div>
+        <div class="dayhead"><span class="d">2026年8月30日（金）</span><span class="m num">収入 <b class="pos">¥416,412</b>　支出 <b class="neg">¥334,778</b></span></div>
+        <div class="card tight">
+          <div class="li"><span class="datecol"><span class="dd num">30</span><span class="dw">金</span></span><span class="main"><span class="k">アトレ 日用品</span><div class="sub">日用品費 → VIEWカード</div></span><span class="v strong num neg">-¥5,346</span></div>
+          <div class="li"><span class="datecol"><span class="dd num">29</span><span class="dw">木</span></span><span class="main"><span class="k">スーパー 食料品</span><div class="sub">食費 → 現金</div></span><span class="v strong num neg">-¥3,842</span></div>
+          <div class="li"><span class="datecol"><span class="dd num">27</span><span class="dw">水</span></span><span class="main"><span class="k">奨学金返済</span><div class="sub">奨学金 → 三井住友銀行</div></span><span class="v strong num neg">-¥33,500</span></div>
+          <div class="li"><span class="datecol"><span class="dd num">25</span><span class="dw">火</span></span><span class="main"><span class="k">給与</span><div class="sub">三井住友銀行 → 給与収入</div></span><span class="v strong num pos">+¥416,412</span></div>
+          <div class="li"><span class="datecol"><span class="dd num">21</span><span class="dw">金</span></span><span class="main"><span class="k">歓迎会</span><div class="sub">食費 → PayPay残高</div></span><span class="v strong num neg">-¥1,200</span></div>
+          <div class="li"><span class="datecol"><span class="dd num">19</span><span class="dw">木</span></span><span class="main"><span class="k">農家さん</span><div class="sub">食費 → PayPay残高</div></span><span class="v strong num neg">-¥1,000</span></div>
+        </div>
+      </div>
+      <div class="tabs">
+        <span class="tab"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg>ホーム</span>
+        <span class="tab on"><svg viewBox="0 0 24 24"><use href="#i-book"/></svg>仕訳帳</span>
+        <span class="fab"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></span>
+        <span class="tab"><svg viewBox="0 0 24 24"><use href="#i-stats"/></svg>レポート</span>
+        <span class="tab"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg>設定</span>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ④ レポート -->
+  <figure>
+    <figcaption><span class="t"><span class="n">4</span>レポート（貸借対照表）</span><span class="s">財政状態を構造的に表示</span></figcaption>
+    <div class="phone">
+      <div class="sb"><span class="num">9:41</span><span class="icons"><svg width="13" height="9" viewBox="0 0 20 16"><use href="#i-signal"/></svg><svg width="12" height="12" viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg width="17" height="11" viewBox="0 0 22 20"><use href="#i-batt"/></svg></span></div>
+      <div class="nav"><h2>レポート</h2><span class="acts"><svg width="16" height="16" viewBox="0 0 24 24"><use href="#i-download"/></svg></span></div>
+      <div class="body">
+        <div class="scroller"><div class="seg pill"><span class="on">貸借対照表</span><span>損益計算書</span><span>キャッシュフロー</span><span>カード</span></div></div>
+        <div style="font-size:10px;color:var(--tx3);padding:0 4px">2026年8月30日現在</div>
+
+        <div class="card">
+          <div class="tot"><span class="l">資産</span><span class="r num">¥5,097,200</span></div>
+          <div class="rowline"><i class="dot" style="background:var(--ac)"></i><span class="nm">普通預金</span><span class="num" style="font-weight:600">¥2,145,700</span></div>
+          <div class="rowline"><i class="dot" style="background:#3aa89a"></i><span class="nm">楽天銀行</span><span class="num" style="font-weight:600">¥1,125,200</span></div>
+          <div class="rowline"><i class="dot" style="background:#6cc0b4"></i><span class="nm">投資資産</span><span class="num" style="font-weight:600">¥1,680,000</span></div>
+          <div class="rowline"><i class="dot" style="background:#a8d8d0"></i><span class="nm">現金・電子マネー</span><span class="num" style="font-weight:600">¥146,300</span></div>
+        </div>
+
+        <div class="card">
+          <div class="tot"><span class="l">負債</span><span class="r num">¥277,200</span></div>
+          <div class="rowline"><i class="dot" style="background:var(--neg)"></i><span class="nm">クレジットカード</span><span class="num" style="font-weight:600">¥182,400</span></div>
+          <div class="rowline"><i class="dot" style="background:#e08a7f"></i><span class="nm">未払金</span><span class="num" style="font-weight:600">¥94,800</span></div>
+        </div>
+
+        <div class="hero" style="padding:12px 14px">
+          <div class="lab">純資産</div>
+          <div class="big num" style="font-size:25px">¥4,820,000</div>
+          <div class="delta">資産 − 負債</div>
+        </div>
+
+        <div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px">
+          <span style="font-size:11px;color:var(--tx2)">貸借差額（帳簿の一致）</span>
+          <span style="display:flex;align-items:center;gap:5px"><b class="num" style="font-size:12px">¥0</b>
+            <span style="width:15px;height:15px;border-radius:50%;background:var(--ac);display:grid;place-items:center"><svg width="9" height="9" viewBox="0 0 24 24" style="color:#fff"><use href="#i-check"/></svg></span></span>
+        </div>
+      </div>
+      <div class="tabs">
+        <span class="tab"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg>ホーム</span>
+        <span class="tab"><svg viewBox="0 0 24 24"><use href="#i-book"/></svg>仕訳帳</span>
+        <span class="fab"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></span>
+        <span class="tab on"><svg viewBox="0 0 24 24"><use href="#i-stats"/></svg>レポート</span>
+        <span class="tab"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg>設定</span>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ⑤ 管理 -->
+  <figure>
+    <figcaption><span class="t"><span class="n">5</span>管理メニュー</span><span class="s">マスタや設定を整理して管理</span></figcaption>
+    <div class="phone">
+      <div class="sb"><span class="num">9:41</span><span class="icons"><svg width="13" height="9" viewBox="0 0 20 16"><use href="#i-signal"/></svg><svg width="12" height="12" viewBox="0 0 24 24"><use href="#i-wifi"/></svg><svg width="17" height="11" viewBox="0 0 22 20"><use href="#i-batt"/></svg></span></div>
+      <div class="nav"><h2>管理</h2><span class="acts"><svg width="16" height="16" viewBox="0 0 24 24"><use href="#i-search"/></svg></span></div>
+      <div class="body">
+        <div class="sect">帳簿の基礎</div>
+        <div class="card tight">
+          <div class="li"><svg class="ic" viewBox="0 0 24 24"><use href="#i-list"/></svg><span class="main"><span class="k">勘定科目</span></span><span class="v num">50件</span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+          <div class="li"><svg class="ic" viewBox="0 0 24 24"><use href="#i-card"/></svg><span class="main"><span class="k">口座・カード</span></span><span class="v num">8件</span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+          <div class="li"><svg class="ic" viewBox="0 0 24 24"><use href="#i-tag"/></svg><span class="main"><span class="k">タグ</span></span><span class="v num">6件</span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+        </div>
+
+        <div class="sect">自動化・効率化</div>
+        <div class="card tight">
+          <div class="li"><svg class="ic" viewBox="0 0 24 24"><use href="#i-bookmark"/></svg><span class="main"><span class="k">プリセット</span></span><span class="v num">6件</span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+          <div class="li"><svg class="ic" viewBox="0 0 24 24"><use href="#i-gear"/></svg><span class="main"><span class="k">自動仕訳ルール</span></span><span class="v num">12件</span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+          <div class="li"><svg class="ic" viewBox="0 0 24 24"><use href="#i-repeat"/></svg><span class="main"><span class="k">定期取引</span></span><span class="v num">4件</span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+        </div>
+
+        <div class="sect">お金を管理する</div>
+        <div class="card tight">
+          <div class="li"><svg class="ic" viewBox="0 0 24 24"><use href="#i-scale"/></svg><span class="main"><span class="k">実査・評価替え</span></span><span class="v neg">未確認 2件</span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+          <div class="li"><svg class="ic" viewBox="0 0 24 24"><use href="#i-pie"/></svg><span class="main"><span class="k">予算</span></span><span class="v">8月の予算</span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+          <div class="li"><svg class="ic" viewBox="0 0 24 24"><use href="#i-tag"/></svg><span class="main"><span class="k">タグ配分</span></span><span class="v">設定済み</span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+        </div>
+
+        <div class="sect">データ・その他</div>
+        <div class="card tight">
+          <div class="li"><svg class="ic" viewBox="0 0 24 24"><use href="#i-file"/></svg><span class="main"><span class="k">CSV 入出力</span></span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+          <div class="li"><svg class="ic" viewBox="0 0 24 24"><use href="#i-lock"/></svg><span class="main"><span class="k">暗号化・バックアップ</span></span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+        </div>
+      </div>
+      <div class="tabs">
+        <span class="tab"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg>ホーム</span>
+        <span class="tab"><svg viewBox="0 0 24 24"><use href="#i-book"/></svg>仕訳帳</span>
+        <span class="fab"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></span>
+        <span class="tab"><svg viewBox="0 0 24 24"><use href="#i-stats"/></svg>レポート</span>
+        <span class="tab on"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg>設定</span>
+      </div>
+    </div>
+  </figure>
+</div>
+
+<!-- ══════════ 下段：モーダル・補助画面 ══════════ -->
+<div class="row">
+
+  <!-- 記帳（支出） -->
+  <figure>
+    <div class="phone short">
+      <div class="mh"><span class="t">記帳（支出）</span><span class="a">保存</span></div>
+      <div class="body">
+        <div class="seg"><span class="on">支出</span><span>収入</span><span>振替</span></div>
+        <div class="card tight">
+          <div class="li"><span class="main"><span class="k" style="color:var(--tx2);font-weight:500">金額</span></span><span class="v strong num">¥1,200</span><svg class="chev" viewBox="0 0 24 24" style="opacity:.5"><use href="#i-cal"/></svg></div>
+          <div class="li"><span class="main"><span class="k" style="color:var(--tx2);font-weight:500">日付</span></span><span class="v">2026年8月30日（金）</span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+          <div class="li"><span class="main"><span class="k" style="color:var(--tx2);font-weight:500">費目</span></span><span class="v">食費</span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+          <div class="li"><span class="main"><span class="k" style="color:var(--tx2);font-weight:500">支払方法</span></span><span class="v">現金</span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+          <div class="li"><span class="main"><span class="k" style="color:var(--tx2);font-weight:500">摘要</span></span><span class="v">スーパーでの買い物</span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+          <div class="li"><span class="main"><span class="k" style="color:var(--tx2);font-weight:500">タグ</span></span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:auto;padding-bottom:10px">
+          <div class="btn ghost" style="flex:1">キャンセル</div><div class="btn" style="flex:1.4">保存</div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- レシート撮影 -->
+  <figure>
+    <div class="phone short" style="background:#111">
+      <div class="mh" style="color:#fff"><svg class="x" viewBox="0 0 24 24"><use href="#i-x"/></svg><span class="t" style="color:#fff">レシート撮影</span><svg class="x" viewBox="0 0 24 24"><use href="#i-help"/></svg></div>
+      <div class="cam">
+        <div class="paper">
+          <div class="l" style="width:60%;height:5px;margin:0 auto 7px;background:#8a8378"></div>
+          <div class="l" style="width:90%"></div><div class="l" style="width:75%"></div><div class="l" style="width:85%"></div>
+          <div class="l" style="width:55%"></div><div class="l" style="width:80%"></div><div class="l" style="width:65%"></div>
+          <div class="l" style="width:88%"></div><div class="l" style="width:45%"></div>
+          <div class="l" style="width:70%;height:4px;margin-top:9px;background:#8a8378"></div>
+        </div>
+        <span class="brk" style="top:20px;left:26px;border-right:0;border-bottom:0"></span>
+        <span class="brk" style="top:20px;right:26px;border-left:0;border-bottom:0"></span>
+        <span class="brk" style="bottom:20px;left:26px;border-right:0;border-top:0"></span>
+        <span class="brk" style="bottom:20px;right:26px;border-left:0;border-top:0"></span>
+      </div>
+      <div class="cam strip">
+        <svg width="18" height="18" viewBox="0 0 24 24"><use href="#i-image"/></svg>
+        <span class="shutter"></span>
+        <svg width="18" height="18" viewBox="0 0 24 24"><use href="#i-flash"/></svg>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 撮って記帳・確認 -->
+  <figure>
+    <div class="phone short">
+      <div class="mh"><span class="t">撮って記帳・確認</span><span class="a">編集</span></div>
+      <div class="body">
+        <div class="card" style="display:flex;gap:10px;align-items:center">
+          <span style="width:38px;height:50px;border-radius:4px;background:linear-gradient(178deg,#f7f5f0,#e6e2d8);flex:none;padding:5px 4px">
+            <span style="display:block;height:2px;background:#b9b2a4;border-radius:1px;margin-bottom:3px;width:80%"></span>
+            <span style="display:block;height:2px;background:#c9c3b6;border-radius:1px;margin-bottom:3px"></span>
+            <span style="display:block;height:2px;background:#c9c3b6;border-radius:1px;margin-bottom:3px;width:60%"></span>
+            <span style="display:block;height:2px;background:#c9c3b6;border-radius:1px;margin-bottom:3px;width:75%"></span>
+          </span>
+          <span style="flex:1"><b style="font-size:12px">atré 松戸</b>
+            <div class="sub" style="font-size:10px;color:var(--tx3);margin-top:2px">アトレ 日用品<br>2026/08/30 19:48<br><b class="num" style="color:var(--tx)">¥5,346</b></div></span>
+        </div>
+        <div class="card tight">
+          <div class="li"><span class="main"><span class="k" style="color:var(--tx2);font-weight:500">日付</span></span><span class="v num">2026/08/30</span></div>
+          <div class="li"><span class="main"><span class="k" style="color:var(--tx2);font-weight:500">金額</span></span><span class="v strong num">¥5,346</span></div>
+          <div class="li"><span class="main"><span class="k" style="color:var(--tx2);font-weight:500">支払方法</span></span><span class="v">VIEWカード</span></div>
+          <div class="li"><span class="main"><span class="k" style="color:var(--tx2);font-weight:500">費目</span></span><span class="v">日用品費</span></div>
+          <div class="li"><span class="main"><span class="k" style="color:var(--tx2);font-weight:500">摘要</span></span><span class="v">アトレ 日用品</span></div>
+        </div>
+        <div class="btn" style="margin-top:auto;margin-bottom:10px">この内容で記帳</div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- カレンダー -->
+  <figure>
+    <div class="phone short">
+      <div class="mh"><span class="t">カレンダー</span><span class="a">今日</span></div>
+      <div class="body">
+        <div class="card">
+          <div style="text-align:center;font-size:12px;font-weight:700;margin-bottom:6px">2026年8月</div>
+          <div class="cal">
+            <span class="h sun">日</span><span class="h">月</span><span class="h">火</span><span class="h">水</span><span class="h">木</span><span class="h">金</span><span class="h sat">土</span>
+            <span class="c mute"></span><span class="c mute"></span><span class="c mute"></span><span class="c mute"></span><span class="c">1</span><span class="c">2</span><span class="c">3</span>
+            <span class="c"><span class="today num">4</span></span><span class="c">5</span><span class="c">6</span><span class="c">7</span><span class="c">8</span><span class="c">9</span><span class="c">10</span>
+            <span class="c">11<i></i></span><span class="c">12</span><span class="c">13</span><span class="c">14</span><span class="c">15</span><span class="c">16</span><span class="c">17</span>
+            <span class="c">18</span><span class="c">19<i></i></span><span class="c">20</span><span class="c">21<i></i></span><span class="c">22</span><span class="c">23</span><span class="c">24</span>
+            <span class="c">25<i></i></span><span class="c">26</span><span class="c">27<i></i></span><span class="c">28</span><span class="c">29<i></i></span><span class="c"><span class="sel num">30</span></span><span class="c">31</span>
+          </div>
+        </div>
+        <div class="dayhead"><span class="d">8/30（金）</span></div>
+        <div class="card">
+          <div class="kpis">
+            <div><div class="kl">収入</div><div class="kv num pos" style="font-size:11.5px">¥416,412</div></div>
+            <div><div class="kl">支出</div><div class="kv num neg" style="font-size:11.5px">¥10,688</div></div>
+            <div><div class="kl">収支</div><div class="kv num pos" style="font-size:11.5px">+¥405,724</div></div>
+          </div>
+          <div style="text-align:center;font-size:9.5px;color:var(--tx3);margin-top:6px">取引 3件</div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 絞り込み -->
+  <figure>
+    <div class="phone short">
+      <div class="mh"><span class="t">絞り込み</span><span class="a">リセット</span></div>
+      <div class="body">
+        <div class="sect">期間</div>
+        <div class="seg pill"><span class="on">今月</span><span>先月</span><span>過去3ヶ月</span><span>期間指定</span></div>
+        <div class="card tight" style="margin-top:4px">
+          <div class="li"><span class="main"><span class="k" style="color:var(--tx2);font-weight:500">科目</span></span><span class="v">すべての科目</span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+          <div class="li"><span class="main"><span class="k" style="color:var(--tx2);font-weight:500">支払方法</span></span><span class="v">すべての支払方法</span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+          <div class="li"><span class="main"><span class="k" style="color:var(--tx2);font-weight:500">タグ</span></span><span class="v">すべてのタグ</span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+          <div class="li"><span class="main"><span class="k" style="color:var(--tx2);font-weight:500">金額</span></span><span class="v">すべて</span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+        </div>
+        <div class="btn" style="margin-top:auto;margin-bottom:10px">この条件で表示</div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- 取り込み（銀行連携の代わり。方針上、銀行APIは使わない） -->
+  <figure>
+    <div class="phone short">
+      <div class="mh"><span class="t">取り込み</span><span class="a">閉じる</span></div>
+      <div class="body">
+        <div class="card" style="display:flex;gap:9px;align-items:flex-start;padding:10px 12px">
+          <svg width="15" height="15" viewBox="0 0 24 24" style="color:var(--ac);flex:none;margin-top:1px"><use href="#i-lock"/></svg>
+          <span style="font-size:10.5px;color:var(--tx2);line-height:1.6">
+            <b style="color:var(--tx)">銀行・カードには接続しません。</b><br>
+            明細を自分で取り込む方式です。家計データが外部に出ることはありません。
+          </span>
+        </div>
+        <div class="card tight">
+          <div class="li"><svg class="ic" viewBox="0 0 24 24" style="color:var(--ac)"><use href="#i-file"/></svg>
+            <span class="main"><span class="k">明細CSVから取り込む</span><div class="sub">カード会社・銀行のサイトで書き出したCSV</div></span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+          <div class="li"><svg class="ic" viewBox="0 0 24 24" style="color:var(--ac)"><use href="#i-camera"/></svg>
+            <span class="main"><span class="k">レシート・利用控えを撮る</span><div class="sub">端末内で読み取り。画像は送信しない</div></span><svg class="chev" viewBox="0 0 24 24"><use href="#i-chev"/></svg></div>
+        </div>
+
+        <div class="sect">形式を覚えたカード</div>
+        <div class="card tight">
+          <div class="li"><span class="main"><span class="k">楽天カード</span><div class="sub">前回 8/28 ・ 42件</div></span><span class="v">列の指定済み</span></div>
+          <div class="li"><span class="main"><span class="k">三井住友カード</span><div class="sub">前回 8/27 ・ 18件</div></span><span class="v">列の指定済み</span></div>
+          <div class="li"><span class="main"><span class="k">VIEWカード</span><div class="sub">前回 8/26 ・ 9件</div></span><span class="v">列の指定済み</span></div>
+        </div>
+      </div>
+    </div>
+  </figure>
+</div>
+
+<div class="note">
+  <b>原案から変更した点（実装方針との衝突を解消）</b><br><br>
+
+  <b>1. 「アカウント接続（銀行・カード連携）」→「取り込み」に置き換え</b><br>
+  このプロジェクトは <code>CLAUDE.md</code> で「外部APIとの連携は原則行わない／銀行APIは使わない／
+  家計データは外部送信しない」と決めています。加えて E2E暗号化を採っているため、
+  <b>サーバーは明細を復号できず、連携そのものが成立しません。</b>
+  実際にデータが入る経路（明細CSV・撮影）に置き換えました。
+  「銀行に接続しない」ことは弱点ではなく訴求点なので、画面上でも明示しています。<br><br>
+
+  <b>2. タブの重複を解消</b><br>
+  原案は「入力」タブと中央の <code>＋</code> が同じ役割でした。<code>＋</code> に一本化し、
+  タブは <b>ホーム / 仕訳帳 / レポート / 設定</b> の4つに。②はその <code>＋</code> から開くシートとして描き直しています。<br><br>
+
+  <b>3. 「台帳」→「仕訳帳」</b><br>
+  現行実装の用語に統一。複式簿記としてもこちらが正確です。<br><br>
+
+  <b>4. クイックアクションの「よく使う取引」→「CSV取込」</b><br>
+  プリセットと役割が重複していたため、実在する機能に差し替え。<br><br>
+
+  <b>5. レポートのセグメント4項目を横スクロールに</b><br>
+  iPhone の幅では詰まるため。現行実装の <code>ChipRow</code>（横スクロールするチップ列）と同じ挙動です。<br><br>
+
+  <hr style="border:0;border-top:1px solid var(--bd);margin:14px 0">
+
+  <b>残っている判断</b><br>
+  ・ホームの「実査の状況」は現行実装にある機能ですが、<b>口座ごとの確認状態は保持していません</b>
+  （調整仕訳の日付から前回日を引いているだけ）。「6/8口座」を出すならデータ構造の追加が要ります<br>
+  ・下段の「絞り込み」は現行の仕訳帳に無い機能です。実装するなら追加開発になります
+</div>
+
+<script>
+// テーマ切替。iOS のライト/ダークに追随させる想定なので、既定は端末設定に合わせる。
+const btn = document.getElementById('tg');
+const root = document.documentElement;
+const apply = (dark) => {
+  root.setAttribute('data-theme', dark ? 'dark' : 'light');
+  btn.textContent = dark ? 'ライトにする' : 'ダークにする';
+};
+apply(window.matchMedia('(prefers-color-scheme: dark)').matches);
+btn.addEventListener('click', () => apply(root.getAttribute('data-theme') !== 'dark'));
+</script>
+</body>
+</html>
