@@ -7,6 +7,7 @@ import { HIDEABLE_NAV } from '../../config/nav';
 import { track } from '../../utils/track';
 import EncryptionPanel from './EncryptionPanel';
 import EncryptedImportModal from './EncryptedImportModal';
+import ReconcileModal from './ReconcileModal';
 
 export default function SettingsPage() {
   const { exportAll, importAll } = useData();
@@ -20,6 +21,7 @@ export default function SettingsPage() {
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [encBackup, setEncBackup] = useState(null); // 取り込み待ちの暗号化バックアップ
+  const [reconciling, setReconciling] = useState(false);
 
   const handleDeleteAccount = async () => {
     setDeleting(true);
@@ -90,6 +92,17 @@ export default function SettingsPage() {
   return (
     <div style={{ maxWidth: 640 }}>
       <div className="pg-header"><div className="pg-title">設定</div><div className="pg-sub">表示メニューの調整やデータのバックアップ・移行ができます</div></div>
+
+      {/* 実査。手入力の漏れで帳簿がずれるのを、実残高との突合で吸収する */}
+      <div style={{ background: 'var(--bg1)', border: '1px solid var(--bd)', borderRadius: 10, padding: 18, marginBottom: 16 }}>
+        <h3 style={{ fontSize: 14, marginBottom: 6 }}>実査・評価替え</h3>
+        <p style={{ color: 'var(--tx3)', fontSize: 12, marginBottom: 12 }}>
+          通帳や財布の実際の残高を入れて、帳簿との差額を調整します。記帳の漏れがあっても、
+          ここで合わせておけば貸借対照表と純資産の推移が実態から離れません。
+          証券口座の時価を反映する評価替えも同じ画面から行えます。
+        </p>
+        <button className="btn btn-p" onClick={() => setReconciling(true)}>残高を照合する</button>
+      </div>
 
       {/* 表示する画面のカスタマイズ */}
       <div style={{ background: 'var(--bg1)', border: '1px solid var(--bd)', borderRadius: 10, padding: 18, marginBottom: 16 }}>
@@ -163,6 +176,8 @@ export default function SettingsPage() {
           )}
         </div>
       )}
+
+      <ReconcileModal open={reconciling} onClose={() => setReconciling(false)} />
 
       <EncryptedImportModal open={!!encBackup} backup={encBackup}
         onClose={() => setEncBackup(null)}

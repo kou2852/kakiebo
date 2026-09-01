@@ -87,7 +87,7 @@ export function DataProvider({ children }) {
   const [useLocal, setUseLocal] = useState(false);
   // 全置換保存するコレクションの版番号。他端末が先に保存していれば 409 で弾かれる。
   // 既存ユーザーはマーカー未作成＝0 から始まる（サーバー側でバックフィル不要）。
-  const revs = useRef({ budgets: 0, presets: 0, recurring: 0, rules: 0 });
+  const revs = useRef({ budgets: 0, presets: 0, recurring: 0, rules: 0, allocs: 0 });
   const encRev = useRef(0);
   // 暗号化データが他端末と競合し、サーバーへ保存できていない状態
   const [encConflict, setEncConflict] = useState(false);

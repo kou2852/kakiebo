@@ -47,6 +47,10 @@ Parameters:
     Type: String
     Default: ""
     Description: ランディングページのオリジン（例 https://kurofukubo.com）。問い合わせフォームの CORS 用。空なら追加しない。
+  MobileRedirectUris:
+    Type: String
+    Default: ""
+    Description: モバイルアプリの OAuth リダイレクト先。カンマ区切り（例 kurofukubo://auth）。空ならWebのみ。
   GoogleClientId:
     Type: String
     Default: ""
@@ -62,6 +66,7 @@ Conditions:
   HasSes: !Not [!Equals [!Ref SesIdentityArn, ""]]
   HasGoogle: !Not [!Equals [!Ref GoogleClientId, ""]]
   HasLpOrigin: !Not [!Equals [!Ref LpOrigin, ""]]
+  HasMobileRedirect: !Not [!Equals [!Ref MobileRedirectUris, ""]]
 
 Resources:
   # ── Cognito ──
@@ -121,10 +126,16 @@ Resources:
         - HasGoogle
         - [COGNITO, !Ref GoogleIdP]
         - [COGNITO]
-      CallbackURLs:
-        - !Ref AllowedOrigin
-      LogoutURLs:
-        - !Ref AllowedOrigin
+      # モバイルアプリはカスタムスキームに戻る。Google は埋め込みWebViewでの認証を拒否するため、
+      # システムブラウザ経由になり、Web と同じオリジンには戻せない。
+      CallbackURLs: !If
+        - HasMobileRedirect
+        - !Split [",", !Sub "${AllowedOrigin},${MobileRedirectUris}"]
+        - [!Ref AllowedOrigin]
+      LogoutURLs: !If
+        - HasMobileRedirect
+        - !Split [",", !Sub "${AllowedOrigin},${MobileRedirectUris}"]
+        - [!Ref AllowedOrigin]
       AllowedOAuthFlows:
         - code
       AllowedOAuthFlowsUserPoolClient: true
@@ -433,6 +444,18 @@ Resources:
             RestApiId: !Ref KakeiboApi
             Path: /api/budgets
             Method: POST
+        GetAllocs:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/allocs
+            Method: GET
+        SaveAllocs:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/allocs
+            Method: POST
         GetRecurring:
           Type: Api
           Properties:
@@ -525,6 +548,13 @@ Resources:
           Properties:
             RestApiId: !Ref KakeiboApi
             Path: /api/budgets
+            Method: OPTIONS
+            Auth: { Authorizer: NONE }
+        OptionsAllocs:
+          Type: Api
+          Properties:
+            RestApiId: !Ref KakeiboApi
+            Path: /api/allocs
             Method: OPTIONS
             Auth: { Authorizer: NONE }
         OptionsRecurring:

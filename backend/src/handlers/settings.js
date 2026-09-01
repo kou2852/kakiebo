@@ -74,6 +74,31 @@ export async function handler(event) {
     return created(items.map(strip));
   }
 
+  // ── Allocs（タグ配分: 口座残高のうち何をいくら取り分けるか） ──
+  // 保存先が無く /api/import 経由でしか永続化されていなかったため、端末を変えると消えていた。
+  // id を持たず accountId + tagId で一意なので、他の全置換コレクションと同じ扱いにする。
+  if (path === '/api/allocs' && method === 'GET') {
+    const items = (await queryByPrefix(userId, 'ALLOC#')).map(strip);
+    return ok({ items, rev: await getRev(userId, 'ALLOC') });
+  }
+  if (path === '/api/allocs' && method === 'POST') {
+    const body = parseBody(event);
+    if (!body) return badRequest('Invalid JSON');
+    const { list, rev } = parseCollection(body);
+    const items = list
+      .filter((a) => a.accountId && a.tagId && a.amount > 0)
+      .map((a) => ({
+        SK: `ALLOC#${a.accountId}#${a.tagId}`,
+        accountId: a.accountId,
+        tagId: a.tagId,
+        amount: a.amount,
+      }));
+    const nextRev = await guardedReplace(userId, 'ALLOC', 'ALLOC#', items, rev);
+    if (nextRev === 'NO_REV') return badRequest('rev は必須です');
+    if (nextRev === false) return conflict({ rev: await getRev(userId, 'ALLOC') });
+    return created({ items: items.map(strip), rev: nextRev });
+  }
+
   // ── Budgets ──
   if (path === '/api/budgets' && method === 'GET') {
     const items = (await queryByPrefix(userId, 'BUDGET#')).map(strip);
@@ -89,6 +114,7 @@ export async function handler(event) {
       amount: b.amount,
     }));
     const nextRev = await guardedReplace(userId, 'BUDGET', 'BUDGET#', items, rev);
+    if (nextRev === 'NO_REV') return badRequest('rev は必須です');
     if (nextRev === false) return conflict({ rev: await getRev(userId, 'BUDGET') });
     return created({ items: items.map(strip), rev: nextRev });
   }
@@ -117,6 +143,7 @@ export async function handler(event) {
       lines: r.lines || [],
     }));
     const nextRev = await guardedReplace(userId, 'RECURRING', 'RECURRING#', items, rev);
+    if (nextRev === 'NO_REV') return badRequest('rev は必須です');
     if (nextRev === false) return conflict({ rev: await getRev(userId, 'RECURRING') });
     return created({ items: items.map(strip), rev: nextRev });
   }
@@ -144,6 +171,7 @@ export async function handler(event) {
       lines: p.lines || [],
     }));
     const nextRev = await guardedReplace(userId, 'PRESET', 'PRESET#', items, rev);
+    if (nextRev === 'NO_REV') return badRequest('rev は必須です');
     if (nextRev === false) return conflict({ rev: await getRev(userId, 'PRESET') });
     return created({ items: items.map(strip), rev: nextRev });
   }
@@ -169,6 +197,7 @@ export async function handler(event) {
       tagId: r.tagId || '',
     }));
     const nextRev = await guardedReplace(userId, 'RULE', 'RULE#', items, rev);
+    if (nextRev === 'NO_REV') return badRequest('rev は必須です');
     if (nextRev === false) return conflict({ rev: await getRev(userId, 'RULE') });
     return created({ items: items.map(strip), rev: nextRev });
   }
@@ -187,11 +216,9 @@ export async function handler(event) {
     if (!body) return badRequest('Invalid JSON');
     const payload = { bundle: body.bundle || null, ct: body.ct || null };
     let rev = null;
-    // rev 未指定 = rev 導入前のクライアント（開いたままのタブ）。従来どおり無条件で受ける。
-    // ここで拒否すると、リロードするまで保存できなくなる。全員が新版になったら必須化する。
-    if (body.rev === undefined) {
-      await putItem(userId, 'ENCDATA', payload);
-    } else {
+    // rev は必須。ブロブ全置換なので、rev 無しを通すと他端末の暗号文を無条件で消せてしまう。
+    if (body.rev === undefined) return badRequest('rev は必須です');
+    {
       try {
         rev = await putItemWithRev(userId, 'ENCDATA', payload, body.rev);
       } catch (e) {
@@ -218,7 +245,7 @@ export async function handler(event) {
     // 通常利用者はアプリ起動時にここを通る（暗号化利用者は /api/encdata 側で記録）
     await markSeen(userId);
     const [accounts, journals, tags, wallets, budgets, presets, recurring, rules, allocs,
-      revBudget, revPreset, revRecurring, revRule] = await Promise.all([
+      revBudget, revPreset, revRecurring, revRule, revAlloc] = await Promise.all([
       queryByPrefix(userId, 'ACCOUNT#'),
       queryByPrefix(userId, 'JOURNAL#'),
       queryByPrefix(userId, 'TAG#'),
@@ -232,6 +259,7 @@ export async function handler(event) {
       getRev(userId, 'PRESET'),
       getRev(userId, 'RECURRING'),
       getRev(userId, 'RULE'),
+      getRev(userId, 'ALLOC'),
     ]);
     return ok({
       accounts: accounts.map(strip),
@@ -245,7 +273,7 @@ export async function handler(event) {
       allocs: allocs.map(strip),
       // 楽観的排他用の版番号。初期ロードで受け取るためここに載せる。
       // ユーザーがダウンロードするバックアップJSONには含めない（クライアント側で除去する）。
-      revs: { budgets: revBudget, presets: revPreset, recurring: revRecurring, rules: revRule },
+      revs: { budgets: revBudget, presets: revPreset, recurring: revRecurring, rules: revRule, allocs: revAlloc },
       exportedAt: new Date().toISOString(),
     });
   }
@@ -367,16 +395,16 @@ function parseCollection(body) {
 
 /**
  * 版番号を確認してからコレクションを入れ替える。
- * rev 未指定（rev 導入前のクライアント）は従来どおり無条件で受ける。
+ * rev は必須。未指定は 'NO_REV' を返し、呼び出し元が 400 を返す。
+ * 全置換なので、rev 無しを通すと他端末の更新を無条件で消せてしまう。
  * 他端末が先に更新していたら false を返す（呼び出し元が 409 を返す）。
  * rev はデータ書き込みより先に進める。逆順にすると2端末が同時に通過できてしまう。
  */
 async function guardedReplace(userId, name, prefix, items, rev) {
-  let nextRev = null;
-  if (rev !== undefined) {
-    try { nextRev = await bumpRev(userId, name, rev); }
-    catch (e) { if (isRevConflict(e)) return false; throw e; }
-  }
+  if (rev === undefined) return 'NO_REV';
+  let nextRev;
+  try { nextRev = await bumpRev(userId, name, rev); }
+  catch (e) { if (isRevConflict(e)) return false; throw e; }
   const existing = await queryByPrefix(userId, prefix);
   await replaceCollection(userId, existing, items);
   return nextRev;

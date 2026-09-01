@@ -86,6 +86,8 @@ export const budgets = collection('/api/budgets');
 export const recurring = collection('/api/recurring');
 export const presets = collection('/api/presets');
 export const rules = collection('/api/rules');
+// タグ配分。id を持たず accountId + tagId で一意なので、他と同じ全置換扱い。
+export const allocs = collection('/api/allocs');
 
 // ── E2E暗号化データ（方式A: データセット全体を1ブロブ。bundle=鍵バンドル, ct=暗号文） ──
 export const encdata = {
