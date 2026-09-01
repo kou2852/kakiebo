@@ -95,6 +95,23 @@ header{position:sticky;top:0;z-index:30;background:rgba(253,252,249,.92);backdro
 .hero-visual{position:relative;max-width:1060px;margin:56px auto 0;padding:0 0 90px}
 .hero-visual .browser{max-width:900px}
 .hero-phone{position:absolute;right:0;bottom:40px;width:min(220px,26vw);z-index:2}
+/* product demo video */
+.demo-head{text-align:center;max-width:720px;margin:0 auto}
+.demo-head .eyebrow{justify-content:center}
+.demo-head .sec-desc{margin:16px auto 0}
+.demo-frame{position:relative;max-width:1000px;margin:48px auto 0;border-radius:14px;overflow:hidden;background:#eef3f2;box-shadow:0 28px 70px -30px rgba(34,48,43,.34),0 4px 14px rgba(34,48,43,.07)}
+.demo-frame video{display:block;width:100%;height:auto;aspect-ratio:16/9;background:#eef3f2}
+.demo-play{position:absolute;inset:0;width:100%;height:100%;text-decoration:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;border:none;cursor:pointer;font-family:inherit;background:linear-gradient(180deg,rgba(34,48,43,.10),rgba(34,48,43,.24));transition:.18s}
+.demo-frame.is-playing .demo-play{opacity:0;pointer-events:none}
+.demo-play-ic{width:74px;height:74px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 16px 40px -12px rgba(47,110,85,.7);transition:.18s}
+.demo-play:hover{background:linear-gradient(180deg,rgba(34,48,43,.06),rgba(34,48,43,.18))}
+.demo-play:hover .demo-play-ic{transform:scale(1.07);background:var(--ac2)}
+.demo-play-tx{font-size:14px;font-weight:700;color:var(--ink);background:rgba(255,255,255,.92);border-radius:999px;padding:8px 18px;box-shadow:0 4px 14px rgba(34,48,43,.12)}
+.demo-note{text-align:center;font-size:12.5px;color:var(--tx3);margin-top:18px}
+@media(max-width:640px){
+  .demo-frame{margin-top:32px;border-radius:10px}
+  .demo-play-ic{width:60px;height:60px}
+}
 /* compare */
 .cmp{display:grid;grid-template-columns:1fr 1.2fr;gap:28px;margin-top:52px;align-items:stretch}
 .cmp-col{background:#fff;border:1px solid var(--bd);border-radius:14px;padding:32px 34px}
@@ -230,7 +247,7 @@ footer{background:#1a2622;padding:40px 0}
 <div class="hero">
   <div class="wrap">
     <div class="hero-head">
-      <h1>使ったお金だけでなく、<br><em>お金の流れまで見える</em>家計簿。</h1>
+      <h1>使ったお金だけでなく、<br><em>お金の流れまで見える</em>複式簿記の家計簿。</h1>
       <p class="hero-sub">入力はいつもの家計簿のようにシンプル。<br>複式簿記の仕組みで、<strong>口座・資産・負債・収支</strong>がつながり、<strong>純資産</strong>まで見えます。</p>
       <div class="hero-actions">
         <a href="https://app.kurofukubo.com/?guest" class="btn btn-g">無料で家計簿を始める</a>
@@ -251,6 +268,38 @@ footer{background:#1a2622;padding:40px 0}
     </div>
   </div>
 </div>
+
+<!-- 1.5 PRODUCT TOUR -->
+<section id="demo" class="alt">
+  <div class="wrap">
+    <div class="demo-head">
+      <div class="eyebrow">PRODUCT TOUR</div>
+      <h2>記録するところから、<br>お金の流れが見えるまで。</h2>
+      <p class="sec-desc">実際の画面そのままの18秒。「スーパー 5240 食費」と一行で書くだけで複式簿記の仕訳になり、純資産・グラフ・カテゴリまで一度に反映されるところを通しで見られます。</p>
+    </div>
+
+    <figure class="demo-frame" data-demo>
+      <video preload="none" playsinline
+             poster="/video/v1/product-demo-poster.webp"
+             width="1920" height="1080"
+             aria-label="黒福簿のプロダクト紹介動画。ダッシュボードから仕訳入力画面へ移動し、一行入力で記帳して、ダッシュボードの純資産・グラフ・支出カテゴリに反映されるまでの18秒">
+        <!-- 1080p を先に置き media で絞る。media を無視するブラウザでも先頭の 1080p が選ばれる（安全側に倒す） -->
+        <source src="/video/v1/product-demo.webm" type="video/webm" media="(min-width:821px)">
+        <source src="/video/v1/product-demo.mp4" type="video/mp4" media="(min-width:821px)">
+        <source src="/video/v1/product-demo-720.webm" type="video/webm">
+        <source src="/video/v1/product-demo-720.mp4" type="video/mp4">
+        <p>お使いのブラウザは動画を再生できません。<a href="/video/v1/product-demo.mp4">動画ファイルを直接開く</a></p>
+      </video>
+      <a class="demo-play" href="/video/v1/product-demo.mp4" aria-label="プロダクト紹介動画を再生する（18秒・音が出ます）">
+        <span class="demo-play-ic">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+        </span>
+        <span class="demo-play-tx">18秒で見る</span>
+      </a>
+    </figure>
+    <p class="demo-note">音が出ます。数字はすべてデモ用のサンプルです。</p>
+  </div>
+</section>
 
 <!-- 2. DIFFERENCE -->
 <section id="diff">
@@ -485,4 +534,59 @@ footer{background:#1a2622;padding:40px 0}
 
 
 
+<script>
+/* プロダクト紹介動画。
+   ポスターの上のボタンを押して初めて動画を読み込む（preload="none"）。
+   LCP要素はヒーローの静止画のままで、この動画は初期表示に一切コストを乗せない。
+   計測は GA4 の動画イベントの命名にそろえてある（video_start/progress/complete）。
+   ※ video_percent 等をレポートに出すには GA4 管理画面でカスタム定義の登録が必要。 */
+(function () {
+  var f = document.querySelector('[data-demo]');
+  if (!f) return;
+  var v = f.querySelector('video');
+  var b = f.querySelector('.demo-play');
+  var TITLE = 'product_demo_18s';
+  var started = false;
+  var hit = {};
+
+  function params(percent) {
+    return {
+      video_provider: 'self_hosted',
+      video_title: TITLE,
+      video_duration: Math.round(v.duration || 18),
+      video_current_time: Math.round(v.currentTime || 0),
+      video_percent: percent
+    };
+  }
+  function send(name, percent) {
+    if (window.gtag) window.gtag('event', name, params(percent));
+  }
+
+  b.addEventListener('click', function (ev) {
+    ev.preventDefault();          // JS が動く環境ではページ内で再生する
+    v.controls = true;            // 再生するまでネイティブのコントロールバーは出さない
+    f.classList.add('is-playing');
+    var p = v.play();
+    if (p && p.catch) p.catch(function () { f.classList.remove('is-playing'); v.controls = false; });
+    if (!started) { started = true; send('video_start', 0); }
+  });
+
+  // 25 / 50 / 75% 通過。どこで見るのをやめているかが分かる＝動画を直す材料になる
+  v.addEventListener('timeupdate', function () {
+    if (!v.duration) return;
+    var pct = (v.currentTime / v.duration) * 100;
+    [25, 50, 75].forEach(function (m) {
+      if (pct >= m && !hit[m]) { hit[m] = true; send('video_progress', m); }
+    });
+  });
+
+  v.addEventListener('ended', function () {
+    f.classList.remove('is-playing');
+    send('video_complete', 100);
+    v.currentTime = 0;
+    hit = {};
+  });
+  v.addEventListener('pause', function () { if (!v.ended && v.currentTime === 0) f.classList.remove('is-playing'); });
+}());
+</script>
 </body></html>

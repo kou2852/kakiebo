@@ -47,7 +47,7 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="家計簿データは誰が見られる？E2E暗号化なら運営者も読めない">
 <meta name="twitter:description" content="家計簿データは誰が見られる？kurofukuboは銀行自動連携をせず、認証情報を預かりません。E2E暗号化をONにすると端末で暗号化され、運営者も中身を復号できません。暗号化OFF・ゲスト利用を含む保存場所の違いも解説します。">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"家計簿データは誰が見られる？E2E暗号化なら運営者も読めない","description":"家計簿データは誰が見られる？kurofukuboは銀行自動連携をせず、認証情報を預かりません。E2E暗号化をONにすると端末で暗号化され、運営者も中身を復号できません。暗号化OFF・ゲスト利用を含む保存場所の違いも解説します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-privacy.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}},"author":{"@type":"Person","name":"ぱくぱく","url":"https://kurofukubo.com/about.html"},"datePublished":"2026-06-26","dateModified":"2026-08-01","mainEntityOfPage":{"@type":"WebPage","@id":"https://kurofukubo.com/guide-privacy.html"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"家計簿データは誰が見られる？E2E暗号化なら運営者も読めない","description":"家計簿データは誰が見られる？kurofukuboは銀行自動連携をせず、認証情報を預かりません。E2E暗号化をONにすると端末で暗号化され、運営者も中身を復号できません。暗号化OFF・ゲスト利用を含む保存場所の違いも解説します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-privacy.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}},"author":{"@type":"Person","name":"ぱくぱく","url":"https://kurofukubo.com/about.html"},"datePublished":"2026-06-26","dateModified":"2026-08-21","mainEntityOfPage":{"@type":"WebPage","@id":"https://kurofukubo.com/guide-privacy.html"}}</script>
   <script defer src="/analytics.js"></script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ホーム","item":"https://kurofukubo.com/"},{"@type":"ListItem","position":2,"name":"ガイド","item":"https://kurofukubo.com/guides.html"},{"@type":"ListItem","position":3,"name":"家計簿のデータは誰が見られる？","item":"https://kurofukubo.com/guide-privacy.html"}]}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"暗号化を有効にすると使い勝手は落ちますか？","acceptedAnswer":{"@type":"Answer","text":"ほとんど変わりません。暗号化・復号は端末内で自動的に行われます。ただしパスフレーズを忘れると復元できないため、発行されるリカバリーキーは必ず保管してください。"}},{"@type":"Question","name":"暗号化しない場合、運営者にデータを見られますか？","acceptedAnswer":{"@type":"Answer","text":"暗号化OFFのデータはアカウントごとに分離して保存されますが、技術的には運営者が閲覧できる状態です。運営方針として個別ユーザーの家計データは閲覧しませんが、より強く守りたい場合は暗号化ONを推奨します。"}},{"@type":"Question","name":"家計データを外部に持ち出せますか？","acceptedAnswer":{"@type":"Answer","text":"いつでもJSON形式でエクスポートできます。データの所有権はあなたにあり、他サービスへの移行やバックアップも自由です。"}}]}</script>
@@ -59,7 +59,7 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
   <div class="wrap">
     <nav class="bc" aria-label="パンくず" style="font-size:12.5px;color:var(--tx3);margin-bottom:14px"><a href="/">ホーム</a> › <a href="/guides.html">ガイド</a> › <span style="color:var(--tx2)">家計簿のデータは誰が見られる？</span></nav>
     <h1>家計簿のデータは誰が見られる？ — 連携なし・ゼロ知識(E2E)で使う家計簿</h1>
-    <p class="byline" style="font-size:12.5px;color:var(--tx3);margin:6px 0 4px">公開: 2026/06/26 ・ 更新: 2026/08/01 ・ 執筆: <a href="/about.html" style="color:var(--tx3);text-decoration:underline">ぱくぱく（kurofukubo 開発者）</a></p>
+    <p class="byline" style="font-size:12.5px;color:var(--tx3);margin:6px 0 4px">公開: 2026/06/26 ・ 更新: 2026/08/21 ・ 執筆: <a href="/about.html" style="color:var(--tx3);text-decoration:underline">ぱくぱく（kurofukubo 開発者）</a></p>
     <p class="lead">家計簿には、収入・資産・借金といった、最も人に見られたくない情報が集まります。では、そのデータは<strong>誰が見られる</strong>のでしょうか。この記事では、よくある「銀行連携型」家計簿の仕組みと、運営者にも中身が読めない<strong>ゼロ知識（E2E）暗号化</strong>という考え方を、やさしく解説します。</p>
 
     <figure class="fig"><img src="/img/e2e-unlock.webp" alt="E2E暗号化データの解錠画面。パスフレーズの入力を求めている" loading="lazy" width="1200" height="806"><figcaption>E2E暗号化を有効にすると、鍵を持つ端末だけがデータを開けます（アプリ実画面）</figcaption></figure>
@@ -93,6 +93,29 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
     </table>
     <p>ポイントは、<strong>いちばん機密性の高い「金融機関の認証情報」を最初から持たない</strong>こと。持っていなければ、漏れることも、悪用されることもありません。</p>
 
+    <h2>「暗号化しています」の中身を具体的に書きます</h2>
+    <p>セキュリティの説明は抽象的になりがちです。検証できるように、kurofukubo が実際に使っている方式を書いておきます。</p>
+    <table>
+      <tr><th>項目</th><th>内容</th></tr>
+      <tr><td>暗号化の実装</td><td>ブラウザ標準の Web Crypto API</td></tr>
+      <tr><td>データの暗号化</td><td><strong>AES-256-GCM</strong></td></tr>
+      <tr><td>鍵の導出（KDF）</td><td><strong>PBKDF2-HMAC-SHA256、60万回</strong>（OWASP の推奨水準）</td></tr>
+      <tr><td>鍵の構造</td><td>データ鍵（DEK）を、パスフレーズから作った鍵（KEK）で包む方式。サーバーに送られるのは<strong>包まれた状態の鍵バンドルだけ</strong>で、平文の鍵は含まれません</td></tr>
+      <tr><td>復旧手段</td><td>パスフレーズとは別にリカバリーキーを発行。どちらか一方でデータ鍵を取り出せます</td></tr>
+    </table>
+
+    <h3>暗号化をONにしても、サーバーに残るもの</h3>
+    <p>ここは正直に書きます。<strong>「運営者に何も分からない」わけではありません。</strong>暗号化を有効にすると、サーバー上の平文データは削除され、暗号文のかたまりだけが残ります。それでもサーバー側から見えるものは次のとおりです。</p>
+    <table>
+      <tr><th>サーバーから見えるか</th><th>内容</th></tr>
+      <tr><td>❌ 見えない</td><td>取引の内容、金額、科目名、口座名、日付 — つまり家計データの中身すべて</td></tr>
+      <tr><td>⭕ 見える</td><td>アカウントが存在すること、暗号文の<strong>データサイズ</strong>、<strong>更新回数と最終更新日時</strong></td></tr>
+    </table>
+    <p>暗号文のサイズが大きければ「記帳量が多い人だ」という推測はできますし、更新日時から「いつ使ったか」は分かります。<strong>中身は読めませんが、利用の痕跡はゼロにはなりません。</strong>これはE2E暗号化を採用しているサービス全般に共通する性質で、kurofukubo も例外ではありません。</p>
+    <div class="callout">
+      なお暗号化を有効にすると、サーバー側では中身を突き合わせられなくなります。そのため<strong>複数の端末で同時に編集して競合した場合、解決はあなたの端末側で行われます</strong>。中身が読めないということは、運営者が代わりに直すこともできない、ということです。これは安全性の裏返しとして受け入れる必要があるトレードオフです。
+    </div>
+
     <h2>連携型の家計簿との違い</h2>
     <table>
       <tr><th>&nbsp;</th><th>一般的な連携型</th><th>kurofukubo</th></tr>
@@ -110,6 +133,15 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
     <p>暗号化OFFのデータはアカウントごとに分離して保存されますが、技術的には運営者が閲覧できる状態です。運営方針として個別ユーザーの家計データは閲覧しませんが、より強く守りたい場合は暗号化ONを推奨します。</p>
     <h3>Q. 家計データを外部に持ち出せますか？</h3>
     <p>いつでもJSON形式でエクスポートできます。データの所有権はあなたにあり、他サービスへの移行やバックアップも自由です。</p>
+
+    <h2>参考</h2>
+    <div class="callout">
+      <ul style="margin:0 0 0 1.2em">
+        <li>個人情報保護委員会「<a href="https://www.ppc.go.jp/personalinfo/" target="_blank" rel="noopener">個人情報保護法について</a>」— 個人情報の取扱いに関する法令・ガイドライン。</li>
+        <li>kurofukubo の取扱いの詳細は <a href="/privacy.html">プライバシーポリシー</a> および <a href="/security.html">安全とデータの扱い</a> に記載しています。</li>
+      </ul>
+      <p style="margin:10px 0 0">本ページに記載した暗号方式（AES-256-GCM、PBKDF2-HMAC-SHA256 60万回）およびサーバーに残る情報は、2026年8月時点の実装にもとづきます。実装を変更した場合はこのページも更新します。</p>
+    </div>
 
     <div class="cta-box">
       <p>運営者にも見えない、家族のお金の全体像。無料で始められます。</p>

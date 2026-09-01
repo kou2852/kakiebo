@@ -47,7 +47,7 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
 <meta property="og:image" content="https://kurofukubo.com/ogp.png">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"家計のバランスシート（BS）・損益計算書（PL）の作り方と読み方 | kurofukubo","description":"家計のバランスシート（貸借対照表BS）と損益計算書（PL）の作り方と読み方を解説。資産・負債・純資産、収入・支出の関係を、家計の具体例でやさしく紹介します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-bs-pl.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}},"author":{"@type":"Person","name":"ぱくぱく","url":"https://kurofukubo.com/about.html"},"datePublished":"2026-06-26","dateModified":"2026-07-01","mainEntityOfPage":{"@type":"WebPage","@id":"https://kurofukubo.com/guide-bs-pl.html"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"家計のバランスシート（BS）・損益計算書（PL）の作り方と読み方 | kurofukubo","description":"家計のバランスシート（貸借対照表BS）と損益計算書（PL）の作り方と読み方を解説。資産・負債・純資産、収入・支出の関係を、家計の具体例でやさしく紹介します。","image":"https://kurofukubo.com/ogp.png","url":"https://kurofukubo.com/guide-bs-pl.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}},"author":{"@type":"Person","name":"ぱくぱく","url":"https://kurofukubo.com/about.html"},"datePublished":"2026-06-26","dateModified":"2026-08-21","mainEntityOfPage":{"@type":"WebPage","@id":"https://kurofukubo.com/guide-bs-pl.html"}}</script>
   <script defer src="/analytics.js"></script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ホーム","item":"https://kurofukubo.com/"},{"@type":"ListItem","position":2,"name":"ガイド","item":"https://kurofukubo.com/guides.html"},{"@type":"ListItem","position":3,"name":"家計のバランスシート（BS）・損益計算書（PL）の作り方と読み方","item":"https://kurofukubo.com/guide-bs-pl.html"}]}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"黒字なのに貯金が増えないのはなぜですか？","acceptedAnswer":{"@type":"Answer","text":"費用が発生した月と現金が動く月がずれているためです。クレジットカードの利用は使った月に費用として計上されますが、預金から出ていくのは翌月です。加えて投資への積立は支出ではなく資産の移動なので、黒字でも預金は減ります。PL（もうけ）とBS（財産の中身）を分けて見ると、この理由が数字で分かります。"}},{"@type":"Question","name":"家計にBS・PLは本当に必要ですか？","acceptedAnswer":{"@type":"Answer","text":"収支トントンを目指すだけならPL（家計簿）で十分ですが、投資も含めて財産が増えているかを知りたいならBS（純資産）まで見る必要があります。両方あって家計の全体像が見えます。"}},{"@type":"Question","name":"どのくらいの頻度で作ればいいですか？","acceptedAnswer":{"@type":"Answer","text":"PLは毎月、BSは月末に1回で十分です。投資の評価額は月1回まとめて更新する程度で問題ありません。"}},{"@type":"Question","name":"簿記の知識がないと作れませんか？","acceptedAnswer":{"@type":"Answer","text":"複式簿記で記帳できるアプリを使えば、入力からBS・PLが自動生成されます。kurofukubo はかんたん入力や一行入力に対応しており、簿記を知らなくても記録できます。"}}]}</script>
@@ -59,7 +59,7 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
   <div class="wrap">
     <nav class="bc" aria-label="パンくず" style="font-size:12.5px;color:var(--tx3);margin-bottom:14px"><a href="/">ホーム</a> › <a href="/guides.html">ガイド</a> › <span style="color:var(--tx2)">家計のバランスシート（BS）・損益計算書（PL）の作り方と読み方</span></nav>
     <h1>家計のバランスシート（BS）・損益計算書（PL）の作り方と読み方</h1>
-    <p class="byline" style="font-size:12.5px;color:var(--tx3);margin:6px 0 4px">公開: 2026/06/26 ・ 更新: 2026/07/01 ・ 執筆: <a href="/about.html" style="color:var(--tx3);text-decoration:underline">ぱくぱく（kurofukubo 開発者）</a></p>
+    <p class="byline" style="font-size:12.5px;color:var(--tx3);margin:6px 0 4px">公開: 2026/06/26 ・ 更新: 2026/08/21 ・ 執筆: <a href="/about.html" style="color:var(--tx3);text-decoration:underline">ぱくぱく（kurofukubo 開発者）</a></p>
     <p class="lead">貸借対照表（BS）と損益計算書（PL）は企業の決算書というイメージがありますが、家計に当てはめても強力なツールになります。それぞれが何を表すのか、家計の例で読み解いていきましょう。</p>
 
     <figure class="fig"><img src="/img/bs-screen.webp" alt="資産・負債・純資産を一覧表示した家計の貸借対照表（BS）画面" loading="lazy" width="1200" height="509"><figcaption>家計の貸借対照表（BS）。資産・負債・純資産が一目で分かります（アプリ実画面）</figcaption></figure>
@@ -99,7 +99,7 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
       <tr><td>日用品・娯楽・その他</td><td>−60,000円</td></tr>
       <tr><td><strong>収支（黒字）</strong></td><td><strong>+70,000円</strong></td></tr>
     </table>
-    <p>この月は7万円の黒字でした。ここで大事なのは、<strong>NISAへの積立2万円は「支出」に入れない</strong>という点です。お金が消えたのではなく、現金という資産から投資という資産へ「移動」しただけだからです。PL（損益計算書）に載るのは、消費・費用として家計の外へ出ていったお金だけです。</p>
+    <p>この例の支出は合計23万円です。参考までに、総務省「家計調査」2024年平均の消費支出は単身世帯で169,547円、二人以上の世帯で300,243円なので、その中間くらいの水準になります。この月は7万円の黒字でした。ここで大事なのは、<strong>NISAへの積立2万円は「支出」に入れない</strong>という点です。お金が消えたのではなく、現金という資産から投資という資産へ「移動」しただけだからです。PL（損益計算書）に載るのは、消費・費用として家計の外へ出ていったお金だけです。</p>
     <p>あとでBS（次の項）と突き合わせられるように、<strong>支払い方法の内訳</strong>も控えておきます。支出23万円のうち、<strong>家賃9万円は口座振替</strong>、<strong>残り14万円はクレジットカード払い</strong>だったとします。カード払いの14万円は<strong>翌月の引き落とし</strong>なので、今月はまだ預金から出ていきません。</p>
 
     <h3>② 貸借対照表（BS）＝月末時点の財産</h3>
@@ -160,6 +160,14 @@ footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--
     <figure class="fig"><img src="/img/pl-screen.webp" alt="収益と費用を集計した損益計算書（PL）画面" loading="lazy" width="1200" height="844"><figcaption>損益計算書（PL）。期間の収入・支出と収支が自動集計されます（アプリ実画面）</figcaption></figure>
 
     <p class="more">はじめる前に：<a href="/guide-start.html">口座と「いまの残高」の登録方法</a>（最初にここでつまずく人が多いポイントです）</p>
+    <h2>出典</h2>
+    <div class="callout">
+      <ul style="margin:0 0 0 1.2em">
+        <li>総務省統計局「<a href="https://www.stat.go.jp/data/kakei/2024np/index.html" target="_blank" rel="noopener">家計調査年報（家計収支編）2024年（令和6年）</a>」— 消費支出の月平均額（単身世帯169,547円／二人以上の世帯300,243円）。</li>
+      </ul>
+      <p style="margin:10px 0 0">本記事の金額は、BS・PLの関係を説明するために当サイトが作成した架空の例です。特定の世帯の実績を示すものではありません。</p>
+    </div>
+
     <div class="cta-box">
       <p>あなたの家計のBS・PLを、自動で作ってみませんか？</p>
       <a href="https://app.kurofukubo.com/?guest&utm_source=guide&utm_medium=article&utm_content=guide-bs-pl">無料で始める</a>

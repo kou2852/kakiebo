@@ -24,3 +24,30 @@
   gtag('js', new Date());
   gtag('config', ID);
 })();
+
+// LP→アプリ(app.kurofukubo.com)のCTAクリックを計測する。
+// GA4の拡張計測「外部リンクのクリック」は同一ルートドメイン宛には発火しないため、
+// kurofukubo.com → app.kurofukubo.com の遷移は自動では一切記録されない。ここで自前で送る。
+// ※ GA4管理画面で cta_app_start を「キーイベント」に指定して初めてCVとして数えられる。
+// ※ cta_location / cta_text はカスタム定義に登録しないとレポートに出ない（link_urlは組込ディメンション）。
+// ※ 送信はgtag.jsがページ離脱時に navigator.sendBeacon を使うため、遷移で欠落しない。
+(function () {
+  if (!window.gtag) return; // 自己除外(kk_noanalytics)でGAを読んでいない場合は何もしない
+  // index.htmlの4つのCTAは同じclass・同じURLで区別がつかないので、文書順の番号で位置を表す
+  // （1=ナビ, 2=ヒーロー, 3=本文下, 4=追従バー）。ガイド記事はidもclassの差も無いため同様。
+  function ctaList() {
+    return [].filter.call(document.querySelectorAll('a[href]'), function (x) {
+      return x.hostname === 'app.kurofukubo.com';
+    });
+  }
+  document.addEventListener('click', function (ev) {
+    var t = ev.target;
+    var a = t && t.closest && t.closest('a[href]');
+    if (!a || a.hostname !== 'app.kurofukubo.com') return;
+    window.gtag('event', 'cta_app_start', {
+      link_url: a.href,
+      cta_location: 'cta' + (ctaList().indexOf(a) + 1),
+      cta_text: (a.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60)
+    });
+  });
+})();
