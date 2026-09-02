@@ -65,6 +65,7 @@ export function AuthProvider({ children }) {
     redirectUri: oauth.redirectUri,
     signUp: (mail, password) => cognito.signUp(env, mail, password),
     confirmSignUp: (mail, code) => cognito.confirmSignUp(env, mail, code),
+    resendCode: (mail) => cognito.resendCode(env, mail),
     signOut: async () => { cognito.signOut(env); await oauth.clearOAuth(env); setEmail(null); setVia(null); },
     // アカウントの削除。サーバーの帳簿と Cognito ユーザーを消してから、この端末の
     // セッションを落とす。端末に残る帳簿の削除は呼び出し側が行う（消す順序を誤ると、

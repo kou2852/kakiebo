@@ -73,6 +73,35 @@ export function confirmSignUp(env, email, code) {
   });
 }
 
+// Cognito のエラーは英語で返る。日本語だけで配信するので、出す前に訳す。
+// 「メールアドレスが存在しない」と「パスワードが違う」は同じ文言にする。
+// 分けると、どのアドレスが登録済みかを外から総当たりで調べられてしまう。
+const MESSAGES = {
+  UsernameExistsException: 'このメールアドレスは登録済みです。ログインしてください。',
+  NotAuthorizedException: 'メールアドレスまたはパスワードが違います。',
+  UserNotFoundException: 'メールアドレスまたはパスワードが違います。',
+  UserNotConfirmedException: 'メールアドレスの確認が済んでいません。',
+  CodeMismatchException: '確認コードが違います。',
+  ExpiredCodeException: '確認コードの有効期限が切れています。送り直してください。',
+  InvalidPasswordException: 'パスワードが条件を満たしていません。8文字以上で、英小文字と数字を含めてください。',
+  InvalidParameterException: '入力の形式が正しくありません。',
+  LimitExceededException: '試行回数が多すぎます。しばらく時間をおいてください。',
+  TooManyRequestsException: '試行回数が多すぎます。しばらく時間をおいてください。',
+  NetworkError: '通信できませんでした。電波の良い場所で試してください。',
+};
+
+/** 表示用の文言。訳が無いものは原文のまま出す（隠すと原因が追えなくなる）。 */
+export function authMessage(e) {
+  return MESSAGES[e?.code || e?.name] || e?.message || String(e);
+}
+
+/** 確認コードの再送。メールが届かないと、そのアドレスは使えないまま詰む。 */
+export function resendCode(env, email) {
+  return new Promise((resolve, reject) => {
+    userFor(env, email).resendConfirmationCode((err) => (err ? reject(err) : resolve()));
+  });
+}
+
 /** 保存済みセッションから ID トークンを取り出す。無効なら null（期限切れは SDK が更新する）。 */
 export function currentIdToken(env) {
   return new Promise((resolve) => {
