@@ -1,10 +1,18 @@
-// 同期の状態と手動同期。
+// 同期の状態と手動同期、アカウントの削除。
+//
+// 削除をこの画面に置いているのは、App Store の審査要件（5.1.1(v)）で
+// 「アカウントを作れるアプリは、アプリ内から削除を開始できること」が求められ、
+// かつ見つけにくい場所に隠すことも認められていないため。
+// アカウントに関する操作はこの1画面に集めて、設定の先頭から辿れるようにしている。
+import { useState } from 'react';
 import { ActivityIndicator, Alert, Text, View } from 'react-native';
+import * as Updates from 'expo-updates';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/store/AuthProvider';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, Screen } from '../../src/components/ui';
+import { resetAll } from '../../src/db';
 
 function Row({ label, value }) {
   const t = useTheme();
@@ -21,6 +29,42 @@ export default function Sync() {
   const router = useRouter();
   const auth = useAuth();
   const d = useData();
+
+  const [deleting, setDeleting] = useState(false);
+
+  // サーバー → 端末の順で消す。逆にすると、サーバーの削除に失敗したときに
+  // 端末だけ空になり、次の同期でサーバーの内容が戻ってくる。
+  const doDelete = async () => {
+    setDeleting(true);
+    try {
+      await auth.deleteAccount();
+      // 端末に預けたデータ鍵（Keychain）も消す。ここを忘れると、消したはずの
+      // アカウントの鍵が端末に残る。
+      await d.forgetDek();
+      await resetAll();
+      // 消した直後の画面には、もう存在しない帳簿が残っている。読み込み直して確実に消す。
+      try {
+        await Updates.reloadAsync();
+      } catch {
+        Alert.alert('削除しました', 'アプリを再起動してください。');
+      }
+    } catch (e) {
+      Alert.alert('削除できません', e?.message || String(e));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const confirmDelete = () =>
+    Alert.alert(
+      'アカウントを削除しますか',
+      'サーバーに保存した帳簿とログイン情報をすべて削除します。'
+      + 'この端末に保存した帳簿も消えます。取り消せません。',
+      [
+        { text: 'やめる', style: 'cancel' },
+        { text: '削除する', style: 'destructive', onPress: doDelete },
+      ],
+    );
 
   const doSync = async () => {
     try {
@@ -62,6 +106,28 @@ export default function Sync() {
           オフライン中の変更は端末に溜まり、通信が戻ると自動で送られます。
         </Text>
       </Card>
+
+      {auth.signedIn ? (
+        <Card title="アカウントの削除">
+          <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 22 }}>
+            サーバーに保存した帳簿とログイン情報をすべて削除します。
+            この端末に保存した帳簿も一緒に消えます。取り消せません。
+          </Text>
+          {d.pendingCount ? (
+            <Text style={{ color: t.red, fontSize: 14 }}>
+              未送信の変更が {d.pendingCount} 件あります。これも消えます。
+            </Text>
+          ) : null}
+          {deleting ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <ActivityIndicator color={t.red} />
+              <Text style={{ color: t.tx2, fontSize: 15 }}>削除中…</Text>
+            </View>
+          ) : (
+            <Button label="アカウントを削除" variant="danger" onPress={confirmDelete} />
+          )}
+        </Card>
+      ) : null}
     </Screen>
   );
 }

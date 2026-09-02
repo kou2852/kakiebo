@@ -90,6 +90,9 @@ export function KpiRow({ children }) {
 export function Button({ label, onPress, variant = 'primary', disabled }) {
   const t = useTheme();
   const primary = variant === 'primary';
+  // 取り消せない操作は枠と文字を赤にする。塗りつぶしにはしない。
+  // 主操作と同じ重さで並ぶと、押すつもりのないものを押させてしまう。
+  const danger = variant === 'danger';
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -97,12 +100,14 @@ export function Button({ label, onPress, variant = 'primary', disabled }) {
       style={[{
         backgroundColor: primary ? t.ac : t.bg1,
         borderWidth: primary ? 0 : 1,
-        borderColor: t.bd2,
+        borderColor: danger ? t.red : t.bd2,
         opacity: disabled ? 0.4 : 1,
         borderRadius: 12, paddingVertical: 12, paddingHorizontal: 18, alignItems: 'center',
       }, primary ? t.shadow : null]}
     >
-      <Text style={{ color: primary ? t.acTx : t.tx2, fontWeight: '700', fontSize: 16 }}>{label}</Text>
+      <Text style={{ color: primary ? t.acTx : danger ? t.red : t.tx2, fontWeight: '700', fontSize: 16 }}>
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }

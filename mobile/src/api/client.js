@@ -45,6 +45,15 @@ export const inquiries = {
   send: (data) => request('/api/inquiries', { method: 'POST', body: JSON.stringify(data) }),
 };
 
+// アカウントの削除。サーバー側で帳簿データと Cognito ユーザーの両方を消す。
+// App Store の審査要件（5.1.1(v)）で、アプリ内から削除を開始できる必要がある。
+export const account = {
+  remove: (reason) => request('/api/account', {
+    method: 'DELETE',
+    ...(reason ? { body: JSON.stringify({ reason }) } : {}),
+  }),
+};
+
 // 暗号化していないユーザー向け（平文モード）
 export const data = {
   exportAll: () => request('/api/export'),

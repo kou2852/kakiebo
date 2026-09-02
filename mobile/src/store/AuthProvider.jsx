@@ -66,6 +66,15 @@ export function AuthProvider({ children }) {
     signUp: (mail, password) => cognito.signUp(env, mail, password),
     confirmSignUp: (mail, code) => cognito.confirmSignUp(env, mail, code),
     signOut: async () => { cognito.signOut(env); await oauth.clearOAuth(env); setEmail(null); setVia(null); },
+    // アカウントの削除。サーバーの帳簿と Cognito ユーザーを消してから、この端末の
+    // セッションを落とす。端末に残る帳簿の削除は呼び出し側が行う（消す順序を誤ると、
+    // サーバーだけ消えて端末に残り、次の同期で復活する）。
+    deleteAccount: async (reason) => {
+      await api.account.remove(reason);
+      cognito.signOut(env);
+      await oauth.clearOAuth(env);
+      setEmail(null); setVia(null);
+    },
     setEnv,
   }), [env, email, via, booting, setEnv]);
 
