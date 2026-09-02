@@ -11,12 +11,11 @@ import { Button, Card, Empty, Hero, Kpi, KpiRow, Screen } from '../../src/compon
 import PeriodBar, { usePeriod } from '../../src/components/PeriodBar';
 import Breakdown from '../../src/components/Breakdown';
 import Sparkline from '../../src/components/Sparkline';
-import { fa, faBal, fas, today, ymd } from '../../src/utils/format';
+import { fa, faBal, fas, today } from '../../src/utils/format';
 import {
   accountBalance, balanceSheet, calcBalances, filterByPeriod, isCashAccount,
   investmentSummary, monthlyTrend, netWorthTrend,
 } from '../../src/utils/bookkeeping';
-import { isCreditCard } from '../../src/utils/creditCard';
 import { dueRecurring, pendingCC } from '../../src/utils/autoGen';
 
 export default function Dashboard() {
@@ -54,13 +53,14 @@ export default function Dashboard() {
   }, [accounts, journals, period]);
 
   // 口座別の残高。売掛金や固定資産まで並べても「どこにいくらあるか」は分からないので、
-  // 口座として登録したものとクレジットカードだけに絞る。
-  // 口座を1つも登録していないときは、現金・預金の科目で代用する。
+  // 口座として登録したものに絞る。登録が無ければ現金・預金の科目で代用する。
+  // カードはここに出さない。負債であって「どこにいくらあるか」の答えにならないうえ、
+  // 利用状況・締め・引落は専用のクレジット画面で見るほうが正確に分かる。
   const byAccount = useMemo(() => {
     const end = period.end > today() ? today() : period.end;
     const bal = calcBalances(journals.filter((j) => j.date <= end), accounts);
     const walletIds = new Set((wallets || []).map((w) => w.accountId));
-    const target = (a) => (walletIds.size ? walletIds.has(a.id) : isCashAccount(a)) || isCreditCard(a);
+    const target = (a) => (walletIds.size ? walletIds.has(a.id) : isCashAccount(a));
     return accounts
       .filter(target)
       .map((a) => ({ id: a.id, name: a.name, type: a.type, amount: accountBalance(a.id, accounts, bal) }))
@@ -73,26 +73,10 @@ export default function Dashboard() {
   const dueCards = useMemo(() => pendingCC(accounts, journals).filter((x) => x.due), [accounts, journals]);
   const dueRec = useMemo(() => dueRecurring(recurring, journals), [recurring, journals]);
 
-  // 実査の状況。調整仕訳の日付から「最後に実残高と突き合わせた日」を科目ごとに引く。
-  // 帳簿が現実と合っているかの指標なので、資産管理では収支より上位に置く。
-  const auditLimit = ymd(new Date(new Date(today()).getTime() - 90 * 86400000));
-  const audit = useMemo(() => {
-    const targets = accounts.filter((a) => a.type === 'asset' || a.type === 'liability');
-    const limit = auditLimit;
-    const re = /^(残高調整|評価替え): (.+)$/;
-    const last = {};
-    journals.forEach((j) => {
-      const m = (j.desc || '').match(re);
-      if (!m) return;
-      const a = accounts.find((x) => x.name === m[2]);
-      if (a && (!last[a.id] || j.date > last[a.id])) last[a.id] = j.date;
-    });
-    const done = targets.filter((a) => last[a.id] && last[a.id] >= limit).length;
-    return { done, total: targets.length };
-  }, [accounts, journals, auditLimit]);
-
-  const worth = useMemo(() => netWorthTrend(journals, accounts, 6), [journals, accounts]);
-  const trend = useMemo(() => monthlyTrend(journals, accounts, 6), [journals, accounts]);
+  // 推移は必ず期間の終端を基準にする。ここを今日で固定していたため、
+  // 期間を先月に変えても純資産だけ動いて前月比が変わらなかった。
+  const worth = useMemo(() => netWorthTrend(journals, accounts, 6, m.end), [journals, accounts, m.end]);
+  const trend = useMemo(() => monthlyTrend(journals, accounts, 6, m.end), [journals, accounts, m.end]);
   const investments = useMemo(() => investmentSummary(journals, accounts), [journals, accounts]);
 
   // 予算のある費目だけ、消化率の高い順に。全部並べると予算を見ている意味が薄れる。
@@ -132,14 +116,14 @@ export default function Dashboard() {
       {dueCards.length || dueRec.length ? (
         <Card title="未記帳の自動取引">
           {dueCards.length ? (
-            <Text style={{ color: t.red, fontSize: 14 }}>
+            <Text style={{ color: t.red, fontSize: 15 }}>
               カードの引き落とし {dueCards.length} 件（{fa(dueCards.reduce((s, x) => s + x.cycle.usage, 0))}）
             </Text>
           ) : null}
           {dueRec.length ? (
-            <Text style={{ color: t.tx2, fontSize: 14 }}>定期取引 {dueRec.length} 件</Text>
+            <Text style={{ color: t.tx2, fontSize: 15 }}>定期取引 {dueRec.length} 件</Text>
           ) : null}
-          <Text style={{ color: t.tx3, fontSize: 12 }}>記帳しないと残高が実態とずれます。</Text>
+          <Text style={{ color: t.tx3, fontSize: 13 }}>記帳しないと残高が実態とずれます。</Text>
           {dueCards.length ? <Button label="クレジットを開く" onPress={() => router.push('/credit')} /> : null}
           {dueRec.length ? <Button label="定期取引を開く" variant="ghost" onPress={() => router.push('/manage/recurring')} /> : null}
         </Card>
@@ -165,7 +149,7 @@ export default function Dashboard() {
               <View style={{ flex: Math.max(m.netWorth, 0), backgroundColor: t.ac }} />
               <View style={{ flex: Math.max(m.liability, 0), backgroundColor: t.red }} />
             </View>
-            <Text style={{ color: t.tx3, fontSize: 12 }}>
+            <Text style={{ color: t.tx3, fontSize: 13 }}>
               自己資本比率 {((m.netWorth / m.asset) * 100).toFixed(1)}%
             </Text>
           </>
@@ -173,7 +157,7 @@ export default function Dashboard() {
       </Card>
 
       {byAccount.length ? (
-        <Card title="口座・カードの残高">
+        <Card title="口座の残高">
           {byAccount.map((x) => (
             <View key={x.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 }}>
@@ -181,33 +165,14 @@ export default function Dashboard() {
                   width: 7, height: 7, borderRadius: 4,
                   backgroundColor: x.type === 'asset' ? t.ac : t.red,
                 }} />
-                <Text style={{ color: t.tx2, fontSize: 13 }} numberOfLines={1}>{x.name}</Text>
+                <Text style={{ color: t.tx2, fontSize: 14 }} numberOfLines={1}>{x.name}</Text>
               </View>
-              <Text style={{ color: t.tx, fontSize: 13.5, fontWeight: '600' }}>{faBal(x.amount)}</Text>
+              <Text style={{ color: t.tx, fontSize: 14.5, fontWeight: '600' }}>{faBal(x.amount)}</Text>
             </View>
           ))}
-          <Text style={{ color: t.tx3, fontSize: 12 }}>
-            ● 資産 / ● 負債（{m.end === today() ? '今日' : m.end} 時点）
+          <Text style={{ color: t.tx3, fontSize: 13 }}>
+            {m.end === today() ? '今日' : m.end} 時点の残高です。
           </Text>
-        </Card>
-      ) : null}
-
-      {audit.total ? (
-        <Card title="実査の状況">
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={{ color: t.tx2, fontSize: 13 }}>確認済み {audit.done}/{audit.total} 口座</Text>
-            {audit.total - audit.done ? (
-              <Text style={{ color: t.red, fontSize: 13 }}>未確認 {audit.total - audit.done} 口座</Text>
-            ) : null}
-          </View>
-          <View style={{ height: 5, borderRadius: 3, backgroundColor: t.bg3, overflow: 'hidden', flexDirection: 'row' }}>
-            <View style={{ flex: audit.done, backgroundColor: t.ac }} />
-            <View style={{ flex: audit.total - audit.done, backgroundColor: t.red, opacity: 0.55 }} />
-          </View>
-          <Text style={{ color: t.tx3, fontSize: 12 }}>
-            90日以内に実残高と突き合わせた口座の数です。
-          </Text>
-          <Button label="実査・評価替えを開く" variant="ghost" onPress={() => router.push('/manage/reconcile')} />
         </Card>
       ) : null}
 
@@ -225,8 +190,8 @@ export default function Dashboard() {
             return (
               <View key={b.name} style={{ gap: 4 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <Text style={{ color: t.tx2, fontSize: 13 }}>{b.name}</Text>
-                  <Text style={{ color: over ? t.red : t.tx2, fontSize: 13 }}>{fa(b.used)} / {fa(b.budget)}</Text>
+                  <Text style={{ color: t.tx2, fontSize: 14 }}>{b.name}</Text>
+                  <Text style={{ color: over ? t.red : t.tx2, fontSize: 14 }}>{fa(b.used)} / {fa(b.budget)}</Text>
                 </View>
                 <View style={{ height: 5, borderRadius: 3, backgroundColor: t.bg3, overflow: 'hidden' }}>
                   <View style={{ width: `${pct}%`, height: '100%', backgroundColor: over ? t.red : t.ac }} />
@@ -238,7 +203,8 @@ export default function Dashboard() {
       ) : null}
 
       <Card title="支出内訳">
-        <Breakdown items={m.expenses.map((x) => ({ label: x.name, value: x.amount }))}
+        <Breakdown pie centerSub={`${period.label}の支出`}
+          items={m.expenses.map((x) => ({ label: x.name, value: x.amount }))}
           emptyText="この期間の支出はまだありません" />
       </Card>
 
@@ -247,12 +213,12 @@ export default function Dashboard() {
           {investments.map((r) => (
             <View key={r.account.id} style={{ gap: 2 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ color: t.tx2, fontSize: 13 }}>{r.account.name}</Text>
-                <Text style={{ color: t.tx, fontSize: 14, fontWeight: '700' }}>{faBal(r.value)}</Text>
+                <Text style={{ color: t.tx2, fontSize: 14 }}>{r.account.name}</Text>
+                <Text style={{ color: t.tx, fontSize: 15, fontWeight: '700' }}>{faBal(r.value)}</Text>
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ color: t.tx3, fontSize: 12 }}>元本 {faBal(r.principal)}</Text>
-                <Text style={{ color: r.gain >= 0 ? t.grn : t.red, fontSize: 12 }}>
+                <Text style={{ color: t.tx3, fontSize: 13 }}>元本 {faBal(r.principal)}</Text>
+                <Text style={{ color: r.gain >= 0 ? t.grn : t.red, fontSize: 13 }}>
                   {fas(r.gain)}（{(r.rate * 100).toFixed(1)}%）
                 </Text>
               </View>
@@ -268,8 +234,8 @@ function Row({ label, value, accent }) {
   const t = useTheme();
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-      <Text style={{ color: t.tx2, fontSize: 13 }}>{label}</Text>
-      <Text style={{ color: accent ? t.ac : t.tx, fontSize: 13.5, fontWeight: accent ? '800' : '600' }}>{value}</Text>
+      <Text style={{ color: t.tx2, fontSize: 14 }}>{label}</Text>
+      <Text style={{ color: accent ? t.ac : t.tx, fontSize: 14.5, fontWeight: accent ? '800' : '600' }}>{value}</Text>
     </View>
   );
 }
@@ -288,7 +254,7 @@ function Bars({ data, color }) {
             backgroundColor: d.value < 0 ? t.red : color,
             borderRadius: 3,
           }} />
-          <Text style={{ color: t.tx3, fontSize: 12 }}>{d.label}</Text>
+          <Text style={{ color: t.tx3, fontSize: 13 }}>{d.label}</Text>
         </View>
       ))}
     </View>

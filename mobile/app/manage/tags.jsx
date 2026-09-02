@@ -63,11 +63,11 @@ export default function Tags() {
           <TouchableOpacity key={g.id} onPress={() => setEditing({ ...g })} onLongPress={() => remove(g)}
             style={[{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11 }, sep(t)]}>
             <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: g.color || t.ac }} />
-            <Text style={{ color: t.tx, fontSize: 15 }}>{g.name}</Text>
+            <Text style={{ color: t.tx, fontSize: 16 }}>{g.name}</Text>
           </TouchableOpacity>
         ))}
       </Card>
-      <Text style={{ color: t.tx3, fontSize: 12, textAlign: 'center' }}>タップで編集・長押しで削除</Text>
+      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>タップで編集・長押しで削除</Text>
     </Screen>
   );
 }

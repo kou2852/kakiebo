@@ -70,7 +70,7 @@ export default function Inquiry() {
     return (
       <Screen>
         <Card title="ログインが必要です">
-          <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 20 }}>
+          <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 22 }}>
             問い合わせはアカウントに紐づくスレッドとしてやり取りします。設定からログインしてください。
           </Text>
         </Card>
@@ -89,7 +89,7 @@ export default function Inquiry() {
             style={{ height: 110, textAlignVertical: 'top' }} />
         </Field>
         <Button label={busy ? '送信中…' : '送信'} onPress={send} disabled={busy || !body.trim()} />
-        <Text style={{ color: t.tx3, fontSize: 12, lineHeight: 18 }}>
+        <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
           メールアドレスは不要です。返信はこの画面に届きます。
           家計の中身は運営からは見えないので、必要な情報は本文に書いてください。
         </Text>
@@ -101,7 +101,7 @@ export default function Inquiry() {
         <Empty text="やり取りはまだありません" />
       ) : items.map((it) => (
         <Card key={it.id} title={it.subject || '(件名なし)'}>
-          <Text style={{ color: t.tx3, fontSize: 12 }}>{fmt(it.createdAt)}</Text>
+          <Text style={{ color: t.tx3, fontSize: 13 }}>{fmt(it.createdAt)}</Text>
 
           {(it.messages || []).map((m, i) => (
             <View key={i} style={{
@@ -109,10 +109,10 @@ export default function Inquiry() {
               borderWidth: 1, borderColor: m.from === 'staff' ? t.ac : t.bd,
               borderRadius: 9, padding: 10, gap: 3,
             }}>
-              <Text style={{ color: m.from === 'staff' ? t.ac : t.tx3, fontSize: 12, fontWeight: '700' }}>
+              <Text style={{ color: m.from === 'staff' ? t.ac : t.tx3, fontSize: 13, fontWeight: '700' }}>
                 {m.from === 'staff' ? '運営' : 'あなた'}  {fmt(m.createdAt)}
               </Text>
-              <Text style={{ color: t.tx, fontSize: 14, lineHeight: 19 }}>{m.body}</Text>
+              <Text style={{ color: t.tx, fontSize: 15, lineHeight: 21 }}>{m.body}</Text>
             </View>
           ))}
 

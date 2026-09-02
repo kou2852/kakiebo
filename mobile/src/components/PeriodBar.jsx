@@ -40,19 +40,19 @@ export default function PeriodBar({ period }) {
           <Input
             value={custom.start} onChangeText={(v) => setCustom((c) => ({ ...c, start: v }))}
             placeholder="開始 YYYY-MM-DD" keyboardType="numbers-and-punctuation"
-            style={{ flex: 1, paddingVertical: 7, fontSize: 13 }}
+            style={{ flex: 1, paddingVertical: 7, fontSize: 14 }}
           />
           <Text style={{ color: t.tx3 }}>〜</Text>
           <Input
             value={custom.end} onChangeText={(v) => setCustom((c) => ({ ...c, end: v }))}
             placeholder="終了 YYYY-MM-DD" keyboardType="numbers-and-punctuation"
-            style={{ flex: 1, paddingVertical: 7, fontSize: 13 }}
+            style={{ flex: 1, paddingVertical: 7, fontSize: 14 }}
           />
         </View>
       ) : (
         // いま何を見ているかを必ず出す。期間を変えられる画面では、
         // 数字だけ見て別の期間だと気づかない事故が起きやすい。
-        <Text style={{ color: t.tx3, fontSize: 12 }}>
+        <Text style={{ color: t.tx3, fontSize: 13 }}>
           {mode === 'all' ? '全期間' : `${start} 〜 ${end}`}
         </Text>
       )}

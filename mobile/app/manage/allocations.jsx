@@ -41,24 +41,24 @@ export default function Allocations() {
         return (
           <Card key={r.account.id} title={r.account.name}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ color: t.tx2, fontSize: 13 }}>残高</Text>
-              <Text style={{ color: t.tx, fontSize: 14, fontWeight: '700' }}>{faBal(r.bal)}</Text>
+              <Text style={{ color: t.tx2, fontSize: 14 }}>残高</Text>
+              <Text style={{ color: t.tx, fontSize: 15, fontWeight: '700' }}>{faBal(r.bal)}</Text>
             </View>
             {tags.map((g) => (
               <View key={g.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: g.color || t.ac }} />
-                <Text style={{ color: t.tx2, fontSize: 14, flex: 1 }}>{g.name}</Text>
+                <Text style={{ color: t.tx2, fontSize: 15, flex: 1 }}>{g.name}</Text>
                 <Input
                   value={val(r.account.id, g.id)}
                   onChangeText={(v) => setVal(r.account.id, g.id, v)}
                   keyboardType="number-pad" placeholder="0"
-                  style={{ width: 110, textAlign: 'right', paddingVertical: 7 }}
+                  style={{ width: 132, textAlign: 'right', paddingVertical: 7 }}
                 />
               </View>
             ))}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: t.bd, paddingTop: 8 }}>
-              <Text style={{ color: t.tx2, fontSize: 13 }}>未配分</Text>
-              <Text style={{ color: free < 0 ? t.red : t.tx, fontSize: 14, fontWeight: '700' }}>
+              <Text style={{ color: t.tx2, fontSize: 14 }}>未配分</Text>
+              <Text style={{ color: free < 0 ? t.red : t.tx, fontSize: 15, fontWeight: '700' }}>
                 {faBal(free)}{free < 0 ? '（配分超過）' : ''}
               </Text>
             </View>
@@ -67,7 +67,7 @@ export default function Allocations() {
       })}
 
       <Button label="保存" onPress={commit} />
-      <Text style={{ color: t.tx3, fontSize: 12, lineHeight: 18 }}>
+      <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
         配分は残高を動かしません。「この口座のうち、いくらを何に取っておくか」という目安です。
       </Text>
     </Screen>

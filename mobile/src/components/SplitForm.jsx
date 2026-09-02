@@ -80,17 +80,17 @@ export default function SplitForm({ initial, onSubmit, submitLabel = '保存', o
               <Input
                 value={String(l.amount)} onChangeText={(v) => setLine(l.key, { amount: v })}
                 keyboardType="number-pad" placeholder="0"
-                style={{ flex: 1, textAlign: 'right', fontSize: 17, fontWeight: '700' }}
+                style={{ flex: 1, textAlign: 'right', fontSize: 18, fontWeight: '700' }}
               />
               {diff !== 0 && ((side === 'dr' && diff < 0) || (side === 'cr' && diff > 0)) ? (
                 <TouchableOpacity onPress={() => fillDiff(l.key)}
                   style={{ borderWidth: 1, borderColor: t.ac, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 11 }}>
-                  <Text style={{ color: t.ac, fontSize: 12, fontWeight: '700' }}>差額 {fa(diff)}</Text>
+                  <Text style={{ color: t.ac, fontSize: 13, fontWeight: '700' }}>差額 {fa(diff)}</Text>
                 </TouchableOpacity>
               ) : null}
               {rows.length > 1 ? (
                 <TouchableOpacity onPress={() => removeLine(l.key)} style={{ padding: 7 }}>
-                  <Text style={{ color: t.red, fontSize: 16 }}>×</Text>
+                  <Text style={{ color: t.red, fontSize: 17 }}>×</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -124,21 +124,21 @@ export default function SplitForm({ initial, onSubmit, submitLabel = '保存', o
 
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Text style={{ color: t.tx2, fontSize: 14 }}>借方合計</Text>
-          <Text style={{ color: t.tx, fontSize: 14, fontWeight: '700' }}>{fa(drTotal)}</Text>
+          <Text style={{ color: t.tx2, fontSize: 15 }}>借方合計</Text>
+          <Text style={{ color: t.tx, fontSize: 15, fontWeight: '700' }}>{fa(drTotal)}</Text>
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Text style={{ color: t.tx2, fontSize: 14 }}>貸方合計</Text>
-          <Text style={{ color: t.tx, fontSize: 14, fontWeight: '700' }}>{fa(crTotal)}</Text>
+          <Text style={{ color: t.tx2, fontSize: 15 }}>貸方合計</Text>
+          <Text style={{ color: t.tx, fontSize: 15, fontWeight: '700' }}>{fa(crTotal)}</Text>
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: t.bd, paddingTop: 8 }}>
-          <Text style={{ color: t.tx2, fontSize: 14 }}>差額</Text>
-          <Text style={{ color: diff === 0 ? t.grn : t.red, fontSize: 15, fontWeight: '800' }}>
+          <Text style={{ color: t.tx2, fontSize: 15 }}>差額</Text>
+          <Text style={{ color: diff === 0 ? t.grn : t.red, fontSize: 16, fontWeight: '800' }}>
             {diff === 0 ? '一致' : fas(diff)}
           </Text>
         </View>
         {diff !== 0 ? (
-          <Text style={{ color: t.tx3, fontSize: 12 }}>
+          <Text style={{ color: t.tx3, fontSize: 13 }}>
             借方と貸方が一致しないと保存できません。複式簿記では必ず同額になります。
           </Text>
         ) : null}

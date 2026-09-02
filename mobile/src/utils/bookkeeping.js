@@ -202,13 +202,22 @@ export function computeTagBalances(journals, accounts) {
 /**
  * 月次推移データ生成（直近N ヶ月）。
  */
-export function monthlyTrend(journals, accounts, months = 6) {
-  const now = new Date();
+/** 'YYYY-MM-DD' を現地日付の Date にする。省略時は今日。 */
+function asOfDate(asOf) {
+  if (!asOf) return new Date();
+  const [y, m, d] = String(asOf).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+export function monthlyTrend(journals, accounts, months = 6, asOf) {
+  const base = asOfDate(asOf);
   const data = [];
   for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
     const start = fmt(d);
-    const end = fmt(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+    // 最新の月は基準日で切る。基準日より先の仕訳まで混ぜると期間の意味が壊れる。
+    const monthEnd = fmt(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+    const end = i === 0 && asOf && asOf < monthEnd ? asOf : monthEnd;
     const mj = filterByPeriod(journals, start, end);
     const bal = calcBalances(mj, accounts);
     const income = accounts
@@ -226,12 +235,14 @@ export function monthlyTrend(journals, accounts, months = 6) {
  * 月末純資産の推移（直近N ヶ月）。各月末時点の累計残高から 資産−負債 を算出。
  * @returns {Array<{label:string, net:number}>}
  */
-export function netWorthTrend(journals, accounts, months = 6) {
-  const now = new Date();
+export function netWorthTrend(journals, accounts, months = 6, asOf) {
+  const base = asOfDate(asOf);
   const data = [];
   for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const end = fmt(new Date(d.getFullYear(), d.getMonth() + 1, 0)); // その月の末日
+    const d = new Date(base.getFullYear(), base.getMonth() - i, 1);
+    const monthEnd = fmt(new Date(d.getFullYear(), d.getMonth() + 1, 0)); // その月の末日
+    // 直近の点だけは基準日そのもの。ヒーローに出す純資産と数字を一致させる。
+    const end = i === 0 && asOf && asOf < monthEnd ? asOf : monthEnd;
     const upto = journals.filter((j) => j.date <= end);
     const bal = calcBalances(upto, accounts);
     const asset = accounts.filter((a) => a.type === 'asset').reduce((s, a) => s + accountBalance(a.id, accounts, bal), 0);

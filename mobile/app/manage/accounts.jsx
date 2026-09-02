@@ -70,7 +70,7 @@ export default function Accounts() {
 
         {editing.type === 'liability' ? (
           <Card title="クレジットカードの設定（任意）">
-            <Text style={{ color: t.tx3, fontSize: 12, lineHeight: 18 }}>
+            <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
               締め日・引落日・引落口座をすべて入れると、レポートの「カード」に締めから引き落としまでのサイクルが出ます。
             </Text>
             <Field label="締め日（1〜31）">
@@ -112,16 +112,16 @@ export default function Accounts() {
               <TouchableOpacity key={a.id} onPress={() => setEditing({ ...a })} onLongPress={() => remove(a)}
                 style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 9 }, sep(t)]}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: t.tx, fontSize: 14 }}>{a.name}</Text>
-                  <Text style={{ color: t.tx3, fontSize: 12 }}>{a.code}{a.sys ? ' · 既定' : ''}</Text>
+                  <Text style={{ color: t.tx, fontSize: 15 }}>{a.name}</Text>
+                  <Text style={{ color: t.tx3, fontSize: 13 }}>{a.code}{a.sys ? ' · 既定' : ''}</Text>
                 </View>
-                <Text style={{ color: t.tx2, fontSize: 14 }}>{faBal(accountBalance(a.id, accounts, balances))}</Text>
+                <Text style={{ color: t.tx2, fontSize: 15 }}>{faBal(accountBalance(a.id, accounts, balances))}</Text>
               </TouchableOpacity>
             ))}
           </Card>
         );
       })}
-      <Text style={{ color: t.tx3, fontSize: 12, textAlign: 'center' }}>タップで編集・長押しで削除</Text>
+      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>タップで編集・長押しで削除</Text>
     </Screen>
   );
 }

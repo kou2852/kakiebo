@@ -81,7 +81,7 @@ export default function Settings() {
         { label: '端末のデータを消去', sub: 'この端末に保存した帳簿を削除します', danger: true, onPress: confirmReset },
       ]} />
 
-      <Text style={{ color: t.tx3, fontSize: 12.5, textAlign: 'center' }}>
+      <Text style={{ color: t.tx3, fontSize: 13.5, textAlign: 'center' }}>
         kurofukubo v0.1.0 · build {BUILD_STAMP}
       </Text>
     </Screen>

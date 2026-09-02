@@ -51,14 +51,14 @@ export default function Wallets() {
         {wallets.length === 0 ? <Empty text="口座がありません" /> : wallets.map((w) => (
           <TouchableOpacity key={w.id} onPress={() => setEditing({ ...w })} onLongPress={() => remove(w)}
             style={[{ paddingVertical: 11 }, sep(t)]}>
-            <Text style={{ color: t.tx, fontSize: 15 }}>{w.name}</Text>
-            <Text style={{ color: t.tx3, fontSize: 12 }}>
+            <Text style={{ color: t.tx, fontSize: 16 }}>{w.name}</Text>
+            <Text style={{ color: t.tx3, fontSize: 13 }}>
               {accounts.find((a) => a.id === w.accountId)?.name || '(科目なし)'}
             </Text>
           </TouchableOpacity>
         ))}
       </Card>
-      <Text style={{ color: t.tx3, fontSize: 12, textAlign: 'center' }}>タップで編集・長押しで削除</Text>
+      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>タップで編集・長押しで削除</Text>
     </Screen>
   );
 }

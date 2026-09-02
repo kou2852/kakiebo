@@ -38,7 +38,7 @@ export default function EditJournal() {
         />
       ) : (
         <Card>
-          <Text style={{ color: t.tx2, fontSize: 13, lineHeight: 19 }}>
+          <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 21 }}>
             借方・貸方が複数行ある仕訳です。行ごとに科目と金額を編集できます。
           </Text>
         </Card>

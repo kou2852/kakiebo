@@ -128,7 +128,7 @@ export default function JournalForm({ initial, onSubmit, submitLabel = '保存',
 
       <Button label={submitLabel} onPress={submit} disabled={!ok} />
       {onDelete ? <Button label="この仕訳を削除" variant="ghost" onPress={onDelete} /> : null}
-      <Text style={{ color: t.tx3, fontSize: 12, textAlign: 'center' }}>
+      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>
         オフラインでも保存されます（端末内 → 接続時に自動同期）
       </Text>
     </>

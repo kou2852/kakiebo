@@ -31,7 +31,7 @@ export default function Reminder() {
     <Screen>
       <Card title="毎日のリマインダー">
         <ChipRow options={TIMES.map((v) => ({ value: v, label: v }))} value={time} onChange={choose} />
-        <Text style={{ color: t.tx3, fontSize: 12.5, lineHeight: 18 }}>
+        <Text style={{ color: t.tx3, fontSize: 13.5, lineHeight: 20 }}>
           {time ? `毎日 ${time} に通知します。もう一度押すと解除します。` : '設定されていません。'}
           {'\n'}端末内で予約する通知です。家計データが外部に出ることはありません。
         </Text>

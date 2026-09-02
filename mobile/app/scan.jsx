@@ -56,11 +56,11 @@ export default function Scan() {
     return (
       <Screen>
         <Card title="この機能は使えません">
-          <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 20 }}>
+          <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 22 }}>
             文字認識のモジュールが入っていないビルドです。JS の更新だけでは有効になりません。
             TestFlight で新しいビルドに更新してください。
           </Text>
-          <Text style={{ color: t.tx3, fontSize: 12 }}>現在の JS: {BUILD_STAMP}</Text>
+          <Text style={{ color: t.tx3, fontSize: 13 }}>現在の JS: {BUILD_STAMP}</Text>
         </Card>
       </Screen>
     );
@@ -72,7 +72,7 @@ export default function Scan() {
   return (
     <Screen>
       <Card title="撮って記帳">
-        <Text style={{ color: t.tx2, fontSize: 13, lineHeight: 19 }}>
+        <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 21 }}>
           レシート、カードの利用控え、口座の残高画面。読み取りは端末内で行い、画像は外部に送りません。
         </Text>
         <Button label="カメラで撮る" onPress={() => run(true)} disabled={busy} />
@@ -89,7 +89,7 @@ export default function Scan() {
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <ActivityIndicator color={t.ac} />
-            <Text style={{ color: t.tx2, fontSize: 14 }}>読み取り中…</Text>
+            <Text style={{ color: t.tx2, fontSize: 15 }}>読み取り中…</Text>
           </View>
         </Card>
       ) : null}
@@ -100,13 +100,13 @@ export default function Scan() {
             <Row label="日付" value={result.date || '読み取れず'} ok={!!result.date} />
             <Row label="合計" value={result.amount ? fa(result.amount) : '読み取れず'} ok={!!result.amount} />
             <Row label="店名" value={result.store || '読み取れず'} ok={!!result.store} />
-            <Text style={{ color: t.tx3, fontSize: 12 }}>
+            <Text style={{ color: t.tx3, fontSize: 13 }}>
               必ず内容を確認してください。読み違いをそのまま記帳すると帳簿がずれます。
             </Text>
             <Button label={showLines ? '読み取った文字を隠す' : '読み取った文字を見る'} variant="ghost"
               onPress={() => setShowLines((v) => !v)} />
             {showLines ? (
-              <Text selectable style={{ color: t.tx3, fontSize: 12, lineHeight: 15 }}>
+              <Text selectable style={{ color: t.tx3, fontSize: 13, lineHeight: 17 }}>
                 {result.lines.join(String.fromCharCode(10))}
               </Text>
             ) : null}
@@ -140,8 +140,8 @@ function Row({ label, value, ok }) {
   const t = useTheme();
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-      <Text style={{ color: t.tx2, fontSize: 14 }}>{label}</Text>
-      <Text style={{ color: ok ? t.tx : t.red, fontSize: 14, fontWeight: '600' }}>{value}</Text>
+      <Text style={{ color: t.tx2, fontSize: 15 }}>{label}</Text>
+      <Text style={{ color: ok ? t.tx : t.red, fontSize: 15, fontWeight: '600' }}>{value}</Text>
     </View>
   );
 }

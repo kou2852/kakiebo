@@ -54,7 +54,7 @@ export default function Guide() {
     <Screen>
       {SECTIONS.map((s) => (
         <Card key={s.title} title={s.title}>
-          <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 21 }}>{s.body}</Text>
+          <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 23 }}>{s.body}</Text>
         </Card>
       ))}
       <View style={{ height: 8 }} />

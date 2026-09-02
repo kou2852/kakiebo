@@ -40,7 +40,7 @@ function MonthGrid({ month, setMonth, journals, accounts, onSelect }) {
         <TouchableOpacity onPress={() => shift(-1)} style={{ padding: 8 }}>
           <Text style={{ color: t.ac, fontSize: 18, fontWeight: '700' }}>‹</Text>
         </TouchableOpacity>
-        <Text style={{ color: t.tx, fontSize: 15, fontWeight: '700' }}>{label}</Text>
+        <Text style={{ color: t.tx, fontSize: 16, fontWeight: '700' }}>{label}</Text>
         <TouchableOpacity onPress={() => shift(1)} style={{ padding: 8 }}>
           <Text style={{ color: t.ac, fontSize: 18, fontWeight: '700' }}>›</Text>
         </TouchableOpacity>
@@ -48,7 +48,7 @@ function MonthGrid({ month, setMonth, journals, accounts, onSelect }) {
 
       <View style={{ flexDirection: 'row' }}>
         {WEEK.map((w, i) => (
-          <Text key={w} style={{ flex: 1, textAlign: 'center', fontSize: 12, color: i === 0 ? t.red : i === 6 ? t.blu : t.tx3 }}>{w}</Text>
+          <Text key={w} style={{ flex: 1, textAlign: 'center', fontSize: 13, color: i === 0 ? t.red : i === 6 ? t.blu : t.tx3 }}>{w}</Text>
         ))}
       </View>
 
@@ -67,12 +67,12 @@ function MonthGrid({ month, setMonth, journals, accounts, onSelect }) {
                 width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center',
                 backgroundColor: isToday ? t.ac : 'transparent',
               }}>
-                <Text style={{ color: isToday ? t.acTx : t.tx, fontSize: 14, fontWeight: isToday ? '700' : '400' }}>
+                <Text style={{ color: isToday ? t.acTx : t.tx, fontSize: 15, fontWeight: isToday ? '700' : '400' }}>
                   {Number(date.slice(8, 10))}
                 </Text>
               </View>
               {amount ? (
-                <Text style={{ color: t.tx2, fontSize: 11 }} numberOfLines={1}>
+                <Text style={{ color: t.tx2, fontSize: 12.5 }} numberOfLines={1}>
                   {amount >= 10000 ? `${Math.round(amount / 1000)}k` : amount}
                 </Text>
               ) : null}
@@ -146,16 +146,16 @@ export default function Ledger() {
             backgroundColor: checked.has(item.id) ? t.ac : 'transparent',
             alignItems: 'center', justifyContent: 'center',
           }}>
-            {checked.has(item.id) ? <Text style={{ color: t.acTx, fontSize: 12, fontWeight: '800' }}>✓</Text> : null}
+            {checked.has(item.id) ? <Text style={{ color: t.acTx, fontSize: 13, fontWeight: '800' }}>✓</Text> : null}
           </View>
         ) : null}
         <View style={{ flex: 1, gap: 3 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={{ color: t.tx3, fontSize: 12 }}>{item.date}</Text>
-            <Text style={{ color: t.tx, fontSize: 15, fontWeight: '700' }}>{fa(total)}</Text>
+            <Text style={{ color: t.tx3, fontSize: 13 }}>{item.date}</Text>
+            <Text style={{ color: t.tx, fontSize: 16, fontWeight: '700' }}>{fa(total)}</Text>
           </View>
-          <Text style={{ color: t.tx, fontSize: 14 }} numberOfLines={1}>{item.desc || '(摘要なし)'}</Text>
-          <Text style={{ color: t.tx2, fontSize: 13 }} numberOfLines={1}>
+          <Text style={{ color: t.tx, fontSize: 15 }} numberOfLines={1}>{item.desc || '(摘要なし)'}</Text>
+          <Text style={{ color: t.tx2, fontSize: 14 }} numberOfLines={1}>
             {drs.map((l) => name[l.accountId] || '?').join('・')}
             <Text style={{ color: t.tx3 }}>  ←  </Text>
             {crs.map((l) => name[l.accountId] || '?').join('・')}
@@ -189,7 +189,7 @@ export default function Ledger() {
           renderItem={({ item }) => renderRow(item, false)}
           ListFooterComponent={
             rows.length ? (
-              <Text style={{ color: t.tx3, fontSize: 12, textAlign: 'center', padding: 16 }}>
+              <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center', padding: 16 }}>
                 タップで編集・長押しで削除
               </Text>
             ) : null
@@ -206,12 +206,12 @@ export default function Ledger() {
           {picking ? (
             <>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                <Text style={{ color: t.ac, fontSize: 14, fontWeight: '700', flex: 1 }}>{checked.size} 件を選択中</Text>
+                <Text style={{ color: t.ac, fontSize: 15, fontWeight: '700', flex: 1 }}>{checked.size} 件を選択中</Text>
                 <TouchableOpacity onPress={() => setChecked(new Set(rows.map((j) => j.id)))}>
-                  <Text style={{ color: t.ac, fontSize: 14 }}>すべて</Text>
+                  <Text style={{ color: t.ac, fontSize: 15 }}>すべて</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={endPicking}>
-                  <Text style={{ color: t.tx2, fontSize: 14 }}>やめる</Text>
+                  <Text style={{ color: t.tx2, fontSize: 15 }}>やめる</Text>
                 </TouchableOpacity>
               </View>
               <Button label={`選択した ${checked.size} 件をまとめて編集`} disabled={!checked.size}

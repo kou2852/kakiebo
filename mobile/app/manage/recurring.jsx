@@ -122,7 +122,7 @@ export default function Recurring() {
       {due.length ? (
         <Card title="期日が来ています">
           {due.map((d) => (
-            <Text key={d.id} style={{ color: t.tx2, fontSize: 14 }}>{d.name}（{d.date}）</Text>
+            <Text key={d.id} style={{ color: t.tx2, fontSize: 15 }}>{d.name}（{d.date}）</Text>
           ))}
           <Button label={`${due.length} 件を記帳する`} onPress={generate} />
         </Card>
@@ -133,18 +133,18 @@ export default function Recurring() {
         {recurring.length === 0 ? <Empty text="定期取引がありません" /> : recurring.map((r) => (
           <TouchableOpacity key={r.id} onPress={() => startEdit(r)} onLongPress={() => remove(r)}
             style={[{ paddingVertical: 11 }, sep(t)]}>
-            <Text style={{ color: t.tx, fontSize: 15 }}>
+            <Text style={{ color: t.tx, fontSize: 16 }}>
               {r.name}
               <Text style={{ color: t.tx2, fontWeight: '400' }}>  {fa(r.lines.find((l) => l.side === 'dr')?.amount || 0)}</Text>
             </Text>
-            <Text style={{ color: t.tx3, fontSize: 12 }}>
+            <Text style={{ color: t.tx3, fontSize: 13 }}>
               {FREQ.find((f) => f.value === r.frequency)?.label || r.frequency} · 次回 {r.nextDate} ·{' '}
               {name(r.lines.find((l) => l.side === 'dr')?.accountId)} ← {name(r.lines.find((l) => l.side === 'cr')?.accountId)}
             </Text>
           </TouchableOpacity>
         ))}
       </Card>
-      <Text style={{ color: t.tx3, fontSize: 12, textAlign: 'center' }}>タップで編集・長押しで削除</Text>
+      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>タップで編集・長押しで削除</Text>
     </Screen>
   );
 }

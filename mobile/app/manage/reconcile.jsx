@@ -90,7 +90,7 @@ export default function Reconcile() {
   return (
     <Screen>
       <ChipRow options={MODES} value={mode} onChange={setMode} />
-      <Text style={{ color: t.tx3, fontSize: 12, lineHeight: 18 }}>
+      <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
         {mode === 'cash'
           ? '通帳や財布の実際の残高を入れると、帳簿との差額を雑費／雑収入で調整します。手入力の漏れはここで吸収します。'
           : '証券口座などの現在の時価を入れると、帳簿価額との差額を評価損益で調整します。'}
@@ -106,35 +106,35 @@ export default function Reconcile() {
         return (
           <Card key={a.id} title={a.name}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ color: t.tx2, fontSize: 13 }}>{mode === 'valuation' ? '帳簿価額' : '帳簿残高'}</Text>
-              <Text style={{ color: t.tx, fontSize: 15, fontWeight: '700' }}>{faBal(book)}</Text>
+              <Text style={{ color: t.tx2, fontSize: 14 }}>{mode === 'valuation' ? '帳簿価額' : '帳簿残高'}</Text>
+              <Text style={{ color: t.tx, fontSize: 16, fontWeight: '700' }}>{faBal(book)}</Text>
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Text style={{ color: t.tx2, fontSize: 13, flex: 1 }}>{mode === 'valuation' ? '現在の時価' : '実際の残高'}</Text>
+              <Text style={{ color: t.tx2, fontSize: 14, flex: 1 }}>{mode === 'valuation' ? '現在の時価' : '実際の残高'}</Text>
               <Input
                 value={String(raw)}
                 onChangeText={(v) => setActual((s) => ({ ...s, [a.id]: v }))}
                 keyboardType="numbers-and-punctuation" placeholder="0"
-                style={{ width: 140, textAlign: 'right', paddingVertical: 7 }}
+                style={{ width: 160, textAlign: 'right', paddingVertical: 7 }}
               />
             </View>
 
             {hasInput ? (
               diff === 0 ? (
-                <Text style={{ color: t.grn, fontSize: 13 }}>一致しています。記帳は不要です。</Text>
+                <Text style={{ color: t.grn, fontSize: 14 }}>一致しています。記帳は不要です。</Text>
               ) : (
                 <>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ color: t.tx2, fontSize: 13 }}>差額</Text>
-                    <Text style={{ color: diff > 0 ? t.grn : t.red, fontSize: 15, fontWeight: '700' }}>{fas(diff)}</Text>
+                    <Text style={{ color: t.tx2, fontSize: 14 }}>差額</Text>
+                    <Text style={{ color: diff > 0 ? t.grn : t.red, fontSize: 16, fontWeight: '700' }}>{fas(diff)}</Text>
                   </View>
                   <Button label={`${fa(diff)} を調整する`} onPress={() => commit(a, book, diff)} />
                 </>
               )
             ) : null}
 
-            <Text style={{ color: t.tx3, fontSize: 12 }}>
+            <Text style={{ color: t.tx3, fontSize: 13 }}>
               {lastAdjusted[a.id] ? `前回の調整 ${lastAdjusted[a.id]}` : '調整の記録はありません'}
             </Text>
           </Card>

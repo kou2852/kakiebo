@@ -24,10 +24,10 @@ export default function Security() {
     <Screen>
       <Card title="アプリロック">
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <Text style={{ color: t.tx, fontSize: 14.5, flex: 1 }}>Face ID でロック</Text>
+          <Text style={{ color: t.tx, fontSize: 15.5, flex: 1 }}>Face ID でロック</Text>
           <Switch value={on} onValueChange={toggle} disabled={!available} trackColor={{ true: t.ac }} />
         </View>
-        <Text style={{ color: t.tx3, fontSize: 12.5, lineHeight: 18 }}>
+        <Text style={{ color: t.tx3, fontSize: 13.5, lineHeight: 20 }}>
           {available
             ? '起動時と、1分以上離れて戻ったときに認証を求めます。帳簿は端末内に保存されているので、端末を他人に渡すときの備えになります。'
             : 'この端末では生体認証・パスコードが使えません。'}

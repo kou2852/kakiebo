@@ -10,8 +10,8 @@ function Row({ label, value }) {
   const t = useTheme();
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-      <Text style={{ color: t.tx2, fontSize: 14 }}>{label}</Text>
-      <Text style={{ color: t.tx, fontSize: 14, fontWeight: '600' }}>{value}</Text>
+      <Text style={{ color: t.tx2, fontSize: 15 }}>{label}</Text>
+      <Text style={{ color: t.tx, fontSize: 15, fontWeight: '600' }}>{value}</Text>
     </View>
   );
 }
@@ -44,9 +44,9 @@ export default function Sync() {
       <Card title="同期">
         <Row label="未送信の変更" value={`${d.pendingCount} 件`} />
         {d.lastSync?.error ? (
-          <Text style={{ color: t.red, fontSize: 13 }}>前回の同期に失敗: {d.lastSync.error}</Text>
+          <Text style={{ color: t.red, fontSize: 14 }}>前回の同期に失敗: {d.lastSync.error}</Text>
         ) : d.lastSync ? (
-          <Text style={{ color: t.tx3, fontSize: 12.5 }}>
+          <Text style={{ color: t.tx3, fontSize: 13.5 }}>
             前回の同期: {new Date(d.lastSync.at).toLocaleString('ja-JP')}
             {d.lastSync.notes?.length ? `（${d.lastSync.notes.join(' / ')}）` : ''}
           </Text>
@@ -54,12 +54,12 @@ export default function Sync() {
         {d.syncing ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <ActivityIndicator color={t.ac} />
-            <Text style={{ color: t.tx2, fontSize: 14 }}>同期中…</Text>
+            <Text style={{ color: t.tx2, fontSize: 15 }}>同期中…</Text>
           </View>
         ) : (
           <Button label="いま同期する" onPress={doSync} disabled={!auth.signedIn} />
         )}
-        <Text style={{ color: t.tx3, fontSize: 12.5 }}>
+        <Text style={{ color: t.tx3, fontSize: 13.5 }}>
           オフライン中の変更は端末に溜まり、通信が戻ると自動で送られます。
         </Text>
       </Card>

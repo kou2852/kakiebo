@@ -46,16 +46,16 @@ export default function QuickEntryBar({ initialText = '', onSaved, autoFocus }) 
       />
       {parsed ? (
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ color: t.tx2, fontSize: 14, flex: 1 }} numberOfLines={1}>
+          <Text style={{ color: t.tx2, fontSize: 15, flex: 1 }} numberOfLines={1}>
             {parsed.drAcct.name}
             <Text style={{ color: t.tx3 }}>{'  ←  '}</Text>
             {parsed.crAcct.name}
             {parsed.desc ? <Text style={{ color: t.tx3 }}>{`  ${parsed.desc}`}</Text> : null}
           </Text>
-          <Text style={{ color: t.tx, fontSize: 15, fontWeight: '700' }}>{fa(parsed.amount)}</Text>
+          <Text style={{ color: t.tx, fontSize: 16, fontWeight: '700' }}>{fa(parsed.amount)}</Text>
         </View>
       ) : (
-        <Text style={{ color: t.tx3, fontSize: 12 }}>
+        <Text style={{ color: t.tx3, fontSize: 13 }}>
           「費目 金額 支払方法」の順。科目名は一部でも通ります。/ の後ろは摘要。
         </Text>
       )}

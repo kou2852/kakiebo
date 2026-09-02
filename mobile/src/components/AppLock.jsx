@@ -47,7 +47,7 @@ export default function AppLock({ children }) {
     return (
       <View style={{ flex: 1, backgroundColor: t.bg0, alignItems: 'center', justifyContent: 'center', gap: 18, padding: 30 }}>
         <Text style={{ color: t.tx, fontSize: 20, fontWeight: '800' }}>ロック中</Text>
-        <Text style={{ color: t.tx2, fontSize: 14, textAlign: 'center' }}>
+        <Text style={{ color: t.tx2, fontSize: 15, textAlign: 'center' }}>
           Face ID または端末のパスコードで解除してください。
         </Text>
         <View style={{ width: 200 }}>

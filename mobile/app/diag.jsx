@@ -104,7 +104,7 @@ export default function Diag() {
   return (
     <Screen>
       <Card title="これは何">
-        <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 20 }}>
+        <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 22 }}>
           Web版（kurofukubo.com）で暗号化した実データを、このアプリが同じ鍵で復号できるかを実機で確認します。
           あわせて鍵導出の所要時間を測ります。数秒〜数十秒かかることがあります。
         </Text>
@@ -117,29 +117,29 @@ export default function Diag() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <ActivityIndicator color={t.ac} />
             <View style={{ flex: 1 }}>
-              <Text style={{ color: t.tx, fontSize: 14, fontWeight: '600' }}>{current}</Text>
+              <Text style={{ color: t.tx, fontSize: 15, fontWeight: '600' }}>{current}</Text>
               <Text style={{ color: t.ac, fontSize: 22, fontWeight: '800' }}>{(elapsed / 1000).toFixed(1)} 秒</Text>
             </View>
           </View>
-          <Text style={{ color: t.tx3, fontSize: 12 }}>この数字が動いていれば処理は進んでいます</Text>
+          <Text style={{ color: t.tx3, fontSize: 13 }}>この数字が動いていれば処理は進んでいます</Text>
         </Card>
       ) : null}
 
       {results.map((r) => (
         <Card key={r.name}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}>
-            <Text style={{ color: t.tx, fontSize: 14, fontWeight: '600', flex: 1 }}>
+            <Text style={{ color: t.tx, fontSize: 15, fontWeight: '600', flex: 1 }}>
               {r.ok ? '✅' : '❌'} {r.name}
             </Text>
-            <Text style={{ color: t.tx3, fontSize: 13 }}>{(r.ms / 1000).toFixed(2)}s</Text>
+            <Text style={{ color: t.tx3, fontSize: 14 }}>{(r.ms / 1000).toFixed(2)}s</Text>
           </View>
-          <Text style={{ color: r.ok ? t.tx2 : t.red, fontSize: 13 }}>{r.detail}</Text>
+          <Text style={{ color: r.ok ? t.tx2 : t.red, fontSize: 14 }}>{r.detail}</Text>
         </Card>
       ))}
 
       {kdf?.ok ? (
         <Card title="判定">
-          <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 20 }}>
+          <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 22 }}>
             解錠にかかる時間は <Text style={{ color: t.tx, fontWeight: '700' }}>{(kdf.ms / 1000).toFixed(1)}秒</Text>。
             {kdf.ms < 2500
               ? ' 実用に足ります（純JSでは 138秒でした）。'
@@ -156,17 +156,17 @@ export default function Diag() {
         <Row2 label="作成日時" value={Updates.createdAt ? new Date(Updates.createdAt).toLocaleString('ja-JP') : '—'} />
 
         <Button label="いま更新を確認して取得" onPress={checkUpdate} disabled={upd?.busy} />
-        {upd?.busy ? <Text style={{ color: t.tx2, fontSize: 13 }}>確認中…</Text> : null}
+        {upd?.busy ? <Text style={{ color: t.tx2, fontSize: 14 }}>確認中…</Text> : null}
         {upd?.found === true ? (
           <>
-            <Text style={{ color: t.grn, fontSize: 13 }}>新しい更新を取得しました。</Text>
+            <Text style={{ color: t.grn, fontSize: 14 }}>新しい更新を取得しました。</Text>
             <Button label="いますぐ適用して再起動" onPress={() => Updates.reloadAsync()} />
           </>
         ) : null}
         {upd?.found === false ? (
-          <Text style={{ color: t.tx2, fontSize: 13 }}>新しい更新はありません（すでに最新）。</Text>
+          <Text style={{ color: t.tx2, fontSize: 14 }}>新しい更新はありません（すでに最新）。</Text>
         ) : null}
-        {upd?.error ? <Text style={{ color: t.red, fontSize: 13 }}>{upd.error}</Text> : null}
+        {upd?.error ? <Text style={{ color: t.red, fontSize: 14 }}>{upd.error}</Text> : null}
       </Card>
     </Screen>
   );
@@ -176,8 +176,8 @@ function Row2({ label, value }) {
   const t = useTheme();
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}>
-      <Text style={{ color: t.tx2, fontSize: 13 }}>{label}</Text>
-      <Text style={{ color: t.tx, fontSize: 13, fontWeight: '600', flex: 1, textAlign: 'right' }}
+      <Text style={{ color: t.tx2, fontSize: 14 }}>{label}</Text>
+      <Text style={{ color: t.tx, fontSize: 14, fontWeight: '600', flex: 1, textAlign: 'right' }}
         numberOfLines={1}>{value}</Text>
     </View>
   );

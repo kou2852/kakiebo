@@ -61,7 +61,7 @@ export default function CreditBody() {
   if (!cards.length) {
     return (
       <Card title="クレジットカードが未設定です">
-          <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 20 }}>
+          <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 22 }}>
             負債の勘定科目に「締め日・引落日・引落口座」を設定すると、利用と引き落としのサイクルが
             ここにまとまります。
           </Text>
@@ -118,18 +118,18 @@ export default function CreditBody() {
           <View key={c.id} style={{ width: pageW, gap: 9, marginRight: GAP }}>
             {/* カード本体。締め・引落の条件と未払残高を1枚に収める */}
             <View style={{ borderRadius: 16, padding: 15, backgroundColor: '#26314e' }}>
-              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }} numberOfLines={1}>{c.name}</Text>
-              <Text style={{ color: 'rgba(255,255,255,.65)', fontSize: 12, marginTop: 3 }}>
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }} numberOfLines={1}>{c.name}</Text>
+              <Text style={{ color: 'rgba(255,255,255,.65)', fontSize: 13, marginTop: 3 }}>
                 {c.ccClose}日締 → {(c.ccDelay || 1) > 1 ? '翌々月' : '翌月'}{c.ccDay}日引落
               </Text>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 18 }}>
                 <View>
-                  <Text style={{ color: 'rgba(255,255,255,.6)', fontSize: 12 }}>未払残高</Text>
+                  <Text style={{ color: 'rgba(255,255,255,.6)', fontSize: 13 }}>未払残高</Text>
                   <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>{fa(outstanding)}</Text>
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={{ color: 'rgba(255,255,255,.6)', fontSize: 12 }}>引落口座</Text>
-                  <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>{name(c.ccFrom)}</Text>
+                  <Text style={{ color: 'rgba(255,255,255,.6)', fontSize: 13 }}>引落口座</Text>
+                  <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>{name(c.ccFrom)}</Text>
                 </View>
               </View>
             </View>
@@ -166,7 +166,7 @@ export default function CreditBody() {
                 <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 92 }}>
                   {[...cycles].reverse().map((cy) => (
                     <View key={cy.periodEnd} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
-                      <Text style={{ color: t.tx3, fontSize: 12 }} numberOfLines={1}>
+                      <Text style={{ color: t.tx3, fontSize: 13 }} numberOfLines={1}>
                         {cy.usage >= 10000 ? `${Math.round(cy.usage / 1000)}k` : cy.usage}
                       </Text>
                       <View style={{
@@ -175,7 +175,7 @@ export default function CreditBody() {
                         borderRadius: 3,
                         backgroundColor: cy.status === 'unsettled' ? t.red : cy.status === 'open' ? t.tx3 : t.ac,
                       }} />
-                      <Text style={{ color: t.tx3, fontSize: 12 }}>{Number(cy.periodEnd.slice(5, 7))}月</Text>
+                      <Text style={{ color: t.tx3, fontSize: 13 }}>{Number(cy.periodEnd.slice(5, 7))}月</Text>
                     </View>
                   ))}
                 </View>
@@ -201,23 +201,23 @@ export default function CreditBody() {
                       style={[{ paddingVertical: 10, paddingHorizontal: 14, gap: 3 }, sep(t)]}
                     >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <Text style={{ color: t.tx2, fontSize: 12.5 }}>{cy.periodStart} 〜 {cy.periodEnd}</Text>
-                        <Text style={{ color: t.tx, fontSize: 14, fontWeight: '700' }}>{fa(cy.usage)}</Text>
+                        <Text style={{ color: t.tx2, fontSize: 13.5 }}>{cy.periodStart} 〜 {cy.periodEnd}</Text>
+                        <Text style={{ color: t.tx, fontSize: 15, fontWeight: '700' }}>{fa(cy.usage)}</Text>
                       </View>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <Text style={{ color: t[st.key], fontSize: 12 }}>
+                        <Text style={{ color: t[st.key], fontSize: 13 }}>
                           {st.label}
                           {cy.items.length ? <Text style={{ color: t.tx3 }}>{`  ${cy.items.length}件 ${isOpen ? '▲' : '▼'}`}</Text> : null}
                         </Text>
-                        <Text style={{ color: t.tx3, fontSize: 12 }}>引落 {cy.settleDate}</Text>
+                        <Text style={{ color: t.tx3, fontSize: 13 }}>引落 {cy.settleDate}</Text>
                       </View>
                     </TouchableOpacity>
 
                     {isOpen ? cy.items.map((it, i) => (
                       <View key={i} style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, paddingHorizontal: 14, backgroundColor: t.bg0 }, sep(t)]}>
-                        <Text style={{ color: t.tx3, fontSize: 12, width: 62 }}>{it.date.slice(5)}</Text>
-                        <Text style={{ color: t.tx2, fontSize: 12.5, flex: 1 }} numberOfLines={1}>{it.desc || '(摘要なし)'}</Text>
-                        <Text style={{ color: t.tx, fontSize: 12.5 }}>{fa(it.amount)}</Text>
+                        <Text style={{ color: t.tx3, fontSize: 13, width: 56 }}>{it.date.slice(5)}</Text>
+                        <Text style={{ color: t.tx2, fontSize: 13.5, flex: 1 }} numberOfLines={1}>{it.desc || '(摘要なし)'}</Text>
+                        <Text style={{ color: t.tx, fontSize: 13.5 }}>{fa(it.amount)}</Text>
                       </View>
                     )) : null}
                   </View>
@@ -236,8 +236,8 @@ function Stat({ label, value, color }) {
   const t = useTheme();
   return (
     <View style={{ flex: 1, gap: 3 }}>
-      <Text style={{ color: t.tx3, fontSize: 12 }} numberOfLines={1}>{label}</Text>
-      <Text style={{ color: color || t.tx, fontSize: 16, fontWeight: '800' }} numberOfLines={1} adjustsFontSizeToFit>
+      <Text style={{ color: t.tx3, fontSize: 13 }} numberOfLines={1}>{label}</Text>
+      <Text style={{ color: color || t.tx, fontSize: 17, fontWeight: '800' }} numberOfLines={1} adjustsFontSizeToFit>
         {value}
       </Text>
     </View>

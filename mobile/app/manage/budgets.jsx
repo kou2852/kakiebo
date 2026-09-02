@@ -41,12 +41,12 @@ export default function Budgets() {
           return (
             <View key={a.id} style={{ gap: 5, paddingVertical: 6 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Text style={{ color: t.tx, fontSize: 14, flex: 1 }}>{a.name}</Text>
+                <Text style={{ color: t.tx, fontSize: 15, flex: 1 }}>{a.name}</Text>
                 <Input
                   value={draft[a.id]}
                   onChangeText={(v) => setDraft((d) => ({ ...d, [a.id]: v }))}
                   keyboardType="number-pad" placeholder="0"
-                  style={{ width: 110, textAlign: 'right', paddingVertical: 7 }}
+                  style={{ width: 132, textAlign: 'right', paddingVertical: 7 }}
                 />
               </View>
               {budget ? (
@@ -54,7 +54,7 @@ export default function Budgets() {
                   <View style={{ height: 5, borderRadius: 3, backgroundColor: t.bg3, overflow: 'hidden' }}>
                     <View style={{ width: `${pct}%`, height: '100%', backgroundColor: over ? t.red : t.ac }} />
                   </View>
-                  <Text style={{ color: over ? t.red : t.tx3, fontSize: 12 }}>
+                  <Text style={{ color: over ? t.red : t.tx3, fontSize: 13 }}>
                     実績 {fa(used)} / 予算 {fa(budget)}{over ? `  ${fa(used - budget)} 超過` : ''}
                   </Text>
                 </>
@@ -64,7 +64,7 @@ export default function Budgets() {
         })}
       </Card>
       <Button label="保存" onPress={commit} />
-      <Text style={{ color: t.tx3, fontSize: 12, textAlign: 'center' }}>0 にすると予算なしになります</Text>
+      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>0 にすると予算なしになります</Text>
     </Screen>
   );
 }

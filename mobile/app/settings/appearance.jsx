@@ -11,7 +11,7 @@ export default function Appearance() {
     <Screen>
       <Card title="配色">
         <Segmented options={MODES} value={theme.mode} onChange={theme.setMode} />
-        <Text style={{ color: t.tx3, fontSize: 12.5 }}>
+        <Text style={{ color: t.tx3, fontSize: 13.5 }}>
           いま {theme.resolved === 'light' ? 'ライト' : 'ダーク'} で表示しています。
           「端末に合わせる」は iOS の外観設定に追随します。
         </Text>

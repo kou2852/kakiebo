@@ -94,13 +94,13 @@ export default function Presets() {
         {presets.length === 0 ? <Empty text="プリセットがありません" /> : presets.map((p) => (
           <TouchableOpacity key={p.id} onPress={() => startEdit(p)} onLongPress={() => remove(p)}
             style={[{ paddingVertical: 11 }, sep(t)]}>
-            <Text style={{ color: t.tx, fontSize: 15 }}>
+            <Text style={{ color: t.tx, fontSize: 16 }}>
               {p.name}
               {p.lines.find((l) => l.side === 'dr')?.amount
                 ? <Text style={{ color: t.tx2, fontWeight: '400' }}>{`  ${fa(p.lines.find((l) => l.side === 'dr').amount)}`}</Text>
                 : null}
             </Text>
-            <Text style={{ color: t.tx3, fontSize: 12 }}>
+            <Text style={{ color: t.tx3, fontSize: 13 }}>
               {name(p.lines.find((l) => l.side === 'dr')?.accountId)}
               {'  ←  '}
               {name(p.lines.find((l) => l.side === 'cr')?.accountId)}
@@ -108,7 +108,7 @@ export default function Presets() {
           </TouchableOpacity>
         ))}
       </Card>
-      <Text style={{ color: t.tx3, fontSize: 12, textAlign: 'center' }}>タップで編集・長押しで削除</Text>
+      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>タップで編集・長押しで削除</Text>
     </Screen>
   );
 }

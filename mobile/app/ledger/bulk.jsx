@@ -61,8 +61,8 @@ export default function BulkEdit() {
   return (
     <Screen>
       <Card>
-        <Text style={{ color: t.tx, fontSize: 14, fontWeight: '700' }}>{targets.length} 件を選択中</Text>
-        <Text style={{ color: t.tx3, fontSize: 12 }}>入力した項目だけを変更します。空欄はそのままです。</Text>
+        <Text style={{ color: t.tx, fontSize: 15, fontWeight: '700' }}>{targets.length} 件を選択中</Text>
+        <Text style={{ color: t.tx3, fontSize: 13 }}>入力した項目だけを変更します。空欄はそのままです。</Text>
       </Card>
 
       <Card title="変更する内容">

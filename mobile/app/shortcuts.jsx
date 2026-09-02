@@ -45,7 +45,7 @@ export default function Shortcuts() {
   return (
     <Screen>
       <Card title="プリセットのリンク">
-        <Text style={{ color: t.tx2, fontSize: 13, lineHeight: 19 }}>
+        <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 21 }}>
           タップするとURLをコピーします。ショートカットAppの「URLを開く」に貼れば、
           ホーム画面・背面タップ・Siri のどれからでも呼び出せます。
         </Text>
@@ -57,13 +57,13 @@ export default function Shortcuts() {
             <TouchableOpacity key={p.id} onPress={() => copy(p)}
               style={[{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11 }, sep(t)]}>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: t.tx, fontSize: 15 }}>
+                <Text style={{ color: t.tx, fontSize: 16 }}>
                   {p.name}
                   {amount > 0 ? <Text style={{ color: t.tx2, fontWeight: '400' }}>{`  ${fa(amount)}`}</Text> : null}
                 </Text>
-                <Text style={{ color: t.tx3, fontSize: 12 }} numberOfLines={1}>{presetUrl(p)}</Text>
+                <Text style={{ color: t.tx3, fontSize: 13 }} numberOfLines={1}>{presetUrl(p)}</Text>
               </View>
-              <Text style={{ color: copied === p.id ? t.grn : t.ac, fontSize: 13, fontWeight: '700' }}>
+              <Text style={{ color: copied === p.id ? t.grn : t.ac, fontSize: 14, fontWeight: '700' }}>
                 {copied === p.id ? 'コピー済' : 'コピー'}
               </Text>
             </TouchableOpacity>
@@ -73,7 +73,7 @@ export default function Shortcuts() {
       </Card>
 
       <Card title="金額まで決めておくと1タップになります">
-        <Text style={{ color: t.tx2, fontSize: 13, lineHeight: 19 }}>
+        <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 21 }}>
           プリセットに「既定の金額」を入れておくと、開いた時点で金額まで埋まります。
           自販機や駐車場のように毎回同じ額のものは、確認して保存を押すだけで終わります。
         </Text>
@@ -81,7 +81,7 @@ export default function Shortcuts() {
 
       {STEPS.map((s) => (
         <Card key={s.title} title={s.title}>
-          <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 21 }}>{s.body}</Text>
+          <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 23 }}>{s.body}</Text>
         </Card>
       ))}
 

@@ -123,16 +123,16 @@ export default function Encryption() {
   };
 
   if (!auth.signedIn) {
-    return <Screen><Card><Text style={{ color: t.tx2, fontSize: 14 }}>先にアカウントへ接続してください。</Text></Card></Screen>;
+    return <Screen><Card><Text style={{ color: t.tx2, fontSize: 15 }}>先にアカウントへ接続してください。</Text></Card></Screen>;
   }
-  if (!state) return <Screen><Card><Text style={{ color: t.tx3, fontSize: 14 }}>確認中…</Text></Card></Screen>;
+  if (!state) return <Screen><Card><Text style={{ color: t.tx3, fontSize: 15 }}>確認中…</Text></Card></Screen>;
 
   // 発行直後のリカバリーキーはこの一度しか表示しない（サーバーにも平文では残らない）。
   if (recoveryKey) {
     return (
       <Screen>
         <Card title="リカバリーキー">
-          <Text style={{ color: t.red, fontSize: 14, lineHeight: 20 }}>
+          <Text style={{ color: t.red, fontSize: 15, lineHeight: 22 }}>
             この画面を離れると二度と表示できません。いま控えてください。
             パスフレーズを忘れた場合、これが唯一の復旧手段です。
           </Text>
@@ -150,26 +150,26 @@ export default function Encryption() {
     <Screen>
       <Card title="状態">
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Text style={{ color: t.tx2, fontSize: 14 }}>暗号化</Text>
-          <Text style={{ color: state.enabled ? t.grn : t.tx3, fontSize: 14, fontWeight: '700' }}>
+          <Text style={{ color: t.tx2, fontSize: 15 }}>暗号化</Text>
+          <Text style={{ color: state.enabled ? t.grn : t.tx3, fontSize: 15, fontWeight: '700' }}>
             {state.enabled ? '有効' : '無効'}
           </Text>
         </View>
         {state.enabled ? (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={{ color: t.tx2, fontSize: 14 }}>この端末</Text>
-            <Text style={{ color: d.unlocked ? t.grn : t.red, fontSize: 14, fontWeight: '700' }}>
+            <Text style={{ color: t.tx2, fontSize: 15 }}>この端末</Text>
+            <Text style={{ color: d.unlocked ? t.grn : t.red, fontSize: 15, fontWeight: '700' }}>
               {d.unlocked ? '解錠済み' : '未解錠'}
             </Text>
           </View>
         ) : null}
-        <Text style={{ color: t.tx3, fontSize: 12, lineHeight: 18 }}>
+        <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
           有効にすると、家計データは端末内で暗号化してから送られます。パスフレーズも鍵もサーバーへは送りません。
           失うと運営でも復旧できません。
         </Text>
       </Card>
 
-      {busy ? <Card><Text style={{ color: t.ac, fontSize: 14 }}>{busy}</Text></Card> : null}
+      {busy ? <Card><Text style={{ color: t.ac, fontSize: 15 }}>{busy}</Text></Card> : null}
 
       {!state.enabled ? (
         <Card title="暗号化を有効にする">
@@ -194,7 +194,7 @@ export default function Encryption() {
           </Card>
 
           <Card title="リカバリーキー">
-            <Text style={{ color: t.tx2, fontSize: 13, lineHeight: 19 }}>
+            <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 21 }}>
               控えを失くした場合は再発行できます。再発行すると古いキーは使えなくなります。
             </Text>
             <Button label="再発行する" variant="ghost" onPress={regen} disabled={!!busy} />

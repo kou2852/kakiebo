@@ -68,11 +68,11 @@ function BS({ r, end }) {
   if (!r.asset.length && !r.liab.length && !r.eq.length) return <Empty text="表示できるデータがありません" />;
   return (
     <>
-      <Text style={{ color: t.tx3, fontSize: 12 }}>{end === '2999-12-31' ? '今日時点' : `${end} 時点`}</Text>
+      <Text style={{ color: t.tx3, fontSize: 13 }}>{end === '2999-12-31' ? '今日時点' : `${end} 時点`}</Text>
       <Section title="資産" rows={r.asset} total={r.assetT} totalLabel="資産合計" />
       {r.asset.length ? (
         <Card title="資産の構成">
-          <Breakdown items={r.asset.map((x) => ({ label: x.name, value: x.amount }))} />
+          <Breakdown pie centerSub="資産合計" items={r.asset.map((x) => ({ label: x.name, value: x.amount }))} />
         </Card>
       ) : null}
       <Section title="負債" rows={r.liab} total={r.liabT} totalLabel="負債合計" />
@@ -80,7 +80,7 @@ function BS({ r, end }) {
       <Card title="差引純資産">
         <Text style={{ color: t.tx, fontSize: 26, fontWeight: '800' }}>{faBal(r.netWorth)}</Text>
         {r.asset.some((x) => x.reclassified) || r.liab.some((x) => x.reclassified) ? (
-          <Text style={{ color: t.tx3, fontSize: 12.5, lineHeight: 18 }}>
+          <Text style={{ color: t.tx3, fontSize: 13.5, lineHeight: 20 }}>
             残高の向きが区分と逆の科目は、実態に合わせて反対側に振り替えて表示しています
             （払いすぎたカードは資産、残高がマイナスの口座は負債）。
           </Text>
@@ -100,7 +100,7 @@ function PL({ r }) {
       <Section title="費用" rows={r.exp} total={r.expT} totalLabel="費用合計" />
       {r.exp.length ? (
         <Card title="費用の内訳">
-          <Breakdown items={r.exp.map((x) => ({ label: x.name, value: x.amount }))} />
+          <Breakdown pie centerSub="費用合計" items={r.exp.map((x) => ({ label: x.name, value: x.amount }))} />
         </Card>
       ) : null}
       <Card title="当期損益">
@@ -126,16 +126,16 @@ function CF({ cf, accounts }) {
       {Object.entries(CF_LABELS).map(([k, label]) => (
         <Card key={k} title={label}>
           {cf.items[k].length === 0 ? (
-            <Text style={{ color: t.tx3, fontSize: 13 }}>該当なし</Text>
+            <Text style={{ color: t.tx3, fontSize: 14 }}>該当なし</Text>
           ) : cf.items[k].map((x) => (
             <View key={x.accountId} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ color: t.tx2, fontSize: 14 }}>{name(x.accountId)}</Text>
-              <Text style={{ color: x.amount >= 0 ? t.grn : t.red, fontSize: 14, fontWeight: '600' }}>{fas(x.amount)}</Text>
+              <Text style={{ color: t.tx2, fontSize: 15 }}>{name(x.accountId)}</Text>
+              <Text style={{ color: x.amount >= 0 ? t.grn : t.red, fontSize: 15, fontWeight: '600' }}>{fas(x.amount)}</Text>
             </View>
           ))}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: t.bd, paddingTop: 8 }}>
-            <Text style={{ color: t.tx, fontSize: 14, fontWeight: '700' }}>小計</Text>
-            <Text style={{ color: t.ac, fontSize: 15, fontWeight: '800' }}>{fas(cf[k])}</Text>
+            <Text style={{ color: t.tx, fontSize: 15, fontWeight: '700' }}>小計</Text>
+            <Text style={{ color: t.ac, fontSize: 16, fontWeight: '800' }}>{fas(cf[k])}</Text>
           </View>
         </Card>
       ))}
@@ -153,16 +153,16 @@ function Section({ title, rows, total, totalLabel }) {
     <Card title={title}>
       {rows.map((r) => (
         <View key={r.id} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
-          <Text style={{ color: t.tx2, fontSize: 14, flex: 1 }} numberOfLines={1}>
+          <Text style={{ color: t.tx2, fontSize: 15, flex: 1 }} numberOfLines={1}>
             {r.name}
-            {r.reclassified ? <Text style={{ color: t.tx3, fontSize: 12 }}>（振替）</Text> : null}
+            {r.reclassified ? <Text style={{ color: t.tx3, fontSize: 13 }}>（振替）</Text> : null}
           </Text>
-          <Text style={{ color: t.tx, fontSize: 14, fontWeight: '600' }}>{faBal(r.amount)}</Text>
+          <Text style={{ color: t.tx, fontSize: 15, fontWeight: '600' }}>{faBal(r.amount)}</Text>
         </View>
       ))}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: t.bd, paddingTop: 8, marginTop: 2 }}>
-        <Text style={{ color: t.tx, fontSize: 14, fontWeight: '700' }}>{totalLabel}</Text>
-        <Text style={{ color: t.ac, fontSize: 15, fontWeight: '800' }}>{faBal(total)}</Text>
+        <Text style={{ color: t.tx, fontSize: 15, fontWeight: '700' }}>{totalLabel}</Text>
+        <Text style={{ color: t.ac, fontSize: 16, fontWeight: '800' }}>{faBal(total)}</Text>
       </View>
     </Card>
   );

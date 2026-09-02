@@ -64,7 +64,7 @@ export default function Sparkline({ data, height = 54, color = '#fff', labelColo
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
         {data.map((d, i) => (
-          <Text key={i} style={{ color: labelColor, fontSize: 11 }}>{d.label}</Text>
+          <Text key={i} style={{ color: labelColor, fontSize: 12.5 }}>{d.label}</Text>
         ))}
       </View>
     </View>

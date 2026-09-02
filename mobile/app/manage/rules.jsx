@@ -61,7 +61,7 @@ export default function Rules() {
     return (
       <Screen>
         <Card title={editing.id ? 'ルールを編集' : 'ルールを追加'}>
-          <Text style={{ color: t.tx3, fontSize: 12, lineHeight: 18 }}>
+          <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
             摘要にこの文字が含まれていれば、下の組み合わせで記帳します。部分一致です。
           </Text>
           <Field label="キーワード">
@@ -83,7 +83,7 @@ export default function Rules() {
   return (
     <Screen>
       <Card>
-        <Text style={{ color: t.tx2, fontSize: 13, lineHeight: 19 }}>
+        <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 21 }}>
           一行入力・CSV取込・レシート読み取りが、ここのルールを見て科目を決めます。
           登録するほど入力が速くなります。
         </Text>
@@ -92,7 +92,7 @@ export default function Rules() {
 
       {suggestions.length ? (
         <Card title="よく使う摘要（ルール未登録）">
-          <Text style={{ color: t.tx3, fontSize: 12 }}>タップするとキーワードに入れて作成します。</Text>
+          <Text style={{ color: t.tx3, fontSize: 13 }}>タップするとキーワードに入れて作成します。</Text>
           <ChipRow
             options={suggestions.map(([d, n]) => ({ value: d, label: `${d} (${n})` }))}
             value={null}
@@ -105,14 +105,14 @@ export default function Rules() {
         {(rules || []).length === 0 ? <Empty text="ルールがありません" /> : rules.map((r) => (
           <TouchableOpacity key={r.id} onPress={() => setEditing({ ...r })} onLongPress={() => remove(r)}
             style={[{ paddingVertical: 11 }, sep(t)]}>
-            <Text style={{ color: t.tx, fontSize: 15 }}>{r.keyword}</Text>
-            <Text style={{ color: t.tx3, fontSize: 12 }}>
+            <Text style={{ color: t.tx, fontSize: 16 }}>{r.keyword}</Text>
+            <Text style={{ color: t.tx3, fontSize: 13 }}>
               {name(r.drAccountId)} ← {name(r.crAccountId)}
             </Text>
           </TouchableOpacity>
         ))}
       </Card>
-      <Text style={{ color: t.tx3, fontSize: 12, textAlign: 'center' }}>タップで編集・長押しで削除</Text>
+      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>タップで編集・長押しで削除</Text>
     </Screen>
   );
 }

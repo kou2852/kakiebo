@@ -29,12 +29,12 @@ export default function Manage() {
         {ITEMS.map((i) => (
           <TouchableOpacity key={i.href} onPress={() => router.push(i.href)}
             style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 13 }, sep(t)]}>
-            <Text style={{ color: t.tx, fontSize: 15 }}>{i.label}</Text>
-            <Text style={{ color: t.tx3, fontSize: 14 }}>{i.count ? `${d[i.count].length} 件 ` : ''}›</Text>
+            <Text style={{ color: t.tx, fontSize: 16 }}>{i.label}</Text>
+            <Text style={{ color: t.tx3, fontSize: 15 }}>{i.count ? `${d[i.count].length} 件 ` : ''}›</Text>
           </TouchableOpacity>
         ))}
       </Card>
-      <Text style={{ color: t.tx3, fontSize: 12, lineHeight: 18 }}>
+      <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
         クレジットカードの締め日・引落日は、勘定科目（負債）の編集画面で設定します。
       </Text>
     </Screen>

@@ -169,26 +169,26 @@ export default function Csv() {
   return (
     <Screen>
       <Card title="書き出し">
-        <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 20 }}>
+        <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 22 }}>
           仕訳 {journals.length.toLocaleString('ja-JP')} 件を CSV ファイルとして書き出します。
         </Text>
         <Button label="CSV を書き出す" onPress={doExport} disabled={!journals.length} />
       </Card>
 
       <Card title="取込">
-        <Text style={{ color: t.tx2, fontSize: 13, lineHeight: 19 }}>
+        <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 21 }}>
           カード会社・銀行の明細をそのまま読めます。列の並びが不明なときは下で指定してください。
         </Text>
         <Button label="CSV ファイルを選ぶ" onPress={pickFile} />
         <Field label="または貼り付け">
           <Input value={text} onChangeText={setText} multiline placeholder="ここに貼り付け"
-            style={{ height: 100, textAlignVertical: 'top', fontSize: 13 }} />
+            style={{ height: 100, textAlignVertical: 'top', fontSize: 14 }} />
         </Field>
       </Card>
 
       {map && !known ? (
         <Card title="列の指定">
-          <Text style={{ color: t.tx3, fontSize: 12 }}>
+          <Text style={{ color: t.tx3, fontSize: 13 }}>
             {headerless ? '見出し行が無いため内容から推測しました。' : '見出しから推測しました。'}
             違っていれば選び直してください。指定はこのカードの形式として保存されます。
           </Text>
@@ -210,23 +210,23 @@ export default function Csv() {
       {preview ? (
         <>
           <Card title="読み取り結果">
-            <Text style={{ color: t.tx, fontSize: 14 }}>
+            <Text style={{ color: t.tx, fontSize: 15 }}>
               {preview.items.length} 件
               {preview.skipped > 0 ? <Text style={{ color: t.tx3 }}>（{preview.skipped} 行は対象外）</Text> : null}
             </Text>
             {preview.items.slice(0, 5).map((it, i) => (
               <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ color: t.tx2, fontSize: 13, flex: 1 }} numberOfLines={1}>{it.date} {it.desc}</Text>
-                <Text style={{ color: t.tx, fontSize: 13 }}>{fa(it.amount)}</Text>
+                <Text style={{ color: t.tx2, fontSize: 14, flex: 1 }} numberOfLines={1}>{it.date} {it.desc}</Text>
+                <Text style={{ color: t.tx, fontSize: 14 }}>{fa(it.amount)}</Text>
               </View>
             ))}
             {preview.items.length > 5 ? (
-              <Text style={{ color: t.tx3, fontSize: 12 }}>ほか {preview.items.length - 5} 件</Text>
+              <Text style={{ color: t.tx3, fontSize: 13 }}>ほか {preview.items.length - 5} 件</Text>
             ) : null}
           </Card>
 
           <Card title="科目が決まらない行に使う組み合わせ">
-            <Text style={{ color: t.tx3, fontSize: 12 }}>
+            <Text style={{ color: t.tx3, fontSize: 13 }}>
               摘要がルールに一致する行は、そちらが優先されます。
             </Text>
             <Field label="費目">

@@ -27,12 +27,12 @@ export default function AccountPicker({ label, accounts, value, onChange, placeh
         onPress={() => setOpen(true)}
         style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 10 }}
       >
-        <Text style={{ color: t.tx2, fontSize: 14, flex: 1 }}>{label}</Text>
-        <Text style={{ color: selected ? t.tx : t.tx3, fontSize: 14, fontWeight: selected ? '600' : '400' }}
+        <Text style={{ color: t.tx2, fontSize: 15, flex: 1 }}>{label}</Text>
+        <Text style={{ color: selected ? t.tx : t.tx3, fontSize: 15, fontWeight: selected ? '600' : '400' }}
           numberOfLines={1}>
           {selected ? selected.name : placeholder}
         </Text>
-        <Text style={{ color: t.tx3, fontSize: 15 }}>›</Text>
+        <Text style={{ color: t.tx3, fontSize: 16 }}>›</Text>
       </TouchableOpacity>
 
       <PickerSheet
@@ -78,9 +78,9 @@ function PickerSheet({ visible, onClose, title, accounts, value, onPick }) {
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: t.bg0 }}>
         <View style={[{ flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: t.bg1 }, sep(t)]}>
-          <Text style={{ color: t.tx, fontSize: 16, fontWeight: '700', flex: 1 }}>{title}</Text>
+          <Text style={{ color: t.tx, fontSize: 17, fontWeight: '700', flex: 1 }}>{title}</Text>
           <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
-            <Text style={{ color: t.ac, fontSize: 14, fontWeight: '600' }}>閉じる</Text>
+            <Text style={{ color: t.ac, fontSize: 15, fontWeight: '600' }}>閉じる</Text>
           </TouchableOpacity>
         </View>
 
@@ -94,7 +94,7 @@ function PickerSheet({ visible, onClose, title, accounts, value, onPick }) {
           keyExtractor={(r) => r.key}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
-            <Text style={{ color: t.tx3, fontSize: 14, textAlign: 'center', padding: 24 }}>
+            <Text style={{ color: t.tx3, fontSize: 15, textAlign: 'center', padding: 24 }}>
               一致する科目がありません
             </Text>
           }
@@ -102,7 +102,7 @@ function PickerSheet({ visible, onClose, title, accounts, value, onPick }) {
             if (item.header) {
               return (
                 <Text style={{
-                  color: t.tx3, fontSize: 12, fontWeight: '700', letterSpacing: 1,
+                  color: t.tx3, fontSize: 13, fontWeight: '700', letterSpacing: 1,
                   paddingHorizontal: 15, paddingTop: 16, paddingBottom: 6,
                 }}>{item.header}</Text>
               );
@@ -121,17 +121,17 @@ function PickerSheet({ visible, onClose, title, accounts, value, onPick }) {
                 }, sep(t)]}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: on ? t.ac : t.tx, fontSize: 15, fontWeight: on ? '700' : '400' }}>
+                  <Text style={{ color: on ? t.ac : t.tx, fontSize: 16, fontWeight: on ? '700' : '400' }}>
                     {a.name}
                   </Text>
-                  <Text style={{ color: t.tx3, fontSize: 12, marginTop: 1 }}>{a.code}</Text>
+                  <Text style={{ color: t.tx3, fontSize: 13, marginTop: 1 }}>{a.code}</Text>
                 </View>
                 {showBal && balances ? (
-                  <Text style={{ color: t.tx2, fontSize: 13 }}>
+                  <Text style={{ color: t.tx2, fontSize: 14 }}>
                     {faBal(accountBalance(a.id, allAccounts, balances))}
                   </Text>
                 ) : null}
-                {on ? <Text style={{ color: t.ac, fontSize: 15, fontWeight: '800' }}>✓</Text> : null}
+                {on ? <Text style={{ color: t.ac, fontSize: 16, fontWeight: '800' }}>✓</Text> : null}
               </TouchableOpacity>
             );
           }}

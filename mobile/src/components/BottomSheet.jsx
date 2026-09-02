@@ -78,10 +78,10 @@ export default function BottomSheet({ visible, onClose, title, right, children }
             <View style={{ width: 38, height: 4, borderRadius: 2, backgroundColor: t.bd2 }} />
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', padding: 14, paddingBottom: 10, gap: 10 }}>
-            <Text style={{ color: t.tx, fontSize: 16, fontWeight: '700', flex: 1 }}>{title}</Text>
+            <Text style={{ color: t.tx, fontSize: 17, fontWeight: '700', flex: 1 }}>{title}</Text>
             {right}
             <TouchableOpacity onPress={() => slideTo(CLOSED)} style={{ padding: 4 }}>
-              <Text style={{ color: t.ac, fontSize: 14, fontWeight: '600' }}>閉じる</Text>
+              <Text style={{ color: t.ac, fontSize: 15, fontWeight: '600' }}>閉じる</Text>
             </TouchableOpacity>
           </View>
         </View>

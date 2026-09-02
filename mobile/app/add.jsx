@@ -62,7 +62,7 @@ export default function Add() {
     return (
       <Screen>
         <QuickEntryBar initialText={String(params.text || '')} autoFocus onSaved={done} />
-        <Text style={{ color: t.tx3, fontSize: 12, lineHeight: 18 }}>
+        <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
           ショートカットから開かれています。内容を確認して記帳してください。
         </Text>
       </Screen>
@@ -72,7 +72,7 @@ export default function Add() {
   return (
     <Screen>
       <Card>
-        <Text style={{ color: t.tx2, fontSize: 13 }}>ショートカットから開かれています。内容を確認してください。</Text>
+        <Text style={{ color: t.tx2, fontSize: 14 }}>ショートカットから開かれています。内容を確認してください。</Text>
       </Card>
       <JournalForm
         initial={initial}

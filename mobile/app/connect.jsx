@@ -81,7 +81,7 @@ export default function Connect() {
     <Screen>
       {pendingCount > 0 ? (
         <Card>
-          <Text style={{ color: t.red, fontSize: 14, lineHeight: 20 }}>
+          <Text style={{ color: t.red, fontSize: 15, lineHeight: 22 }}>
             この端末に未送信の変更が {pendingCount} 件あります。取り込むと上書きされて消えます。
             まだ書き込み同期が無いためです。
           </Text>
@@ -94,7 +94,7 @@ export default function Connect() {
           value={auth.env}
           onChange={auth.setEnv}
         />
-        <Text style={{ color: t.tx3, fontSize: 12 }}>
+        <Text style={{ color: t.tx3, fontSize: 13 }}>
           既定は開発環境です。本番の家計データを見る場合のみ本番に切り替えてください。
         </Text>
       </Card>
@@ -111,13 +111,13 @@ export default function Connect() {
           </Field>
           <Button label="ログイン" onPress={doSignIn} disabled={!mail.trim() || !password || !!busy} />
           <Button label="Google でログイン" variant="ghost" onPress={doGoogle} disabled={!!busy} />
-          <Text style={{ color: t.tx3, fontSize: 12 }}>
+          <Text style={{ color: t.tx3, fontSize: 13 }}>
             Google ログインは Expo Go では動きません（戻り先が {'kurofukubo://auth'} 固定のため）。開発ビルドが要ります。
           </Text>
         </Card>
       ) : bundle ? (
         <Card title="暗号化の解錠">
-          <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 20 }}>
+          <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 22 }}>
             このアカウントは E2E 暗号化が有効です。パスフレーズは端末内でのみ使われ、送信されません。
           </Text>
           <Field label="パスフレーズ">
@@ -127,7 +127,7 @@ export default function Connect() {
         </Card>
       ) : (
         <Card title="ログイン済み">
-          <Text style={{ color: t.tx, fontSize: 14 }}>{auth.email}</Text>
+          <Text style={{ color: t.tx, fontSize: 15 }}>{auth.email}</Text>
           <Button label="帳簿を取り込む" onPress={inspect} disabled={!!busy} />
           <Button label="ログアウト" variant="ghost" onPress={() => { auth.signOut(); setBundle(null); setCt(null); }} />
         </Card>
@@ -137,13 +137,13 @@ export default function Connect() {
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <ActivityIndicator color={t.ac} />
-            <Text style={{ color: t.tx, fontSize: 14 }}>{busy}</Text>
+            <Text style={{ color: t.tx, fontSize: 15 }}>{busy}</Text>
           </View>
         </Card>
       ) : null}
 
       <Card title="いまできること">
-        <Text style={{ color: t.tx2, fontSize: 13, lineHeight: 19 }}>
+        <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 21 }}>
           サーバーからの取り込みのみ対応しています。この端末で加えた変更はサーバーへ送られません。
         </Text>
       </Card>

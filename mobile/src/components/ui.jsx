@@ -40,7 +40,7 @@ export function Card({ title, children, style }) {
   const t = useTheme();
   return (
     <View style={[{ backgroundColor: t.bg1, borderRadius: 14, padding: 13, gap: 10 }, t.shadow, style]}>
-      {title ? <Text style={{ color: t.tx3, fontSize: 12.5, letterSpacing: 0.3, fontWeight: '700' }}>{title}</Text> : null}
+      {title ? <Text style={{ color: t.tx3, fontSize: 13.5, letterSpacing: 0.3, fontWeight: '700' }}>{title}</Text> : null}
       {children}
     </View>
   );
@@ -54,10 +54,10 @@ export function Hero({ label, value, sub, children, negative }) {
   const t = useTheme();
   return (
     <View style={[{ backgroundColor: negative ? t.red : t.hero, borderRadius: 16, padding: 15, gap: 2 }, t.shadow]}>
-      <Text style={{ color: t.heroSub, fontSize: 11.5 }}>{label}</Text>
+      <Text style={{ color: t.heroSub, fontSize: 13 }}>{label}</Text>
       <Text style={{ color: t.heroTx, fontSize: 31, fontWeight: '800', letterSpacing: -0.5 }}
         numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
-      {sub ? <Text style={{ color: t.heroSub, fontSize: 12 }}>{sub}</Text> : null}
+      {sub ? <Text style={{ color: t.heroSub, fontSize: 13 }}>{sub}</Text> : null}
       {children}
     </View>
   );
@@ -67,7 +67,7 @@ export function Kpi({ label, value, color }) {
   const t = useTheme();
   return (
     <View style={{ flex: 1, gap: 3, alignItems: 'center' }}>
-      <Text style={{ color: t.tx2, fontSize: 12.5 }}>{label}</Text>
+      <Text style={{ color: t.tx2, fontSize: 13.5 }}>{label}</Text>
       <Text style={{ color: color || t.tx, fontSize: 18, fontWeight: '700' }}
         numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
     </View>
@@ -102,7 +102,7 @@ export function Button({ label, onPress, variant = 'primary', disabled }) {
         borderRadius: 12, paddingVertical: 12, paddingHorizontal: 18, alignItems: 'center',
       }, primary ? t.shadow : null]}
     >
-      <Text style={{ color: primary ? t.acTx : t.tx2, fontWeight: '700', fontSize: 15 }}>{label}</Text>
+      <Text style={{ color: primary ? t.acTx : t.tx2, fontWeight: '700', fontSize: 16 }}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -111,7 +111,7 @@ export function Field({ label, children }) {
   const t = useTheme();
   return (
     <View style={{ gap: 5 }}>
-      <Text style={{ color: t.tx2, fontSize: 12, fontWeight: '600' }}>{label}</Text>
+      <Text style={{ color: t.tx2, fontSize: 13, fontWeight: '600' }}>{label}</Text>
       {children}
     </View>
   );
@@ -125,7 +125,7 @@ export function Input(props) {
       {...props}
       style={[{
         backgroundColor: t.bg3, borderWidth: 1, borderColor: t.bd,
-        borderRadius: 10, color: t.tx, fontSize: 16,
+        borderRadius: 10, color: t.tx, fontSize: 17,
         paddingVertical: 11, paddingHorizontal: 12,
       }, props.style]}
     />
@@ -151,7 +151,7 @@ export function ChipRow({ options, value, onChange }) {
               borderRadius: 999, paddingVertical: 7, paddingHorizontal: 13,
             }}
           >
-            <Text style={{ color: on ? t.acTx : t.tx2, fontSize: 13.5, fontWeight: on ? '700' : '500' }}>{o.label}</Text>
+            <Text style={{ color: on ? t.acTx : t.tx2, fontSize: 14.5, fontWeight: on ? '700' : '500' }}>{o.label}</Text>
           </TouchableOpacity>
         );
       })}
@@ -172,7 +172,7 @@ export function Segmented({ options, value, onChange }) {
             style={[{ flex: 1, borderRadius: 8, paddingVertical: 7, alignItems: 'center' },
               on ? { backgroundColor: t.ac } : null]}
           >
-            <Text style={{ color: on ? t.acTx : t.tx2, fontSize: 14, fontWeight: on ? '700' : '600' }}
+            <Text style={{ color: on ? t.acTx : t.tx2, fontSize: 15, fontWeight: on ? '700' : '600' }}
               numberOfLines={1}>{o.label}</Text>
           </TouchableOpacity>
         );
@@ -183,7 +183,7 @@ export function Segmented({ options, value, onChange }) {
 
 export function Empty({ text }) {
   const t = useTheme();
-  return <Text style={{ color: t.tx3, fontSize: 14, paddingVertical: 18, textAlign: 'center' }}>{text}</Text>;
+  return <Text style={{ color: t.tx3, fontSize: 15, paddingVertical: 18, textAlign: 'center' }}>{text}</Text>;
 }
 
 /**
@@ -201,7 +201,7 @@ export function UnderlineTabs({ options, value, onChange }) {
         return (
           <TouchableOpacity key={String(o.value)} onPress={() => onChange(o.value)}
             style={{ paddingBottom: 7, borderBottomWidth: 2.5, borderBottomColor: on ? t.ac : 'transparent' }}>
-            <Text style={{ color: on ? t.tx : t.tx3, fontSize: 15.5, fontWeight: on ? '800' : '600' }}>
+            <Text style={{ color: on ? t.tx : t.tx3, fontSize: 16.5, fontWeight: on ? '800' : '600' }}>
               {o.label}
             </Text>
           </TouchableOpacity>
@@ -217,7 +217,7 @@ export function MenuList({ title, items }) {
   return (
     <View style={{ gap: 6 }}>
       {title ? (
-        <Text style={{ color: t.tx3, fontSize: 12.5, fontWeight: '700', letterSpacing: 0.3, paddingHorizontal: 3 }}>
+        <Text style={{ color: t.tx3, fontSize: 13.5, fontWeight: '700', letterSpacing: 0.3, paddingHorizontal: 3 }}>
           {title}
         </Text>
       ) : null}
@@ -229,13 +229,13 @@ export function MenuList({ title, items }) {
               i ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.bd } : null]}
           >
             <View style={{ flex: 1 }}>
-              <Text style={{ color: it.danger ? t.red : t.tx, fontSize: 15.5 }}>{it.label}</Text>
-              {it.sub ? <Text style={{ color: t.tx3, fontSize: 12.5, marginTop: 2 }}>{it.sub}</Text> : null}
+              <Text style={{ color: it.danger ? t.red : t.tx, fontSize: 16.5 }}>{it.label}</Text>
+              {it.sub ? <Text style={{ color: t.tx3, fontSize: 13.5, marginTop: 2 }}>{it.sub}</Text> : null}
             </View>
             {it.value ? (
-              <Text style={{ color: it.alert ? t.red : t.tx2, fontSize: 14 }} numberOfLines={1}>{it.value}</Text>
+              <Text style={{ color: it.alert ? t.red : t.tx2, fontSize: 15 }} numberOfLines={1}>{it.value}</Text>
             ) : null}
-            {it.onPress ? <Text style={{ color: t.tx3, fontSize: 16 }}>›</Text> : null}
+            {it.onPress ? <Text style={{ color: t.tx3, fontSize: 17 }}>›</Text> : null}
           </TouchableOpacity>
         ))}
       </View>
