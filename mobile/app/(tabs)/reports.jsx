@@ -79,10 +79,10 @@ function BS({ r, end }) {
       <Section title="純資産" rows={r.eq} total={r.eqT} totalLabel="純資産合計" />
       <Card title="差引純資産">
         <Text style={{ color: t.tx, fontSize: 26, fontWeight: '800' }}>{faBal(r.netWorth)}</Text>
-        {r.asset.some((x) => x.reclassified) || r.liab.some((x) => x.reclassified) ? (
+        {r.liab.some((x) => x.reclassified) ? (
           <Text style={{ color: t.tx3, fontSize: 13.5, lineHeight: 20 }}>
-            残高の向きが区分と逆の科目は、実態に合わせて反対側に振り替えて表示しています
-            （払いすぎたカードは資産、残高がマイナスの口座は負債）。
+            残高がマイナスの資産（引き落とし超過など）は、実質の借金なので負債に振り替えて
+            表示しています。
           </Text>
         ) : null}
       </Card>

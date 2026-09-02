@@ -59,10 +59,17 @@ export function balanceSheet(journals, accounts, asOf) {
     if (a.type !== 'asset' && a.type !== 'liability') return;
     const v = accountBalance(a.id, accounts, bal);
     if (v === 0) return;
-    const row = { id: a.id, name: a.name, type: a.type, amount: Math.abs(v) };
-    // 残高の符号で置き場所を決める。区分ではなく実態で並べる。
-    if (v > 0) (a.type === 'asset' ? assets : liabilities).push(row);
-    else (a.type === 'asset' ? liabilities : assets).push({ ...row, reclassified: true });
+    const row = { id: a.id, name: a.name, type: a.type };
+
+    // 残高がマイナスの資産（引き落とし超過など）は実質の借金なので負債側へ回す。
+    if (a.type === 'asset' && v < 0) { liabilities.push({ ...row, amount: -v, reclassified: true }); return; }
+    if (a.type === 'asset') { assets.push({ ...row, amount: v }); return; }
+
+    // 負債はマイナス残（払いすぎたカードなど）でもそのまま負債側に置く。
+    // 資産側へ回すと「何を持っているか」の一覧にカードの科目が並んで読めなくなるうえ、
+    // 構成比の円グラフはマイナスを描けないので合計と絵がずれる。
+    // マイナスのまま負債に置いても、資産−負債＝差引純資産は変わらない。
+    liabilities.push({ ...row, amount: v });
   });
 
   const sum = (rows) => rows.reduce((s, x) => s + x.amount, 0);

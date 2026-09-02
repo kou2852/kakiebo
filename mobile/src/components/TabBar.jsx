@@ -40,7 +40,7 @@ export default function TabBar({ state, descriptors, navigation }) {
           const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
           if (!focused && !e.defaultPrevented) navigation.navigate(route.name);
         }}
-        style={{ flex: 1, alignItems: 'center', gap: 2, paddingTop: 15, paddingBottom: 2 }}
+        style={{ flex: 1, alignItems: 'center', gap: 2, paddingTop: 9, paddingBottom: 2 }}
       >
         <Ionicons name={ICONS[route.name] || 'ellipse-outline'} size={25}
           color={focused ? t.ac : t.tx3} />
@@ -67,7 +67,7 @@ export default function TabBar({ state, descriptors, navigation }) {
             accessibilityLabel="記帳する"
             onPress={() => navigation.navigate(ENTRY_ROUTE)}
             style={[{
-              width: 55, height: 55, borderRadius: 28, marginTop: -13,
+              width: 55, height: 55, borderRadius: 28, marginTop: -19,
               backgroundColor: state.index === entryIndex ? t.acDeep : t.ac,
               alignItems: 'center', justifyContent: 'center',
             }, t.shadow]}
