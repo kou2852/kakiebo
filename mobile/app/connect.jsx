@@ -7,8 +7,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../src/store/AuthProvider';
 import { useData } from '../src/store/DataProvider';
 import { useTheme } from '../src/theme';
-import { Button, Card, ChipRow, Field, Input, Screen } from '../src/components/ui';
-import { ENVIRONMENTS } from '../src/config';
+import { Button, Card, Field, Input, Screen } from '../src/components/ui';
 import { probe, pullEncrypted, pullPlain, unlockWith } from '../src/store/pull';
 
 export default function Connect() {
@@ -82,22 +81,12 @@ export default function Connect() {
       {pendingCount > 0 ? (
         <Card>
           <Text style={{ color: t.red, fontSize: 15, lineHeight: 22 }}>
-            この端末に未送信の変更が {pendingCount} 件あります。取り込むと上書きされて消えます。
-            まだ書き込み同期が無いためです。
+            この端末に未送信の変更が {pendingCount} 件あります。取り込みはサーバーの内容で
+            まるごと置き換えるため、この変更は消えます。先に「いま同期する」で送ってください。
           </Text>
         </Card>
       ) : null}
 
-      <Card title="接続先">
-        <ChipRow
-          options={Object.entries(ENVIRONMENTS).map(([k, v]) => ({ value: k, label: v.label }))}
-          value={auth.env}
-          onChange={auth.setEnv}
-        />
-        <Text style={{ color: t.tx3, fontSize: 13 }}>
-          既定は開発環境です。本番の家計データを見る場合のみ本番に切り替えてください。
-        </Text>
-      </Card>
 
       {!auth.signedIn ? (
         <Card title="ログイン">

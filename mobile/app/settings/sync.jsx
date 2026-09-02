@@ -35,7 +35,6 @@ export default function Sync() {
   return (
     <Screen>
       <Card title="接続">
-        <Row label="接続先" value={auth.env === 'prod' ? '本番' : '開発 (dev)'} />
         <Row label="ログイン" value={auth.email || '未ログイン'} />
         {d.unlocked ? <Row label="暗号化" value="解錠済み（この端末に鍵を保持）" /> : null}
         <Button label="アカウントに接続 / 帳簿を取り込む" onPress={() => router.push('/connect')} />

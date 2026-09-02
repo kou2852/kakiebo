@@ -1,13 +1,9 @@
-// 接続先。frontend/.env.local（dev）と frontend/.env.production（prod）と同じ値。
-// 既定は dev。本番の家計データを書き換えるのは明示的な切り替えを経てからにする。
+// 接続先。frontend/.env.production と同じ値。
+//
+// 配布するアプリに開発環境は載せない。利用者が開発環境へ繋いでしまうと、
+// 別のユーザープールにアカウントを作ることになり、本人には理由が分からないまま
+// 「登録したのにデータが無い」状態になる。
 export const ENVIRONMENTS = {
-  dev: {
-    label: '開発 (dev)',
-    apiUrl: 'https://9be6dndzzi.execute-api.ap-northeast-1.amazonaws.com/dev',
-    userPoolId: 'ap-northeast-1_ue2pwRKaD',
-    clientId: '181ndu77m3l9jr702rg36e75bc',
-    authDomain: 'https://kurofukubo-auth-dev.auth.ap-northeast-1.amazoncognito.com',
-  },
   prod: {
     label: '本番 (prod)',
     apiUrl: 'https://ecbjdndcbe.execute-api.ap-northeast-1.amazonaws.com/prod',
@@ -17,4 +13,4 @@ export const ENVIRONMENTS = {
   },
 };
 
-export const DEFAULT_ENV = 'dev';
+export const DEFAULT_ENV = 'prod';

@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as cognito from '../auth/cognito';
 import * as oauth from '../auth/oauth';
 import * as api from '../api/client';
-import { DEFAULT_ENV } from '../config';
+import { DEFAULT_ENV, ENVIRONMENTS } from '../config';
 
 const ENV_KEY = 'kk_env';
 const Ctx = createContext(null);
@@ -31,8 +31,10 @@ export function AuthProvider({ children }) {
     (async () => {
       // Cognito SDK は同期 Storage を要求するので、先に AsyncStorage から復元しておく。
       await cognito.hydrate();
+      // 開発環境を配布物から外したので、保存済みの値が今も存在する接続先のときだけ使う。
+      // 古い端末に 'dev' が残っていても、そのまま本番へ寄せる。
       const saved = await AsyncStorage.getItem(ENV_KEY);
-      const e = saved && saved !== env ? saved : env;
+      const e = saved && ENVIRONMENTS[saved] ? saved : env;
       setEnvState(e);
       api.configure(e, () => tokenFor(e));
       await restore(e);

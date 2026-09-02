@@ -72,7 +72,6 @@ export default function Settings() {
       <MenuList items={[
         { label: '使い方', onPress: go('/guide') },
         { label: '問い合わせ', onPress: go('/inquiry') },
-        { label: '動作診断', onPress: go('/diag') },
       ]} />
 
       {/* 取り返しがつかない操作なので、他の項目と地続きにしない */}
