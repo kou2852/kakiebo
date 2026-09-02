@@ -43,9 +43,8 @@
       [
         "react-native-google-mobile-ads",
         {
-          "iosAppId": "ca-app-pub-3940256099942544~1458002511",
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
-          "userTrackingUsageDescription": "広告の関連性を高めるために利用します。許可しなくてもアプリは通常どおり使えます。"
+          "iosAppId": "ca-app-pub-1494837719359912~3751918994",
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713"
         }
       ],
       [

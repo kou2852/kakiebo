@@ -151,6 +151,22 @@ App Store が米国から配信されるため、暗号を含むアプリが対�
 タブバー高さに含めて測り、各画面の下端が隠れない。
 タブ外の画面（クレジット・管理・撮影など）には出ない。全画面インタースティシャルは使わない。
 
+### ID（2026-09-02 に AdMob 管理画面で作成・取得）
+
+| 種別 | 値 | 置き場所 |
+|---|---|---|
+| アプリ ID | `ca-app-pub-1494837719359912~3751918994` | `app.json`（ネイティブ設定・**要ビルド**） |
+| 広告ユニット ID | `ca-app-pub-1494837719359912/3915570524` | `src/components/Ad.jsx` の `PROD_UNIT_ID`（JS・OTA可） |
+| パブリッシャー ID | `pub-1494837719359912` | `lp/app-ads.txt` |
+
+ユニットの設定はすべて既定のまま:
+広告の種類＝テキスト/イメージ/リッチメディア＋動画、自動更新＝Google による最適化、
+eCPM 下限＝Google による最適化（すべての価格＝掲載率を優先）。
+新規アプリで配信実績が無いため、下限を付けずに掲載率を取りにいく。
+
+**AdMob 上の承認状況は「要審査」。** App Store で公開され、ストアの掲載情報と
+紐づくまでは配信が制限される。公開前に収益が立たないのは想定どおり。
+
 ### app-ads.txt
 
 `lp/app-ads.txt` を作成済み。**LP へのデプロイが必要**（`https://kurofukubo.com/app-ads.txt`）。
@@ -159,35 +175,36 @@ App Store の掲載情報に書くデベロッパーサイトのドメイン直�
 
     google.com, pub-1494837719359912, DIRECT, f08c47fec0942fa0
 
-⚠ 上記は AdSense の `ads.txt` と同じ publisher ID を流用している。
-**AdMob 管理画面（アプリ → app-ads.txt）が提示する行と一致するか必ず確認すること。**
+publisher ID が AdMob のアプリ ID の前半（`ca-app-pub-1494837719359912~…`）と
+一致することを確認済み。AdSense の `ads.txt` と同じ ID で正しい。
 
-### 本番化の手順（すべて再ビルドが必要）
+### 残っている手順
 
-1. AdMob で iOS 用の **アンカーアダプティブバナー** ユニットを作成
-2. `src/components/Ad.jsx` の `UNIT_ID` を差し替え（現在は `TestIds.ADAPTIVE_BANNER`）
-3. `app.json` の `iosAppId` を本番IDへ（現在は Google 公開のテストID）
-4. `app.json` から `userTrackingUsageDescription` を削除
-   （ATT を求めないので使われない。残すと審査で理由を問われうる）
-5. **`src/ads.js` の `TEST_DEVICES` に自分の端末IDを登録する。**
-   登録せずに本番IDで自分の端末を操作すると「自分の広告をクリックした」と記録され、
-   **AdMob アカウントが停止される可能性がある。** 端末IDは本番IDで起動したときの
-   ログに出る `testDeviceIdentifiers = @[ @"..." ]` の文字列。
+1. **`src/ads.js` の `TEST_DEVICES` に自分の端末IDを登録する。**
+   登録せずに本番の広告を自分の端末で操作すると「自分の広告をクリックした」と
+   記録され、**AdMob アカウントが停止される可能性がある。**
+   端末IDは一度起動するとログに出る `testDeviceIdentifiers = @[ @"..." ]` の文字列。
+2. 登録後に `src/components/Ad.jsx` の `TEST_ADS` を false にする。
+   ここは JS だけなので **OTA で反映でき、ビルドは要らない。**
 
-広告を止めたいときは `src/components/Ad.jsx` の `ADS_ENABLED` を false にする。
-これは JS のみなので OTA で反映でき、ビルドは要らない。
+いまは `TEST_ADS = true` で、本番IDを持ったままテスト広告を出している。
+配置と見た目の確認はこの状態でできて、収益も無効なトラフィックも発生しない。
+
+広告そのものを止めたいときは `ADS_ENABLED` を false にする（同じく OTA 可）。
+
+### Android
+
+`androidAppId` は Google 公開のテストIDのまま。AdMob に Android アプリを
+登録していないため。Android を出すときに登録して差し替える。
 
 ## 5. 残っている作業
 
-- [ ] **AdMob を本番IDへ差し替え（再ビルドが必要）**
-      - 配置: タブバー直上の固定バナー（アンカーアダプティブ）。`app/(tabs)/_layout.jsx` の
-        `tabBar` で描画しており、react-navigation がタブバー高さに含めて測るため
-        各画面の下端が隠れない
-      - ① AdMob で iOS 用「アンカーアダプティブバナー」ユニットを作成 →
-        `src/components/Ad.jsx` の `UNIT_ID` を差し替え（現在は `TestIds.ADAPTIVE_BANNER`）
-      - ② `app.json` の `react-native-google-mobile-ads` プラグインの `iosAppId` を本番IDへ
-        （現在は Google 公開のテスト用 `ca-app-pub-3940256099942544~1458002511`）
-      - 広告を止めたいときは `src/components/Ad.jsx` の `ADS_ENABLED` を false にする（JSのみ・OTAで反映可）
-      - タブ外の画面（クレジット・管理・撮影など）には出ない。全画面インタースティシャルは使わない
+- [x] ~~AdMob の本番ID~~ 2026-09-02 に取得して反映済み（上記 4.5）
+- [ ] **本番IDを載せたビルドを作る。** `app.json` の `iosAppId` を変えたので
+      fingerprint が `eed776eb…` から `eb5ac314…` に変わった。
+      **build 10 には OTA が届かなくなっている。**
+      `eas build --platform ios --profile testflight`
+- [ ] 端末IDを `src/ads.js` の `TEST_DEVICES` に登録 → `TEST_ADS` を false（OTA可）
+- [ ] `lp/app-ads.txt` を LP へデプロイ
 - [ ] 輸出コンプライアンスの判断（上記 2 章）
 - [ ] 説明文・キーワード・スクリーンショット

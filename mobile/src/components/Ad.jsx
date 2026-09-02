@@ -8,10 +8,8 @@
 // タブバーの直上に置くため、実体は app/(tabs)/_layout.jsx の tabBar から描画している。
 // 誤タップを避けるため、タブバーとの間に区切り線を入れて領域を分けている。
 //
-// ⚠ リリース前にやること
-//   1. AdMob で iOS 用の「アンカーアダプティブバナー」ユニットを作り UNIT_ID を差し替える
-//   2. app.json の react-native-google-mobile-ads プラグインの iosAppId を本番IDに差し替える
-//   どちらもネイティブ設定に関わるため、差し替え後は再ビルドが必要。
+// アプリID（app.json）とユニットID（下記）はどちらも本番のものが入っている。
+// ただし TEST_ADS が true の間はテスト広告を出すので、収益は発生しない。
 import { useState } from 'react';
 import { View } from 'react-native';
 // ネイティブモジュールが無い環境（Expo Go・広告を含まないビルド）では読み込みに失敗する。
@@ -25,11 +23,21 @@ try {
 export const adsAvailable = () => Ads !== null;
 import { useTheme } from '../theme';
 
-// リリース直前にここを true のまま本番IDへ差し替える。false にすれば広告は一切描画されない。
+// false にすれば広告は一切描画されない。JS だけなので OTA で止められる。
 export const ADS_ENABLED = true;
 
-// いまは Google のテスト用ユニット。実際の広告は配信されず、収益も発生しない。
-const UNIT_ID = Ads ? Ads.TestIds.ADAPTIVE_BANNER : '';
+// 本番のユニットID（AdMob: kurofukubo iOS / アンカーバナー）。
+const PROD_UNIT_ID = 'ca-app-pub-1494837719359912/3915570524';
+
+// ⚠ 本番の広告を出す前に、必ず src/ads.js の TEST_DEVICES へ自分の端末を登録すること。
+// 登録せずに自分で操作すると「自分の広告をクリックした」と記録され、アカウントが
+// 停止されうる。端末IDは本番IDで一度起動するとログに出る。
+//
+// それまではテスト広告のまま出す。見た目と配置の確認はこれでできて、収益は発生しない。
+// ここは JS なので、切り替えは OTA で反映できる（再ビルドは要らない）。
+const TEST_ADS = true;
+
+const UNIT_ID = !Ads ? '' : TEST_ADS ? Ads.TestIds.ADAPTIVE_BANNER : PROD_UNIT_ID;
 
 // ティア別の表示可否。Web 版 config/tiers.js の AD_CONFIG と同じ考え方。
 // 課金が未実装なので実ログインユーザーは全員 free 扱い。
