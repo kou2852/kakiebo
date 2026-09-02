@@ -40,11 +40,11 @@ export default function TabBar({ state, descriptors, navigation }) {
           const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
           if (!focused && !e.defaultPrevented) navigation.navigate(route.name);
         }}
-        style={{ flex: 1, alignItems: 'center', gap: 3, paddingTop: 9, paddingBottom: 3 }}
+        style={{ flex: 1, alignItems: 'center', gap: 2, paddingTop: 15, paddingBottom: 2 }}
       >
-        <Ionicons name={ICONS[route.name] || 'ellipse-outline'} size={28}
+        <Ionicons name={ICONS[route.name] || 'ellipse-outline'} size={25}
           color={focused ? t.ac : t.tx3} />
-        <Text style={{ fontSize: 14, color: focused ? t.ac : t.tx3, fontWeight: focused ? '700' : '500' }}>
+        <Text style={{ fontSize: 13, color: focused ? t.ac : t.tx3, fontWeight: focused ? '700' : '500' }}>
           {label}
         </Text>
       </TouchableOpacity>
@@ -67,12 +67,12 @@ export default function TabBar({ state, descriptors, navigation }) {
             accessibilityLabel="記帳する"
             onPress={() => navigation.navigate(ENTRY_ROUTE)}
             style={[{
-              width: 58, height: 58, borderRadius: 29, marginTop: -19,
+              width: 55, height: 55, borderRadius: 28, marginTop: -13,
               backgroundColor: state.index === entryIndex ? t.acDeep : t.ac,
               alignItems: 'center', justifyContent: 'center',
             }, t.shadow]}
           >
-            <Ionicons name="add" size={31} color={t.acTx} />
+            <Ionicons name="add" size={29} color={t.acTx} />
           </TouchableOpacity>
         </View>
 

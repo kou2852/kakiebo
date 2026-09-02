@@ -13,8 +13,8 @@ import Breakdown from '../../src/components/Breakdown';
 import Sparkline from '../../src/components/Sparkline';
 import { fa, faBal, fas, today } from '../../src/utils/format';
 import {
-  accountBalance, balanceSheet, calcBalances, filterByPeriod, isCashAccount,
-  investmentSummary, monthlyTrend, netWorthTrend,
+  accountBalance, balanceSheet, calcBalances, filterByPeriod, getPeriodRange,
+  isCashAccount, investmentSummary, monthlyTrend, netWorthTrend,
 } from '../../src/utils/bookkeeping';
 import { dueRecurring, pendingCC } from '../../src/utils/autoGen';
 
@@ -45,11 +45,7 @@ export default function Dashboard() {
 
     const income = sum('income', flow);
     const expense = sum('expense', flow);
-    return {
-      asset: bs.asset, liability: bs.liability, netWorth: bs.netWorth,
-      income, expense, balance: income - expense,
-      expenses, end,
-    };
+    return { netWorth: bs.netWorth, income, expense, balance: income - expense, expenses, end };
   }, [accounts, journals, period]);
 
   // 口座別の残高。売掛金や固定資産まで並べても「どこにいくらあるか」は分からないので、
@@ -79,16 +75,36 @@ export default function Dashboard() {
   const trend = useMemo(() => monthlyTrend(journals, accounts, 6, m.end), [journals, accounts, m.end]);
   const investments = useMemo(() => investmentSummary(journals, accounts), [journals, accounts]);
 
-  // 予算のある費目だけ、消化率の高い順に。全部並べると予算を見ている意味が薄れる。
-  const budgetRows = useMemo(() => (budgets || [])
-    .filter((b) => b.amount > 0)
-    .map((b) => {
-      const a = accounts.find((x) => x.id === b.accountId);
-      const used = m.expenses.find((x) => x.id === b.accountId)?.amount || 0;
-      return a ? { name: a.name, budget: b.amount, used } : null;
-    })
-    .filter(Boolean)
-    .sort((a, b) => (b.used / b.budget) - (a.used / a.budget)), [budgets, accounts, m.expenses]);
+  // 予算は「1ヶ月あたりの額」。期間が複数月にまたがるなら月数分に伸ばす。
+  // これをしないと、今年を選んだときに1ヶ月の予算と1年分の支出を比べることになり、
+  // 実際には収まっていても大幅に超過して見える。
+  // 月数は日数から出す（30.44日＝1ヶ月）。暦の月末差と月の途中を端数で吸収できる。
+  // 全期間は「いつまでの予算か」が決まらないので当月に固定する（Web 版と同じ扱い）。
+  const budget = useMemo(() => {
+    const cur = getPeriodRange('month');
+    const from = period.mode === 'all' ? cur.start : period.start;
+    const to = period.mode === 'all' ? cur.end : m.end;
+    const days = Math.max(1, Math.round((new Date(`${to}T00:00:00`) - new Date(`${from}T00:00:00`)) / 86400000) + 1);
+    const months = Math.max(1, Math.round((days / 30.44) * 10) / 10);
+
+    // 支出は必ずこの窓で取り直す。上の期間の集計を流用すると全期間のときに桁が合わない。
+    const bal = calcBalances(filterByPeriod(journals, from, to), accounts);
+    // 予算のある費目だけ、消化率の高い順に。全部並べると予算を見ている意味が薄れる。
+    const rows = (budgets || [])
+      .filter((b) => b.amount > 0)
+      .map((b) => {
+        const a = accounts.find((x) => x.id === b.accountId);
+        if (!a) return null;
+        return {
+          name: a.name,
+          budget: Math.round(b.amount * months),
+          used: Math.max(0, accountBalance(a.id, accounts, bal)),
+        };
+      })
+      .filter(Boolean)
+      .sort((x, y) => (y.used / y.budget) - (x.used / x.budget));
+    return { rows, months };
+  }, [budgets, accounts, journals, period.mode, period.start, m.end]);
 
   if (loading) return <Screen><Empty text="読み込み中…" /></Screen>;
 
@@ -139,21 +155,10 @@ export default function Dashboard() {
         </KpiRow>
       </Card>
 
-      <Card title="資産サマリー">
-        <Row label="資産" value={faBal(m.asset)} />
-        <Row label="負債" value={faBal(m.liability)} />
-        <Row label="純資産" value={faBal(m.netWorth)} accent />
-        {m.asset > 0 ? (
-          <>
-            <View style={{ height: 6, borderRadius: 3, backgroundColor: t.bg3, overflow: 'hidden', flexDirection: 'row' }}>
-              <View style={{ flex: Math.max(m.netWorth, 0), backgroundColor: t.ac }} />
-              <View style={{ flex: Math.max(m.liability, 0), backgroundColor: t.red }} />
-            </View>
-            <Text style={{ color: t.tx3, fontSize: 13 }}>
-              自己資本比率 {((m.netWorth / m.asset) * 100).toFixed(1)}%
-            </Text>
-          </>
-        ) : null}
+      <Card title="支出内訳">
+        <Breakdown pie centerSub={`${period.label}の支出`}
+          items={m.expenses.map((x) => ({ label: x.name, value: x.amount }))}
+          emptyText="この期間の支出はまだありません" />
       </Card>
 
       {byAccount.length ? (
@@ -182,9 +187,9 @@ export default function Dashboard() {
         </Card>
       ) : null}
 
-      {budgetRows.length ? (
-        <Card title="予算の消化">
-          {budgetRows.map((b) => {
+      {budget.rows.length ? (
+        <Card title={budget.months === 1 ? '予算の消化' : `予算の消化（月予算 × ${budget.months}ヶ月）`}>
+          {budget.rows.map((b) => {
             const pct = Math.min((b.used / b.budget) * 100, 100);
             const over = b.used > b.budget;
             return (
@@ -201,12 +206,6 @@ export default function Dashboard() {
           })}
         </Card>
       ) : null}
-
-      <Card title="支出内訳">
-        <Breakdown pie centerSub={`${period.label}の支出`}
-          items={m.expenses.map((x) => ({ label: x.name, value: x.amount }))}
-          emptyText="この期間の支出はまだありません" />
-      </Card>
 
       {investments.length ? (
         <Card title="投資資産">
@@ -227,16 +226,6 @@ export default function Dashboard() {
         </Card>
       ) : null}
     </Screen>
-  );
-}
-
-function Row({ label, value, accent }) {
-  const t = useTheme();
-  return (
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-      <Text style={{ color: t.tx2, fontSize: 14 }}>{label}</Text>
-      <Text style={{ color: accent ? t.ac : t.tx, fontSize: 14.5, fontWeight: accent ? '800' : '600' }}>{value}</Text>
-    </View>
   );
 }
 
