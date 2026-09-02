@@ -33,6 +33,14 @@ const EDGES = [
   { a: WH, b: WING, na: NEW_WH, nb: NEW_WING },
 ];
 
+// 背景からどれだけ離れているかで不透明度を決める。
+// 単純な比例だと、背景にわずかにある濃淡（距離20前後）まで3割ほど残ってしまい、
+// 図柄の後ろに角丸四角の影が浮く（実際に出た）。手前に不感帯を置いて完全に抜く。
+const NEAR = 32;  // これ以下は背景とみなして透明
+const FAR = 78;   // これ以上は図柄とみなして不透明
+const alphaFrom = (dist) =>
+  Math.max(0, Math.min(255, Math.round(((dist - NEAR) / (FAR - NEAR)) * 255)));
+
 const sub = (p, q) => [p[0] - q[0], p[1] - q[1], p[2] - q[2]];
 const dot = (p, q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2];
 const lerp = (p, q, t) => [0, 1, 2].map((i) => Math.round(p[i] + (q[i] - p[i]) * t));
@@ -58,6 +66,7 @@ const src = PNG.sync.read(fs.readFileSync(SRC));
  * @param opts.scale          中央に置く倍率（Android は安全領域が狭いので縮める）
  * @param opts.solid          単色で塗りつぶす（背景レイヤー用）
  * @param opts.mono           不透明部分を黒一色にする（モノクロレイヤー用）
+ * @param opts.original       白と緑を入れ替えず元の配色のまま使う（暗い背景に置く用）
  */
 function render(size, opts = {}) {
   const out = new PNG({ width: size, height: size });
@@ -83,12 +92,21 @@ function render(size, opts = {}) {
 
       const si = (Math.floor(fy) * s + Math.floor(fx)) * 4;
       const px = [src.data[si], src.data[si + 1], src.data[si + 2]];
+
+      // 暗い背景に置く版は、入れ替えをせず元の配色（白いフクロウ）をそのまま使い、
+      // 背景のティールだけを抜く。入れ替えた濃いティールの図柄を暗い背景に置くと
+      // ほとんど見えない。
+      if (opts.original) {
+        out.data[di] = px[0]; out.data[di + 1] = px[1]; out.data[di + 2] = px[2];
+        out.data[di + 3] = alphaFrom(Math.hypot(px[0] - BG[0], px[1] - BG[1], px[2] - BG[2]));
+        continue;
+      }
+
       const c = mapColor(px);
 
       if (opts.transparentBg || opts.mono) {
         // 白（＝置き換え後の背景）に近いほど透明にする。図柄だけを残す。
-        const toBg = Math.hypot(c[0] - NEW_BG[0], c[1] - NEW_BG[1], c[2] - NEW_BG[2]);
-        const alpha = Math.max(0, Math.min(255, Math.round((toBg / 60) * 255)));
+        const alpha = alphaFrom(Math.hypot(c[0] - NEW_BG[0], c[1] - NEW_BG[1], c[2] - NEW_BG[2]));
         if (opts.mono) { out.data[di] = 0; out.data[di + 1] = 0; out.data[di + 2] = 0; }
         else { out.data[di] = c[0]; out.data[di + 1] = c[1]; out.data[di + 2] = c[2]; }
         out.data[di + 3] = alpha;
@@ -113,5 +131,7 @@ write('favicon.png', render(96));
 write('android-icon-background.png', render(1024, { solid: NEW_BG }));
 write('android-icon-foreground.png', render(1024, { transparentBg: true, scale: 0.62 }));
 write('android-icon-monochrome.png', render(1024, { mono: true, scale: 0.62 }));
+// スプラッシュは明暗で図柄を替える。地の色は app.json 側で指定する。
 write('splash-icon.png', render(512, { transparentBg: true }));
+write('splash-icon-dark.png', render(512, { original: true }));
 console.log('完了');

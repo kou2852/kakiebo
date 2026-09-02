@@ -2,7 +2,7 @@
 //
 // 管理（勘定科目・タグ等）もここに統合した。以前は「件数を出すカード」と
 // 「管理へ行くボタン」が別々で、同じものを2つの見た目で示していた。
-import { Alert, Text, View } from 'react-native';
+import { Alert, Linking, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/store/AuthProvider';
 import { useData } from '../../src/store/DataProvider';
@@ -72,6 +72,12 @@ export default function Settings() {
       <MenuList items={[
         { label: '使い方', onPress: go('/guide') },
         { label: '問い合わせ', onPress: go('/inquiry') },
+        // 5.1.1(i)「プライバシーポリシーへのリンクをアプリ内の分かりやすい場所に置く」
+        { label: '利用規約', onPress: () => Linking.openURL('https://kurofukubo.com/terms.html') },
+        { label: 'プライバシーポリシー', onPress: () => Linking.openURL('https://kurofukubo.com/privacy.html') },
+        // 5.1.1(i)「プライバシーポリシーへのリンクをアプリ内の分かりやすい場所に置く」
+        { label: '利用規約', onPress: () => Linking.openURL('https://kurofukubo.com/terms.html') },
+        { label: 'プライバシーポリシー', onPress: () => Linking.openURL('https://kurofukubo.com/privacy.html') },
       ]} />
 
       {/* 取り返しがつかない操作なので、他の項目と地続きにしない */}

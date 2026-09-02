@@ -48,6 +48,19 @@
         }
       ],
       [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#f4f5f6",
+          "dark": {
+            "image": "./assets/splash-icon-dark.png",
+            "backgroundColor": "#0f1413"
+          }
+        }
+      ],
+      [
         "expo-image-picker",
         {
           "photosPermission": "レシートや利用控えの画像を読み取って記帳するために使います。画像は端末内で処理し、外部に送信しません。",

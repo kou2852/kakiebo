@@ -1,0 +1,1426 @@
+{
+  "accounts": [
+    {
+      "id": "a01",
+      "code": "1001",
+      "name": "現金",
+      "type": "asset",
+      "sys": 1
+    },
+    {
+      "id": "a02",
+      "code": "1002",
+      "name": "普通預金",
+      "type": "asset",
+      "sys": 1
+    },
+    {
+      "id": "a03",
+      "code": "1003",
+      "name": "定期預金",
+      "type": "asset",
+      "sys": 1
+    },
+    {
+      "id": "a04",
+      "code": "1101",
+      "name": "売掛金",
+      "type": "asset",
+      "sys": 1
+    },
+    {
+      "id": "a05",
+      "code": "1201",
+      "name": "有価証券",
+      "type": "asset",
+      "sys": 1
+    },
+    {
+      "id": "a06",
+      "code": "1301",
+      "name": "固定資産",
+      "type": "asset",
+      "sys": 1
+    },
+    {
+      "id": "b01",
+      "code": "2001",
+      "name": "買掛金",
+      "type": "liability",
+      "sys": 1
+    },
+    {
+      "id": "b02",
+      "code": "2002",
+      "name": "未払金",
+      "type": "liability",
+      "sys": 1
+    },
+    {
+      "id": "b03",
+      "code": "2101",
+      "name": "メインカード",
+      "type": "liability",
+      "sys": 1,
+      "ccClose": 15,
+      "ccDay": 10,
+      "ccDelay": 1,
+      "ccFrom": "a02"
+    },
+    {
+      "id": "b04",
+      "code": "2201",
+      "name": "借入金",
+      "type": "liability",
+      "sys": 1
+    },
+    {
+      "id": "c01",
+      "code": "3001",
+      "name": "元入金",
+      "type": "equity",
+      "sys": 1
+    },
+    {
+      "id": "c02",
+      "code": "3101",
+      "name": "繰越利益",
+      "type": "equity",
+      "sys": 1
+    },
+    {
+      "id": "d01",
+      "code": "4001",
+      "name": "給与収入",
+      "type": "income",
+      "sys": 1
+    },
+    {
+      "id": "d02",
+      "code": "4002",
+      "name": "副業収入",
+      "type": "income",
+      "sys": 1
+    },
+    {
+      "id": "d03",
+      "code": "4003",
+      "name": "利子収入",
+      "type": "income",
+      "sys": 1
+    },
+    {
+      "id": "d04",
+      "code": "4004",
+      "name": "雑収入",
+      "type": "income",
+      "sys": 1
+    },
+    {
+      "id": "d05",
+      "code": "4005",
+      "name": "評価損益",
+      "type": "income",
+      "sys": 1
+    },
+    {
+      "id": "e01",
+      "code": "5001",
+      "name": "食費",
+      "type": "expense",
+      "sys": 1
+    },
+    {
+      "id": "e02",
+      "code": "5002",
+      "name": "日用品費",
+      "type": "expense",
+      "sys": 1
+    },
+    {
+      "id": "e03",
+      "code": "5003",
+      "name": "光熱費",
+      "type": "expense",
+      "sys": 1
+    },
+    {
+      "id": "e04",
+      "code": "5004",
+      "name": "通信費",
+      "type": "expense",
+      "sys": 1
+    },
+    {
+      "id": "e05",
+      "code": "5005",
+      "name": "交通費",
+      "type": "expense",
+      "sys": 1
+    },
+    {
+      "id": "e06",
+      "code": "5006",
+      "name": "医療費",
+      "type": "expense",
+      "sys": 1
+    },
+    {
+      "id": "e07",
+      "code": "5007",
+      "name": "娯楽費",
+      "type": "expense",
+      "sys": 1
+    },
+    {
+      "id": "e08",
+      "code": "5008",
+      "name": "衣服費",
+      "type": "expense",
+      "sys": 1
+    },
+    {
+      "id": "e09",
+      "code": "5009",
+      "name": "住居費",
+      "type": "expense",
+      "sys": 1
+    },
+    {
+      "id": "e10",
+      "code": "5010",
+      "name": "保険料",
+      "type": "expense",
+      "sys": 1
+    },
+    {
+      "id": "e11",
+      "code": "5011",
+      "name": "教育費",
+      "type": "expense",
+      "sys": 1
+    },
+    {
+      "id": "e12",
+      "code": "5012",
+      "name": "雑費",
+      "type": "expense",
+      "sys": 1
+    }
+  ],
+  "tags": [
+    {
+      "id": "t1",
+      "name": "生活費",
+      "color": "#2f9e8d"
+    },
+    {
+      "id": "t2",
+      "name": "固定費",
+      "color": "#3f7cad"
+    },
+    {
+      "id": "t3",
+      "name": "交際費",
+      "color": "#d98324"
+    }
+  ],
+  "wallets": [
+    {
+      "id": "w1",
+      "name": "財布",
+      "accountId": "a01"
+    },
+    {
+      "id": "w2",
+      "name": "生活口座",
+      "accountId": "a02"
+    },
+    {
+      "id": "w3",
+      "name": "メインカード",
+      "accountId": "b03"
+    }
+  ],
+  "budgets": [
+    {
+      "accountId": "e01",
+      "amount": 60000
+    },
+    {
+      "accountId": "e02",
+      "amount": 15000
+    },
+    {
+      "accountId": "e05",
+      "amount": 12000
+    },
+    {
+      "accountId": "e07",
+      "amount": 20000
+    },
+    {
+      "accountId": "e08",
+      "amount": 10000
+    }
+  ],
+  "rules": [
+    {
+      "id": "r1",
+      "keyword": "セブン",
+      "drAccountId": "e01",
+      "crAccountId": "a01"
+    },
+    {
+      "id": "r2",
+      "keyword": "スーパー",
+      "drAccountId": "e01",
+      "crAccountId": "b03"
+    },
+    {
+      "id": "r3",
+      "keyword": "ドラッグ",
+      "drAccountId": "e02",
+      "crAccountId": "b03"
+    },
+    {
+      "id": "r4",
+      "keyword": "JR",
+      "drAccountId": "e05",
+      "crAccountId": "a01"
+    }
+  ],
+  "allocs": [],
+  "journals": [
+    {
+      "id": "demo0001",
+      "date": "2026-07-01",
+      "desc": "開始残高（普通預金）",
+      "lines": [
+        {
+          "accountId": "a02",
+          "side": "dr",
+          "amount": 840000,
+          "taxRate": 0
+        },
+        {
+          "accountId": "c01",
+          "side": "cr",
+          "amount": 840000,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0002",
+      "date": "2026-07-01",
+      "desc": "開始残高（現金）",
+      "lines": [
+        {
+          "accountId": "a01",
+          "side": "dr",
+          "amount": 32000,
+          "taxRate": 0
+        },
+        {
+          "accountId": "c01",
+          "side": "cr",
+          "amount": 32000,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0003",
+      "date": "2026-07-01",
+      "desc": "開始残高（有価証券）",
+      "lines": [
+        {
+          "accountId": "a05",
+          "side": "dr",
+          "amount": 500000,
+          "taxRate": 0
+        },
+        {
+          "accountId": "c01",
+          "side": "cr",
+          "amount": 500000,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0004",
+      "date": "2026-07-25",
+      "desc": "給与",
+      "lines": [
+        {
+          "accountId": "a02",
+          "side": "dr",
+          "amount": 328000,
+          "taxRate": 0
+        },
+        {
+          "accountId": "d01",
+          "side": "cr",
+          "amount": 328000,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0005",
+      "date": "2026-07-27",
+      "desc": "家賃",
+      "lines": [
+        {
+          "accountId": "e09",
+          "side": "dr",
+          "amount": 92000,
+          "taxRate": 0,
+          "tagId": "t2"
+        },
+        {
+          "accountId": "a02",
+          "side": "cr",
+          "amount": 92000,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0006",
+      "date": "2026-07-05",
+      "desc": "電気・ガス・水道",
+      "lines": [
+        {
+          "accountId": "e03",
+          "side": "dr",
+          "amount": 12850,
+          "taxRate": 0,
+          "tagId": "t2"
+        },
+        {
+          "accountId": "a02",
+          "side": "cr",
+          "amount": 12850,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0007",
+      "date": "2026-07-15",
+      "desc": "携帯・回線",
+      "lines": [
+        {
+          "accountId": "e04",
+          "side": "dr",
+          "amount": 8800,
+          "taxRate": 0,
+          "tagId": "t2"
+        },
+        {
+          "accountId": "a02",
+          "side": "cr",
+          "amount": 8800,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0008",
+      "date": "2026-07-20",
+      "desc": "生命保険",
+      "lines": [
+        {
+          "accountId": "e10",
+          "side": "dr",
+          "amount": 12000,
+          "taxRate": 0,
+          "tagId": "t2"
+        },
+        {
+          "accountId": "a02",
+          "side": "cr",
+          "amount": 12000,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0009",
+      "date": "2026-07-08",
+      "desc": "ATM 引き出し",
+      "lines": [
+        {
+          "accountId": "a01",
+          "side": "dr",
+          "amount": 30000,
+          "taxRate": 0
+        },
+        {
+          "accountId": "a02",
+          "side": "cr",
+          "amount": 30000,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0010",
+      "date": "2026-07-02",
+      "desc": "ローソン",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 750,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "a01",
+          "side": "cr",
+          "amount": 750,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0011",
+      "date": "2026-07-04",
+      "desc": "ファミリーマート",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 660,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "a01",
+          "side": "cr",
+          "amount": 660,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0012",
+      "date": "2026-07-06",
+      "desc": "ファミリーマート",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 450,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "a01",
+          "side": "cr",
+          "amount": 450,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0013",
+      "date": "2026-07-08",
+      "desc": "セブン-イレブン",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 1070,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "a01",
+          "side": "cr",
+          "amount": 1070,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0014",
+      "date": "2026-07-10",
+      "desc": "ライフ",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 2900,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 2900,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0015",
+      "date": "2026-07-12",
+      "desc": "ファミリーマート",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 800,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "a01",
+          "side": "cr",
+          "amount": 800,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0016",
+      "date": "2026-07-14",
+      "desc": "セブン-イレブン",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 420,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "a01",
+          "side": "cr",
+          "amount": 420,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0017",
+      "date": "2026-07-16",
+      "desc": "スーパーマルエツ",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 5360,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 5360,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0018",
+      "date": "2026-07-18",
+      "desc": "オーケーストア",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 3340,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 3340,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0019",
+      "date": "2026-07-20",
+      "desc": "書籍",
+      "lines": [
+        {
+          "accountId": "e11",
+          "side": "dr",
+          "amount": 1950,
+          "taxRate": 0
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 1950,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0020",
+      "date": "2026-07-22",
+      "desc": "コメダ珈琲",
+      "lines": [
+        {
+          "accountId": "e07",
+          "side": "dr",
+          "amount": 840,
+          "taxRate": 0,
+          "tagId": "t3"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 840,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0021",
+      "date": "2026-07-24",
+      "desc": "業務スーパー",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 3900,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 3900,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0022",
+      "date": "2026-07-26",
+      "desc": "オーケーストア",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 5310,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 5310,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0023",
+      "date": "2026-07-28",
+      "desc": "書籍",
+      "lines": [
+        {
+          "accountId": "e11",
+          "side": "dr",
+          "amount": 1520,
+          "taxRate": 0
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 1520,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0024",
+      "date": "2026-07-30",
+      "desc": "ローソン",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 690,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "a01",
+          "side": "cr",
+          "amount": 690,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0025",
+      "date": "2026-07-12",
+      "desc": "歯科",
+      "lines": [
+        {
+          "accountId": "e06",
+          "side": "dr",
+          "amount": 3400,
+          "taxRate": 0
+        },
+        {
+          "accountId": "a01",
+          "side": "cr",
+          "amount": 3400,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0026",
+      "date": "2026-07-26",
+      "desc": "投信つみたて",
+      "lines": [
+        {
+          "accountId": "a05",
+          "side": "dr",
+          "amount": 30000,
+          "taxRate": 0
+        },
+        {
+          "accountId": "a02",
+          "side": "cr",
+          "amount": 30000,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0027",
+      "date": "2026-08-25",
+      "desc": "給与",
+      "lines": [
+        {
+          "accountId": "a02",
+          "side": "dr",
+          "amount": 328000,
+          "taxRate": 0
+        },
+        {
+          "accountId": "d01",
+          "side": "cr",
+          "amount": 328000,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0028",
+      "date": "2026-08-27",
+      "desc": "家賃",
+      "lines": [
+        {
+          "accountId": "e09",
+          "side": "dr",
+          "amount": 92000,
+          "taxRate": 0,
+          "tagId": "t2"
+        },
+        {
+          "accountId": "a02",
+          "side": "cr",
+          "amount": 92000,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0029",
+      "date": "2026-08-05",
+      "desc": "電気・ガス・水道",
+      "lines": [
+        {
+          "accountId": "e03",
+          "side": "dr",
+          "amount": 14890,
+          "taxRate": 0,
+          "tagId": "t2"
+        },
+        {
+          "accountId": "a02",
+          "side": "cr",
+          "amount": 14890,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0030",
+      "date": "2026-08-15",
+      "desc": "携帯・回線",
+      "lines": [
+        {
+          "accountId": "e04",
+          "side": "dr",
+          "amount": 8800,
+          "taxRate": 0,
+          "tagId": "t2"
+        },
+        {
+          "accountId": "a02",
+          "side": "cr",
+          "amount": 8800,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0031",
+      "date": "2026-08-20",
+      "desc": "生命保険",
+      "lines": [
+        {
+          "accountId": "e10",
+          "side": "dr",
+          "amount": 12000,
+          "taxRate": 0,
+          "tagId": "t2"
+        },
+        {
+          "accountId": "a02",
+          "side": "cr",
+          "amount": 12000,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0032",
+      "date": "2026-08-08",
+      "desc": "ATM 引き出し",
+      "lines": [
+        {
+          "accountId": "a01",
+          "side": "dr",
+          "amount": 30000,
+          "taxRate": 0
+        },
+        {
+          "accountId": "a02",
+          "side": "cr",
+          "amount": 30000,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0033",
+      "date": "2026-08-02",
+      "desc": "JR 交通系IC チャージ",
+      "lines": [
+        {
+          "accountId": "e05",
+          "side": "dr",
+          "amount": 3000,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "a01",
+          "side": "cr",
+          "amount": 3000,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0034",
+      "date": "2026-08-04",
+      "desc": "スーパーマルエツ",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 3740,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 3740,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0035",
+      "date": "2026-08-06",
+      "desc": "スーパーマルエツ",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 5850,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 5850,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0036",
+      "date": "2026-08-08",
+      "desc": "業務スーパー",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 5360,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 5360,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0037",
+      "date": "2026-08-10",
+      "desc": "JR 交通系IC チャージ",
+      "lines": [
+        {
+          "accountId": "e05",
+          "side": "dr",
+          "amount": 3000,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "a01",
+          "side": "cr",
+          "amount": 3000,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0038",
+      "date": "2026-08-12",
+      "desc": "業務スーパー",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 3550,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 3550,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0039",
+      "date": "2026-08-14",
+      "desc": "ドラッグストア",
+      "lines": [
+        {
+          "accountId": "e02",
+          "side": "dr",
+          "amount": 2550,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 2550,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0040",
+      "date": "2026-08-16",
+      "desc": "スーパーマルエツ",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 4910,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 4910,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0041",
+      "date": "2026-08-18",
+      "desc": "スーパーマルエツ",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 5440,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 5440,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0042",
+      "date": "2026-08-20",
+      "desc": "セブン-イレブン",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 660,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "a01",
+          "side": "cr",
+          "amount": 660,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0043",
+      "date": "2026-08-22",
+      "desc": "ドラッグストア",
+      "lines": [
+        {
+          "accountId": "e02",
+          "side": "dr",
+          "amount": 1570,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 1570,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0044",
+      "date": "2026-08-24",
+      "desc": "ドトール",
+      "lines": [
+        {
+          "accountId": "e07",
+          "side": "dr",
+          "amount": 850,
+          "taxRate": 0,
+          "tagId": "t3"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 850,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0045",
+      "date": "2026-08-26",
+      "desc": "ローソン",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 670,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "a01",
+          "side": "cr",
+          "amount": 670,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0046",
+      "date": "2026-08-28",
+      "desc": "ライフ",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 4520,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 4520,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0047",
+      "date": "2026-08-30",
+      "desc": "業務スーパー",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 4370,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 4370,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0048",
+      "date": "2026-08-18",
+      "desc": "衣料品",
+      "lines": [
+        {
+          "accountId": "e08",
+          "side": "dr",
+          "amount": 12800,
+          "taxRate": 0
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 12800,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0049",
+      "date": "2026-08-22",
+      "desc": "友人と食事",
+      "lines": [
+        {
+          "accountId": "e07",
+          "side": "dr",
+          "amount": 6800,
+          "taxRate": 0,
+          "tagId": "t3"
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 6800,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0050",
+      "date": "2026-08-26",
+      "desc": "投信つみたて",
+      "lines": [
+        {
+          "accountId": "a05",
+          "side": "dr",
+          "amount": 30000,
+          "taxRate": 0
+        },
+        {
+          "accountId": "a02",
+          "side": "cr",
+          "amount": 30000,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0051",
+      "date": "2026-08-10",
+      "desc": "カード引き落とし",
+      "lines": [
+        {
+          "accountId": "b03",
+          "side": "dr",
+          "amount": 2900,
+          "taxRate": 0
+        },
+        {
+          "accountId": "a02",
+          "side": "cr",
+          "amount": 2900,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0058",
+      "date": "2026-09-02",
+      "desc": "書籍",
+      "lines": [
+        {
+          "accountId": "e11",
+          "side": "dr",
+          "amount": 1720,
+          "taxRate": 0
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 1720,
+          "taxRate": 0
+        }
+      ]
+    }
+  ],
+  "presets": [
+    {
+      "id": "pd1",
+      "walletId": "",
+      "type": "out",
+      "name": "食費（カード払い）",
+      "desc": "",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 0,
+          "tagId": ""
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 0,
+          "tagId": ""
+        }
+      ]
+    },
+    {
+      "id": "pd2",
+      "walletId": "",
+      "type": "in",
+      "name": "給与（入金）",
+      "desc": "",
+      "lines": [
+        {
+          "accountId": "a02",
+          "side": "dr",
+          "amount": 0,
+          "tagId": ""
+        },
+        {
+          "accountId": "d01",
+          "side": "cr",
+          "amount": 0,
+          "tagId": ""
+        }
+      ]
+    },
+    {
+      "id": "pd3",
+      "walletId": "",
+      "type": "out",
+      "name": "現金引き出し",
+      "desc": "",
+      "lines": [
+        {
+          "accountId": "a01",
+          "side": "dr",
+          "amount": 0,
+          "tagId": ""
+        },
+        {
+          "accountId": "a02",
+          "side": "cr",
+          "amount": 0,
+          "tagId": ""
+        }
+      ]
+    }
+  ],
+  "recurring": [
+    {
+      "id": "rc1",
+      "name": "家賃",
+      "frequency": "monthly",
+      "day": 27,
+      "nextDate": "2026-10-27",
+      "lines": [
+        {
+          "accountId": "e09",
+          "side": "dr",
+          "amount": 92000
+        },
+        {
+          "accountId": "a02",
+          "side": "cr",
+          "amount": 92000
+        }
+      ]
+    },
+    {
+      "id": "rc2",
+      "name": "携帯・回線",
+      "frequency": "monthly",
+      "day": 15,
+      "nextDate": "2026-10-15",
+      "lines": [
+        {
+          "accountId": "e04",
+          "side": "dr",
+          "amount": 8800
+        },
+        {
+          "accountId": "a02",
+          "side": "cr",
+          "amount": 8800
+        }
+      ]
+    }
+  ]
+}

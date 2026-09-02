@@ -29,6 +29,10 @@ function Nav() {
         headerTintColor: t.tx,
         headerTitleStyle: { fontWeight: '700' },
         contentStyle: { backgroundColor: t.bg0 },
+        // 戻るボタンは矢印だけにする。既定では直前の画面名が並ぶが、タブ画面には
+        // 名前が無いためルート名がそのまま出て「＜ (tabs)」になっていた。
+        // 画面名を付けて回っても、日本語のタイトルは長くて矢印の横に収まらない。
+        headerBackButtonDisplayMode: 'minimal',
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
