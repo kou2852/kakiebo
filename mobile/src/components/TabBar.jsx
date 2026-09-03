@@ -61,18 +61,18 @@ export default function TabBar({ state, descriptors, navigation }) {
       }}>
         {routes.slice(0, half).map(tab)}
 
-        <View style={{ width: 72, alignItems: 'center' }}>
+        <View style={{ width: 80, alignItems: 'center' }}>
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="記帳する"
             onPress={() => navigation.navigate(ENTRY_ROUTE)}
             style={[{
-              width: 55, height: 55, borderRadius: 28, marginTop: -19,
+              width: 64, height: 64, borderRadius: 32, marginTop: -23,
               backgroundColor: state.index === entryIndex ? t.acDeep : t.ac,
               alignItems: 'center', justifyContent: 'center',
             }, t.shadow]}
           >
-            <Ionicons name="add" size={29} color={t.acTx} />
+            <Ionicons name="add" size={34} color={t.acTx} />
           </TouchableOpacity>
         </View>
 

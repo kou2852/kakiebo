@@ -23,11 +23,9 @@ export function useSyncRefresh() {
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
-    if (!signedIn) {
-      Alert.alert('同期先がありません',
-        'アカウントに接続すると、帳簿がサーバーにも保存され、他の端末から見られるようになります。');
-      return;
-    }
+    // 未ログインなら送る先が無い。知らせる必要も無いので黙って終える。
+    // 引っ張るたびに知らせると、アカウントを使わない人には邪魔でしかない。
+    if (!signedIn) return;
     setRefreshing(true);
     try {
       await sync();

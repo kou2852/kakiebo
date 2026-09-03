@@ -175,6 +175,99 @@ function dropSpecks(png, minArea) {
   return png;
 }
 
+/**
+ * 図柄を画布の中央へ寄せる。
+ *
+ * 元画像の図柄は中心からずれており（下の余白が上の半分ほど）、
+ * 背景を抜いて単独で置くと下端に寄って「切れている」ように見える。
+ * 拡大縮小はせず平行移動だけにする（再標本化で輪郭が甘くなるのを避ける）。
+ */
+function centerFigure(png) {
+  const { width: w, height: h, data } = png;
+  let x0 = w; let y0 = h; let x1 = -1; let y1 = -1;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (data[(y * w + x) * 4 + 3] <= 8) continue;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+  }
+  if (x1 < 0) return png;
+
+  const dx = Math.round((w - (x1 - x0 + 1)) / 2) - x0;
+  const dy = Math.round((h - (y1 - y0 + 1)) / 2) - y0;
+  if (!dx && !dy) return png;
+
+  const out = new PNG({ width: w, height: h });
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const src2 = ((y - dy) * w + (x - dx)) * 4;
+      const di = (y * w + x) * 4;
+      const inside = x - dx >= 0 && x - dx < w && y - dy >= 0 && y - dy < h;
+      out.data[di] = inside ? data[src2] : 0;
+      out.data[di + 1] = inside ? data[src2 + 1] : 0;
+      out.data[di + 2] = inside ? data[src2 + 2] : 0;
+      out.data[di + 3] = inside ? data[src2 + 3] : 0;
+    }
+  }
+  console.log(`     中央へ ${dx > 0 ? '+' : ''}${dx}, ${dy > 0 ? '+' : ''}${dy} px 移動`);
+  return out;
+}
+
+/**
+ * 棒グラフの下端を四角にする（スプラッシュだけ）。
+ *
+ * 元のアイコンは棒の四隅が丸い。小さく出るアイコンでは気にならないが、
+ * スプラッシュのように大きく出すと、下端の丸みが「切れている」ように見える。
+ * 上端の丸みは残す。全部四角にすると元の図柄から離れすぎる。
+ *
+ * ⚠ アイコン本体には掛けない。掛けると Web 版のアイコンと形が食い違う。
+ */
+function squareBarBottoms(png) {
+  const { width: w, height: h, data } = png;
+  const alphaAt = (x, y) => data[(y * w + x) * 4 + 3];
+
+  // 足元が画布の下の方まで届く列を「棒」とみなして、連続した塊にまとめる。
+  const NEAR_BOTTOM = h * 0.85;
+  const runs = [];
+  let cur = null;
+  for (let x = 0; x < w; x++) {
+    let bottom = -1;
+    for (let y = 0; y < h; y++) if (alphaAt(x, y) > 128) bottom = y;
+    if (bottom >= NEAR_BOTTOM) {
+      if (cur) { cur.x1 = x; cur.bottom = Math.max(cur.bottom, bottom); } else cur = { x0: x, x1: x, bottom };
+    } else if (cur) { runs.push(cur); cur = null; }
+  }
+  if (cur) runs.push(cur);
+
+  // 細い塊はフクロウの尾。棒と取り違えると尾が下へ伸びる。
+  const bars = runs.filter((r) => r.x1 - r.x0 + 1 >= w * 0.04);
+  if (!bars.length) return png;
+  const baseline = Math.max(...bars.map((r) => r.bottom));
+
+  let filled = 0;
+  for (const bar of bars) {
+    for (let x = bar.x0; x <= bar.x1; x++) {
+      let bottom = -1;
+      for (let y = 0; y < h; y++) if (alphaAt(x, y) > 128) bottom = y;
+      if (bottom < 0) continue;
+      const src2 = (bottom * w + x) * 4;
+      for (let y = bottom + 1; y <= baseline; y++) {
+        const di = (y * w + x) * 4;
+        data[di] = data[src2];
+        data[di + 1] = data[src2 + 1];
+        data[di + 2] = data[src2 + 2];
+        data[di + 3] = 255;
+        filled++;
+      }
+    }
+  }
+  console.log(`     棒 ${bars.length}本の下端を四角に（${filled}px を補填）`);
+  return png;
+}
+
 const write = (name, png) => {
   fs.writeFileSync(OUT(name), PNG.sync.write(png));
   console.log('  ', name, png.width + 'px');
@@ -184,9 +277,9 @@ write('icon.png', render(1024));
 write('favicon.png', render(96));
 // Android は前景・背景・モノクロの3枚。前景は安全領域（中央66%）に収める。
 write('android-icon-background.png', render(1024, { solid: NEW_BG }));
-write('android-icon-foreground.png', dropSpecks(render(1024, { transparentBg: true, scale: 0.62 }), 400));
-write('android-icon-monochrome.png', dropSpecks(render(1024, { mono: true, scale: 0.62 }), 400));
+write('android-icon-foreground.png', centerFigure(dropSpecks(render(1024, { transparentBg: true, scale: 0.62 }), 400)));
+write('android-icon-monochrome.png', centerFigure(dropSpecks(render(1024, { mono: true, scale: 0.62 }), 400)));
 // スプラッシュは明暗で図柄を替える。地の色は app.json 側で指定する。
-write('splash-icon.png', dropSpecks(render(512, { transparentBg: true }), 100));
-write('splash-icon-dark.png', dropSpecks(render(512, { original: true }), 100));
+write('splash-icon.png', squareBarBottoms(centerFigure(dropSpecks(render(512, { transparentBg: true }), 100))));
+write('splash-icon-dark.png', squareBarBottoms(centerFigure(dropSpecks(render(512, { original: true }), 100))));
 console.log('完了');
