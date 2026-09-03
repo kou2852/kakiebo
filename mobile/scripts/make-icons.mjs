@@ -26,6 +26,13 @@ const NEW_BG = [0xff, 0xff, 0xff];   // 背景 → 白
 const NEW_WH = [0x11, 0x5e, 0x5c];   // 白 → 濃いティール
 const NEW_WING = [0x2f, 0x93, 0x90]; // 翼は白地で沈まないよう少し濃くする
 
+const INSET = 2;
+
+const NEAR = 32;  // これ以下は背景とみなして透明
+const FAR = 78;   // これ以上は図柄とみなして不透明
+const alphaFrom = (dist) =>
+  Math.max(0, Math.min(255, Math.round(((dist - NEAR) / (FAR - NEAR)) * 255)));
+
 // 判定に使う線分（元の2色 → 置き換え後の2色）
 const EDGES = [
   { a: BG, b: WH, na: NEW_BG, nb: NEW_WH },
@@ -37,19 +44,18 @@ const EDGES = [
 // 単純な比例だと、背景にわずかにある濃淡（距離20前後）まで3割ほど残ってしまい、
 // 図柄の後ろに角丸四角の影が浮く（実際に出た）。手前に不感帯を置いて完全に抜く。
 // 元画像の最外周に書き出し時の縁が1px入っている。使わない。
-const INSET = 2;
-
-const NEAR = 32;  // これ以下は背景とみなして透明
-const FAR = 78;   // これ以上は図柄とみなして不透明
-const alphaFrom = (dist) =>
-  Math.max(0, Math.min(255, Math.round(((dist - NEAR) / (FAR - NEAR)) * 255)));
-
 const sub = (p, q) => [p[0] - q[0], p[1] - q[1], p[2] - q[2]];
 const dot = (p, q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2];
 const lerp = (p, q, t) => [0, 1, 2].map((i) => Math.round(p[i] + (q[i] - p[i]) * t));
 
 /** 画素を、最も近い線分に射影して置き換える */
 function mapColor(px) {
+  // 背景に十分近い画素は、混ぜずに置き換え後の背景そのものにする。
+  // 元画像の四隅には角丸の輪郭がうっすら残っており（背景からの距離26ほど）、
+  // 線分に射影すると薄い灰色になる。元の濃い背景では見えないが、白へ反転すると
+  // 角丸の幽霊として浮き上がる（実際に浮いた）。透明度の判定と同じ閾値で切る。
+  if (Math.hypot(px[0] - BG[0], px[1] - BG[1], px[2] - BG[2]) < NEAR) return NEW_BG;
+
   let best = null;
   for (const e of EDGES) {
     const ab = sub(e.b, e.a);
@@ -268,18 +274,47 @@ function squareBarBottoms(png) {
   return png;
 }
 
+/**
+ * 透過の図柄を単色の地に貼って、不透明な画像にする。
+ *
+ * 不透明なアイコンを元画像から直に作ると、元画像の隅に散っているごみ
+ * （明るい画素が100個ほど、背景からの距離は最大235）まで図柄として写り、
+ * 白へ反転したときに角丸の幽霊のような汚れになる（実際になった）。
+ * アルファで掃除した図柄を地に貼れば、その経路を通らない。
+ */
+function flatten(png, bg) {
+  const { width: w, height: h, data } = png;
+  const out = new PNG({ width: w, height: h });
+  for (let i = 0; i < w * h; i++) {
+    const a = data[i * 4 + 3] / 255;
+    for (let c = 0; c < 3; c++) {
+      out.data[i * 4 + c] = Math.round(data[i * 4 + c] * a + bg[c] * (1 - a));
+    }
+    out.data[i * 4 + 3] = 255;
+  }
+  return out;
+}
+
+/** 掃除して中央へ寄せた図柄（透過）。すべての出力の元にする。 */
+function figure(size, opts = {}) {
+  // 画布に対する比で足切りする。96px のファビコンと 1024px のアイコンで
+  // 同じ絶対値を使うと、小さい方は図柄まで消える。
+  const minArea = Math.max(4, Math.round(size * size * 0.0004));
+  return centerFigure(dropSpecks(render(size, { transparentBg: true, ...opts }), minArea));
+}
+
 const write = (name, png) => {
   fs.writeFileSync(OUT(name), PNG.sync.write(png));
   console.log('  ', name, png.width + 'px');
 };
 
-write('icon.png', render(1024));
-write('favicon.png', render(96));
+write('icon.png', flatten(figure(1024), NEW_BG));
+write('favicon.png', flatten(figure(96), NEW_BG));
 // Android は前景・背景・モノクロの3枚。前景は安全領域（中央66%）に収める。
 write('android-icon-background.png', render(1024, { solid: NEW_BG }));
-write('android-icon-foreground.png', centerFigure(dropSpecks(render(1024, { transparentBg: true, scale: 0.62 }), 400)));
+write('android-icon-foreground.png', figure(1024, { scale: 0.62 }));
 write('android-icon-monochrome.png', centerFigure(dropSpecks(render(1024, { mono: true, scale: 0.62 }), 400)));
 // スプラッシュは明暗で図柄を替える。地の色は app.json 側で指定する。
-write('splash-icon.png', squareBarBottoms(centerFigure(dropSpecks(render(512, { transparentBg: true }), 100))));
+write('splash-icon.png', squareBarBottoms(figure(512)));
 write('splash-icon-dark.png', squareBarBottoms(centerFigure(dropSpecks(render(512, { original: true }), 100))));
 console.log('完了');
