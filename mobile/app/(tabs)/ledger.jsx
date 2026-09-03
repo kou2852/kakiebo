@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Alert, FlatList, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useData } from '../../src/store/DataProvider';
+import { useSyncRefresh } from '../../src/store/useSyncRefresh';
 import { useTheme } from '../../src/theme';
 import { Button, Empty, Segmented, sep } from '../../src/components/ui';
 import PeriodBar, { usePeriod } from '../../src/components/PeriodBar';
@@ -88,6 +89,7 @@ export default function Ledger() {
   const t = useTheme();
   const router = useRouter();
   const { accounts, journals, del } = useData();
+  const refresh = useSyncRefresh();
 
   const [mode, setMode] = useState('list');
   const [month, setMonth] = useState(() => new Date());
@@ -181,11 +183,23 @@ export default function Ledger() {
       {mode === 'cal' ? (
         <MonthGrid month={month} setMonth={setMonth} journals={journals} accounts={accounts}
           onSelect={setDayOpen} />
+      ) : rows.length === 0 ? (
+        // 仕訳が無いときは FlatList を使わない。空の一覧は高さを持たず、
+        // 「ありません」の文言も引っ張るための余白も出ない（実際に出なかった）。
+        // 取り込むものが無いときこそ引っ張って取りに行きたいので、ここは素直に書く。
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
+          refreshControl={refresh.control}
+        >
+          <Empty text="この期間の仕訳はありません" />
+        </ScrollView>
       ) : (
         <FlatList
           data={rows}
           keyExtractor={(j) => j.id}
-          ListEmptyComponent={<Empty text="この期間の仕訳はありません" />}
+          style={{ flex: 1 }}
+          refreshControl={refresh.control}
           renderItem={({ item }) => renderRow(item, false)}
           ListFooterComponent={
             rows.length ? (

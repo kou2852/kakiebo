@@ -8,13 +8,22 @@ import { useTheme } from '../theme';
 /**
  * @param stickyTop     スクロールしても上に貼り付く領域（切替タブなど）
  * @param stickyBottom  下に貼り付く領域（一括操作など）
+ * @param refresh       useSyncRefresh() の戻り値。渡すと下に引っ張って同期できる
  */
-export function Screen({ children, scroll = true, stickyTop, stickyBottom }) {
+export function Screen({ children, scroll = true, stickyTop, stickyBottom, refresh }) {
   const t = useTheme();
   const bg = { flex: 1, backgroundColor: t.bg0 };
 
   const body = scroll
-    ? <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 13, paddingBottom: 40, gap: 11 }}>{children}</ScrollView>
+    ? (
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 13, paddingBottom: 40, gap: 11 }}
+        refreshControl={refresh?.control}
+      >
+        {children}
+      </ScrollView>
+    )
     : <View style={{ flex: 1, padding: 13, gap: 11 }}>{children}</View>;
 
   if (!stickyTop && !stickyBottom) return <View style={bg}>{body}</View>;

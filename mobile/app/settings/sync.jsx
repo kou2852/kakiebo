@@ -12,6 +12,7 @@ import { useAuth } from '../../src/store/AuthProvider';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, Screen } from '../../src/components/ui';
+import { useSyncRefresh } from '../../src/store/useSyncRefresh';
 import { resetAll } from '../../src/db';
 
 function Row({ label, value }) {
@@ -30,6 +31,7 @@ export default function Sync() {
   const auth = useAuth();
   const d = useData();
 
+  const refresh = useSyncRefresh();
   const [deleting, setDeleting] = useState(false);
 
   // サーバー → 端末の順で消す。逆にすると、サーバーの削除に失敗したときに
@@ -77,7 +79,7 @@ export default function Sync() {
   };
 
   return (
-    <Screen>
+    <Screen refresh={refresh}>
       <Card title="接続">
         <Row label="ログイン" value={auth.email || '未ログイン'} />
         {d.unlocked ? <Row label="暗号化" value="解錠済み（この端末に鍵を保持）" /> : null}
