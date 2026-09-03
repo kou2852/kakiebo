@@ -2,6 +2,7 @@
 // 書き込みは常にローカル(SQLite)へ即時反映し、未送信の操作をキューに積む。
 // sync() がそれをサーバーの最新状態へ載せ直す（store/sync.js）。
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { clearPendingUpTo, listPending, readLocal, writeLocal } from '../db';
 import { applyIntent, upsert, remove, replace } from '../db/intents';
@@ -45,16 +46,26 @@ export function DataProvider({ children }) {
   const rememberDek = useCallback(async (k) => { setDekState(k); await saveDek(env, k); }, [env]);
   const forgetDek = useCallback(async () => { setDekState(null); await clearDek(env); }, [env]);
 
+  // 変更のあとに自動同期を予約する。実体は下の autoSync（定義順の都合で ref 経由）。
+  // 一括編集のように連続で積まれる場合をまとめたいので、少し待ってから走らせる。
+  const autoSyncRef = useRef(null);
+  const flushTimer = useRef(null);
+  const [scheduleSync] = useState(() => () => {
+    if (flushTimer.current) clearTimeout(flushTimer.current);
+    flushTimer.current = setTimeout(() => { flushTimer.current = null; autoSyncRef.current?.(); }, 1500);
+  });
+  useEffect(() => () => { if (flushTimer.current) clearTimeout(flushTimer.current); }, []);
+
   // 意図を1つ適用して即座に保存する。UI は保存完了を待たない（オフライン前提のため）。
   const commit = useCallback((intent) => {
     setDataset((prev) => {
       const next = applyIntent(prev, intent);
       writeLocal(next, rev.current, intent)
-        .then(refreshPending)
+        .then(() => { refreshPending(); scheduleSync(); })
         .catch((e) => console.warn('保存に失敗:', e?.message));
       return next;
     });
-  }, [refreshPending]);
+  }, [refreshPending, scheduleSync]);
 
   // サーバーから取り込んだ帳簿でローカルを丸ごと置き換える（読み取り専用の取り込み）。
   const replaceAll = useCallback(async (next, serverRev = 0) => {
@@ -85,19 +96,46 @@ export function DataProvider({ children }) {
     }
   }, [dek, refreshPending]);
 
-  // オフライン中に溜めた操作を、接続が戻った時点で自動的に送る。
-  // 手動同期を待たせるとユーザーは「保存されていない」と誤解するため。
+  // 未送信の操作を自動で送る。
+  //
+  // きっかけは3つ: 記帳などの変更のあと・アプリを前面に戻したとき・通信が復活したとき。
+  // 以前は通信の復活だけを見ていたが、NetInfo は「状態が変わったとき」しか発火しない。
+  // つないだままだとイベントが一度も来ず、手動で同期するまで送られないままだった。
+  // 呼ばれるのは常にイベントの中なので、最新値は ref 経由で読む。
   const syncRef = useRef(sync);
+  const syncingRef = useRef(false);
+  const signedInRef = useRef(signedIn);
+  const failedAt = useRef(0);
   useEffect(() => { syncRef.current = sync; }, [sync]);
+  useEffect(() => { syncingRef.current = syncing; }, [syncing]);
+  useEffect(() => { signedInRef.current = signedIn; }, [signedIn]);
+
+  const [autoSync] = useState(() => async (force) => {
+    if (!signedInRef.current || syncingRef.current) return;
+    // 失敗した直後に何度も叩かない。解錠待ちや通信断はすぐには直らない。
+    if (!force && failedAt.current && Date.now() - failedAt.current < 60_000) return;
+    if (!(await listPending()).length) return;
+    try {
+      await syncRef.current();
+      failedAt.current = 0;
+    } catch {
+      // 失敗してもキューは残る。次の変更・前面復帰・通信復活で再試行する。
+      failedAt.current = Date.now();
+    }
+  });
+
+  useEffect(() => { autoSyncRef.current = autoSync; }, [autoSync]);
+
+  // 前面に戻ったとき（別端末で編集した内容の取り込みも兼ねる）と、通信が復活したとき。
   useEffect(() => {
-    if (!signedIn) return;
-    return NetInfo.addEventListener((state) => {
-      if (!state.isConnected || !state.isInternetReachable) return;
-      listPending().then((p) => {
-        if (p.length) syncRef.current().catch(() => { /* 失敗はキューに残るので次の機会に再試行 */ });
-      });
+    if (!signedIn) return undefined;
+    autoSync(true);
+    const app = AppState.addEventListener('change', (s) => { if (s === 'active') autoSync(true); });
+    const net = NetInfo.addEventListener((state) => {
+      if (state.isConnected && state.isInternetReachable) autoSync(true);
     });
-  }, [signedIn]);
+    return () => { app.remove(); net(); };
+  }, [signedIn, autoSync]);
 
   const api = useMemo(() => ({
     save: (collection, item) => commit(upsert(collection, item)),
