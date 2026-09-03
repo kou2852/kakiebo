@@ -75,9 +75,6 @@ export default function Settings() {
         // 5.1.1(i)「プライバシーポリシーへのリンクをアプリ内の分かりやすい場所に置く」
         { label: '利用規約', onPress: () => Linking.openURL('https://kurofukubo.com/terms.html') },
         { label: 'プライバシーポリシー', onPress: () => Linking.openURL('https://kurofukubo.com/privacy.html') },
-        // 5.1.1(i)「プライバシーポリシーへのリンクをアプリ内の分かりやすい場所に置く」
-        { label: '利用規約', onPress: () => Linking.openURL('https://kurofukubo.com/terms.html') },
-        { label: 'プライバシーポリシー', onPress: () => Linking.openURL('https://kurofukubo.com/privacy.html') },
       ]} />
 
       {/* 取り返しがつかない操作なので、他の項目と地続きにしない */}
