@@ -2,3 +2,7 @@ node_modules/
 .expo/
 dist/
 *.log
+
+# expo prebuild の生成物。ローカルの Android 確認でのみ作る。
+/android/
+/ios/

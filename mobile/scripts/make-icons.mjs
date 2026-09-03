@@ -36,6 +36,9 @@ const EDGES = [
 // 背景からどれだけ離れているかで不透明度を決める。
 // 単純な比例だと、背景にわずかにある濃淡（距離20前後）まで3割ほど残ってしまい、
 // 図柄の後ろに角丸四角の影が浮く（実際に出た）。手前に不感帯を置いて完全に抜く。
+// 元画像の最外周に書き出し時の縁が1px入っている。使わない。
+const INSET = 2;
+
 const NEAR = 32;  // これ以下は背景とみなして透明
 const FAR = 78;   // これ以上は図柄とみなして不透明
 const alphaFrom = (dist) =>
@@ -86,8 +89,10 @@ function render(size, opts = {}) {
       }
 
       // 元画像のどの点にあたるか（最近傍。512→1024 は 2x2 に広がるだけで劣化しない）
-      const fx = (x - off) / inner * s;
-      const fy = (y - off) / inner * s;
+      // 最外周は使わない。元画像の x=0 に書き出し時の明るい縁が1px入っており、
+      // 背景を抜くとそこだけ図柄として残って、スプラッシュに縦線が出る（実際に出た）。
+      const fx = INSET + (x - off) / inner * (s - INSET * 2);
+      const fy = INSET + (y - off) / inner * (s - INSET * 2);
       if (fx < 0 || fy < 0 || fx >= s || fy >= s) { out.data[di + 3] = 0; continue; }
 
       const si = (Math.floor(fy) * s + Math.floor(fx)) * 4;
@@ -120,6 +125,56 @@ function render(size, opts = {}) {
   return out;
 }
 
+/**
+ * 図柄とつながっていない小さな塊を消す。
+ *
+ * 元画像の縁には、書き出し時に生じたと思われる明るい画素が散っている。
+ * α=255 まで出るので閾値では落とせず、そのままだとスプラッシュの余白に
+ * ごみとして浮く（実際に出た）。連結成分の面積で判定して捨てる。
+ */
+function dropSpecks(png, minArea) {
+  const { width: w, height: h, data } = png;
+  const label = new Int32Array(w * h).fill(-1);
+  const areas = [];
+  const stack = [];
+
+  for (let i = 0; i < w * h; i++) {
+    if (label[i] !== -1 || data[i * 4 + 3] <= 8) continue;
+    const id = areas.length;
+    let area = 0;
+    stack.push(i);
+    label[i] = id;
+    while (stack.length) {
+      const p = stack.pop();
+      area++;
+      const x = p % w;
+      const y = (p / w) | 0;
+      // 斜めも隣とみなす。1px幅の線が対角に繋がる図柄を割らないため。
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+          const q = ny * w + nx;
+          if (label[q] !== -1 || data[q * 4 + 3] <= 8) continue;
+          label[q] = id;
+          stack.push(q);
+        }
+      }
+    }
+    areas.push(area);
+  }
+
+  let dropped = 0;
+  for (let i = 0; i < w * h; i++) {
+    const id = label[i];
+    if (id >= 0 && areas[id] < minArea) { data[i * 4 + 3] = 0; dropped++; }
+  }
+  const kept = areas.filter((a) => a >= minArea);
+  console.log(`     連結成分 ${areas.length} → 残 ${kept.length}（${dropped}px を除去）`);
+  return png;
+}
+
 const write = (name, png) => {
   fs.writeFileSync(OUT(name), PNG.sync.write(png));
   console.log('  ', name, png.width + 'px');
@@ -129,9 +184,9 @@ write('icon.png', render(1024));
 write('favicon.png', render(96));
 // Android は前景・背景・モノクロの3枚。前景は安全領域（中央66%）に収める。
 write('android-icon-background.png', render(1024, { solid: NEW_BG }));
-write('android-icon-foreground.png', render(1024, { transparentBg: true, scale: 0.62 }));
-write('android-icon-monochrome.png', render(1024, { mono: true, scale: 0.62 }));
+write('android-icon-foreground.png', dropSpecks(render(1024, { transparentBg: true, scale: 0.62 }), 400));
+write('android-icon-monochrome.png', dropSpecks(render(1024, { mono: true, scale: 0.62 }), 400));
 // スプラッシュは明暗で図柄を替える。地の色は app.json 側で指定する。
-write('splash-icon.png', render(512, { transparentBg: true }));
-write('splash-icon-dark.png', render(512, { original: true }));
+write('splash-icon.png', dropSpecks(render(512, { transparentBg: true }), 100));
+write('splash-icon-dark.png', dropSpecks(render(512, { original: true }), 100));
 console.log('完了');
