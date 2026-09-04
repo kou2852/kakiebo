@@ -223,58 +223,6 @@ function centerFigure(png) {
 }
 
 /**
- * 棒グラフの下端を四角にする（スプラッシュだけ）。
- *
- * 元のアイコンは棒の四隅が丸い。小さく出るアイコンでは気にならないが、
- * スプラッシュのように大きく出すと、下端の丸みが「切れている」ように見える。
- * 上端の丸みは残す。全部四角にすると元の図柄から離れすぎる。
- *
- * ⚠ アイコン本体には掛けない。掛けると Web 版のアイコンと形が食い違う。
- */
-function squareBarBottoms(png) {
-  const { width: w, height: h, data } = png;
-  const alphaAt = (x, y) => data[(y * w + x) * 4 + 3];
-
-  // 足元が画布の下の方まで届く列を「棒」とみなして、連続した塊にまとめる。
-  const NEAR_BOTTOM = h * 0.85;
-  const runs = [];
-  let cur = null;
-  for (let x = 0; x < w; x++) {
-    let bottom = -1;
-    for (let y = 0; y < h; y++) if (alphaAt(x, y) > 128) bottom = y;
-    if (bottom >= NEAR_BOTTOM) {
-      if (cur) { cur.x1 = x; cur.bottom = Math.max(cur.bottom, bottom); } else cur = { x0: x, x1: x, bottom };
-    } else if (cur) { runs.push(cur); cur = null; }
-  }
-  if (cur) runs.push(cur);
-
-  // 細い塊はフクロウの尾。棒と取り違えると尾が下へ伸びる。
-  const bars = runs.filter((r) => r.x1 - r.x0 + 1 >= w * 0.04);
-  if (!bars.length) return png;
-  const baseline = Math.max(...bars.map((r) => r.bottom));
-
-  let filled = 0;
-  for (const bar of bars) {
-    for (let x = bar.x0; x <= bar.x1; x++) {
-      let bottom = -1;
-      for (let y = 0; y < h; y++) if (alphaAt(x, y) > 128) bottom = y;
-      if (bottom < 0) continue;
-      const src2 = (bottom * w + x) * 4;
-      for (let y = bottom + 1; y <= baseline; y++) {
-        const di = (y * w + x) * 4;
-        data[di] = data[src2];
-        data[di + 1] = data[src2 + 1];
-        data[di + 2] = data[src2 + 2];
-        data[di + 3] = 255;
-        filled++;
-      }
-    }
-  }
-  console.log(`     棒 ${bars.length}本の下端を四角に（${filled}px を補填）`);
-  return png;
-}
-
-/**
  * 透過の図柄を単色の地に貼って、不透明な画像にする。
  *
  * 不透明なアイコンを元画像から直に作ると、元画像の隅に散っているごみ
@@ -315,6 +263,6 @@ write('android-icon-background.png', render(1024, { solid: NEW_BG }));
 write('android-icon-foreground.png', figure(1024, { scale: 0.62 }));
 write('android-icon-monochrome.png', centerFigure(dropSpecks(render(1024, { mono: true, scale: 0.62 }), 400)));
 // スプラッシュは明暗で図柄を替える。地の色は app.json 側で指定する。
-write('splash-icon.png', squareBarBottoms(figure(512)));
-write('splash-icon-dark.png', squareBarBottoms(centerFigure(dropSpecks(render(512, { original: true }), 100))));
+write('splash-icon.png', figure(512));
+write('splash-icon-dark.png', centerFigure(dropSpecks(render(512, { original: true }), 100)));
 console.log('完了');
