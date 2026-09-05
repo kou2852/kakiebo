@@ -9,7 +9,7 @@
 // 誤タップを避けるため、タブバーとの間に区切り線を入れて領域を分けている。
 //
 // アプリID（app.json）とユニットID（下記）はどちらも本番のものが入っている。
-// ただし TEST_ADS が true の間はテスト広告を出すので、収益は発生しない。
+// テスト広告に切り替わるのは開発中（__DEV__）だけで、切り替える手段は他に無い。
 import { useState } from 'react';
 import { View } from 'react-native';
 // ネイティブモジュールが無い環境（Expo Go・広告を含まないビルド）では読み込みに失敗する。
@@ -23,21 +23,28 @@ try {
 export const adsAvailable = () => Ads !== null;
 import { useTheme } from '../theme';
 
-// false にすれば広告は一切描画されない。JS だけなので OTA で止められる。
+// 広告そのものを止める手段は置かない。
+//
+// ⚠ ここにフラグを作らないこと。別アプリ（SUKIMA QUEST）で、広告の挙動を
+// ビルドごとに切り替え、同一バージョンへ挙動の異なるバイナリを並べたところ、
+// 2026-08-26 に Guideline 5.6（Developer Code of Conduct）で却下された。
+// 指摘は「審査中に意図的に隠されたと見える機能がある」。開発者アカウント自体に
+// 関わる重い条項で、善意でも審査を欺いたと読まれる。
+//
+// 審査に出すバイナリと、自分が試すバイナリを同じに保つ。
+// スクリーンショットも出荷ビルドで撮る。広告が写り込むこと自体は問題ない。
 export const ADS_ENABLED = true;
 
 // 本番のユニットID（AdMob: kurofukubo iOS / アンカーバナー）。
 const PROD_UNIT_ID = 'ca-app-pub-1494837719359912/3915570524';
 
-// ⚠ 本番の広告を出す前に、必ず src/ads.js の TEST_DEVICES へ自分の端末を登録すること。
-// 登録せずに自分で操作すると「自分の広告をクリックした」と記録され、アカウントが
-// 停止されうる。端末IDは本番IDで一度起動するとログに出る。
+// テスト広告は開発中だけ。ストア配布ビルドでは __DEV__ が偽になるので、
+// 常に本番ユニットを使う。ビルド時にも実行時にもこれを変える手段は無い。
 //
-// それまではテスト広告のまま出す。見た目と配置の確認はこれでできて、収益は発生しない。
-// ここは JS なので、切り替えは OTA で反映できる（再ビルドは要らない）。
-const TEST_ADS = true;
-
-const UNIT_ID = !Ads ? '' : TEST_ADS ? Ads.TestIds.ADAPTIVE_BANNER : PROD_UNIT_ID;
+// ⚠ 自分の端末で本番広告を踏まないための対策は、ビルドを分けることではなく
+// src/ads.js の TEST_DEVICES に自分の端末を登録すること。登録せずに自分で
+// タップすると無効なトラフィックと判定され、AdMob のアカウントが停止されうる。
+const UNIT_ID = !Ads ? '' : __DEV__ ? Ads.TestIds.ADAPTIVE_BANNER : PROD_UNIT_ID;
 
 // ティア別の表示可否。Web 版 config/tiers.js の AD_CONFIG と同じ考え方。
 // 課金が未実装なので実ログインユーザーは全員 free 扱い。
