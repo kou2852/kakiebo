@@ -111,38 +111,167 @@ Expo の既定値をそのまま残しているのではない。
 
 ---
 
-## 3. ストア掲載情報
+## 3. ストア掲載情報（2026-09-05 現在）
 
-### 名前・サブタイトル（30文字以内）
+App Store Connect にそのまま貼れる形で置く。**コードから確認した実際の値**。
 
-- 名前: kurofukubo
-- サブタイトル案: 複式簿記でつける資産管理
+### App 情報（固定値）
 
-### プロモーションテキスト（170文字・審査なしで随時変更可）
+| 項目 | 値 |
+|---|---|
+| 名前 | `kurofukubo` |
+| サブタイトル（30字以内） | `複式簿記でつける資産管理` （12字） |
+| Bundle ID | `com.kurofukubo.app` |
+| ASC App ID | `6806592989` |
+| SKU | `kurofukubo-ios` |
+| プライマリカテゴリ | ファイナンス |
+| セカンダリカテゴリ | 仕事効率化 |
+| 著作権 | `2026 pokupoku_x_x_x` |
+| 年齢区分 | 4+（暴力・性的表現・ギャンブル・ユーザー生成コンテンツなし） |
+| 価格 | 無料 |
+| App内課金 | なし（0.2.0 で追加予定。`docs/MONETIZATION.md`） |
+| 配信地域 | **日本のみ** |
 
-（未記入）
+### バージョン情報
+
+| 項目 | 値 |
+|---|---|
+| バージョン | `0.1.1` |
+| ビルド | EAS が自動採番（build 12 は 0.1.0・テスト広告入りなので使わない） |
+
+### URL
+
+| 項目 | 値 |
+|---|---|
+| プライバシーポリシー | `https://kurofukubo.com/privacy.html` |
+| サポート | `https://kurofukubo.com/contact.html` |
+| マーケティング（任意） | `https://kurofukubo.com/` |
+
+⚠ **privacy.html は iOS アプリと AdMob の項を足した版が未デプロイ。**
+審査担当が開くので、提出前にデプロイすること。
+
+### プロモーションテキスト（170字以内・審査なしで随時変更可）
+
+```
+入力は一行から。裏側で複式簿記に変換して、現金・口座・カード・資産・負債を
+ひとつの帳簿でつなぎます。純資産の推移が自動で見えるので、貯まっているのか
+減っているのかが一目で分かります。登録なしですぐ使えます。
+```
 
 ### 説明文
 
-（未記入。テーマは「複式簿記による資産管理」。家計簿アプリではなく資産管理として書く）
+家計簿アプリではなく**資産管理**として書く。
 
-### キーワード（100文字・カンマ区切り、スペースなし）
+```
+kurofukubo（黒福簿）は、複式簿記で資産を管理するアプリです。
 
-（未記入）
+■ 入力は一行、裏側は複式簿記
+「コンビニ 580」のように書くだけで、借方と貸方に振り分けて記帳します。
+簿記の知識は要りません。慣れてきたら仕訳を直接編集することもできます。
+
+■ 純資産が見える
+現金・預金・クレジットカード・投資・借入をひとつの帳簿でつなぐので、
+「手元にいくらあるか」ではなく「差し引きでいくら持っているか」が分かります。
+月ごとの推移をグラフで追えます。
+
+■ カードの締めと引き落としに強い
+利用日と引き落とし日がずれても帳簿が合います。締め日・支払日を登録すれば、
+未払い残高と引き落とし予定を自動で計算します。
+
+■ 登録なしで使える
+アカウントを作らなくても全機能を使えます。データは端末内に保存されます。
+アカウントを作ると、複数の端末で同じ帳簿を見られます。
+
+■ 暗号化してから預けられる
+パスフレーズを設定すると、端末内で暗号化してからサーバーへ送ります。
+鍵は端末から出ないため、運営者も中身を読めません。
+
+■ 主な機能
+・一行入力、プリセット、自動仕訳ルール、定期取引
+・貸借対照表、損益計算書、キャッシュフロー計算書
+・予算、タグ配分、実査・評価替え
+・CSV の入出力
+・カレンダー表示、レシートの読み取り（端末内で処理）
+
+■ 料金
+現在は全機能を無料で使えます。広告が表示されます。
+
+■ ご注意
+本アプリは記帳と集計を行うもので、税務・投資の助言は行いません。
+```
+
+### キーワード（100字以内・カンマ区切り・スペースなし）
+
+```
+複式簿記,資産管理,純資産,家計簿,貸借対照表,BS,PL,簿記,資産形成,貯蓄,クレジットカード,予算,仕訳,オフライン
+```
 
 ### スクリーンショット
 
-**実機での撮影が必要（6.7インチ必須、6.5インチ任意）。**
-撮る画面の候補:
+⚠ **`supportsTablet: true` なので iPad のスクリーンショットも必須。**
+（iPhone だけで足りるのは `supportsTablet: false` の場合）
+
+| 対象 | 必要サイズ |
+|---|---|
+| iPhone | 6.9インチ（1320×2868）または 6.7インチ |
+| **iPad** | 13インチ（2064×2752）※ supportsTablet: true のため |
+
+**撮影に使うビルドは、審査に提出するものと同じ。**
+撮影用に広告を無効化した専用ビルドを作ってはならない（`docs/MONETIZATION.md`）。
+広告が写り込むこと自体は問題ない。
+
+撮る画面:
 1. ダッシュボード（純資産＋推移グラフ）
 2. 入力（一行入力＋プリセット）
 3. レポート（貸借対照表）
 4. レポート（カードの締めサイクル）
 5. 実査・評価替え
 
-ダミーではなく、意味の通る数字を入れた状態で撮ること。
+ダミーではなく、意味の通る数字を入れた状態で撮ること（`4.9 デモ帳簿`）。
 
----
+### App Privacy（1章の決定を ASC の選択肢に対応させたもの）
+
+| データ種別 | 用途 | ユーザーに紐づく | 追跡 |
+|---|---|---|---|
+| 連絡先情報 → メールアドレス | アプリの機能 | はい | いいえ |
+| 財務情報 → その他の財務情報 | アプリの機能 | はい | いいえ |
+| 識別子 → デバイスID | サードパーティ広告 | いいえ | いいえ |
+| 使用状況データ → 広告データ | サードパーティ広告 | いいえ | いいえ |
+
+「トラッキング」は**いいえ**。`requestNonPersonalizedAdsOnly: true` で
+非パーソナライズ広告に限定し、ATT の許可も求めていない。
+
+### 審査メモ（App Review Information → Notes）
+
+英文で書く。日本語だけだと読まれないことがある。
+
+```
+This app works fully without an account. You can use every feature by tapping
+"Start without an account" on the first screen; the ledger is stored on the
+device only.
+
+An account is optional and only used to sync the same ledger across devices.
+If you want to check the sync feature, please use the demo account below.
+
+  Email:    (提出時に記入)
+  Password: (提出時に記入)
+
+Notes for review:
+
+1. Encryption. The app can encrypt the ledger on the device before uploading it
+   (Settings > 暗号化・バックアップ). The key never leaves the device. We use
+   only standard algorithms (AES-256-GCM, PBKDF2-SHA256).
+
+2. Ads. The app shows an AdMob anchored banner above the tab bar. Ads are
+   non-personalized only; we do not request App Tracking Transparency
+   permission and do not use IDFA.
+
+3. Account deletion. Settings > アカウントと同期 > アカウントを削除 deletes the
+   account and all server-side data (Guideline 5.1.1(v)).
+
+4. Face ID. Used only to unlock the app and to retrieve the locally stored
+   encryption key. Never sent anywhere.
+```
 
 ## 4. 審査で聞かれそうな点と、答えの根拠
 
