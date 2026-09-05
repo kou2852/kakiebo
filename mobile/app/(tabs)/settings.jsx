@@ -8,6 +8,7 @@ import { useAuth } from '../../src/store/AuthProvider';
 import { useData } from '../../src/store/DataProvider';
 import { useThemeMode, useTheme } from '../../src/theme';
 import { MenuList, Screen } from '../../src/components/ui';
+import Constants from 'expo-constants';
 import { BUILD_STAMP } from '../../src/buildStamp';
 import { resetAll } from '../../src/db';
 
@@ -84,7 +85,7 @@ export default function Settings() {
       ]} />
 
       <Text style={{ color: t.tx3, fontSize: 13.5, textAlign: 'center' }}>
-        kurofukubo v0.1.0 · build {BUILD_STAMP}
+        kurofukubo v{Constants.expoConfig?.version ?? '?'} · build {BUILD_STAMP}
       </Text>
     </Screen>
   );

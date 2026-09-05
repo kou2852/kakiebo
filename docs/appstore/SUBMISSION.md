@@ -338,7 +338,9 @@ node scripts/demo-data.mjs --push          # 本番のデモ口座へ投入（�
       fingerprint は build 10 の `eed776eb…` から `aa1e139c…` に変わった。
       **build 10 には OTA が届かなくなっている。**
       `eas build --platform ios --profile testflight`
-- [ ] 端末IDを `src/ads.js` の `TEST_DEVICES` に登録 → `TEST_ADS` を false（OTA可）
+- [ ] 端末IDを `src/ads.js` の `TEST_DEVICES` に登録
+      （`TEST_ADS` は廃止した。テスト広告は `__DEV__` のときだけになり、
+      ストア配布ビルドは常に本番ユニットを使う。詳細は `docs/MONETIZATION.md`）
 - [ ] `lp/app-ads.txt` を LP へデプロイ
 - [x] ~~アプリ内のアカウント削除~~ 2026-09-02 実装（上記 4.6）
 - [x] ~~輸出コンプライアンスの判断~~ 2026-09-04 に `false` で確定（上記 2 章）
