@@ -263,8 +263,8 @@ device only.
 An account is optional and only used to sync the same ledger across devices.
 If you want to check the sync feature, please use the demo account below.
 
-  Email:    (提出時に記入)
-  Password: (提出時に記入)
+  Email:    appreview@kurofukubo.com
+  Password: -fPrm47E#Af8k
 
 Notes for review:
 
@@ -446,6 +446,40 @@ App Review Guidelines を読み直して突き合わせた結果。
   **審査メモに用途を書くか、リリース前にルートごと消すかを決めること。**
   黙って残すのは 2.3.1 の趣旨に反する
 
+## 4.8.5 審査用アカウント（2026-09-06 作成）
+
+| 項目 | 値 |
+|---|---|
+| メール | `appreview@kurofukubo.com` |
+| パスワード | `-fPrm47E#Af8k` |
+| 作成方法 | `admin-create-user` + `admin-set-user-password --permanent` |
+
+⚠ **このメールアドレスは実在しない。**`admin-create-user` は確認メールを
+送らないので作成は通るが、**パスワードの再設定ができない**。忘れたら
+同じ手順で作り直すこと。
+
+⚠ **確認メールを経ないため PostConfirmation は発火しない。** デフォルト科目は
+`postAuth` の初回ログイン時に投入される（`seedDefaults()`）。実際に
+29科目が入っていることを確認済み。
+
+作り直す手順（PowerShell）:
+
+```powershell
+$U = "appreview@kurofukubo.com"
+aws cognito-idp admin-create-user --user-pool-id ap-northeast-1_ddBDF3HKK `
+  --username "$U" --message-action SUPPRESS `
+  --user-attributes "Name=email,Value=$U" "Name=email_verified,Value=true" `
+  --profile kakeibo-prod
+aws cognito-idp admin-set-user-password --user-pool-id ap-northeast-1_ddBDF3HKK `
+  --username "$U" "--password=<パスワード>" --permanent --profile kakeibo-prod
+```
+
+⚠ 引数は必ず引用符でくくる。くくらないと `Invalid email address format` で
+落ちる。パスワードが `-` で始まる場合は `"--password=..."` の形にしないと
+CLI がフラグと解釈する。どちらも実際に踏んだ。
+
+---
+
 ## 4.9 デモ帳簿（審査用）
 
 `mobile/scripts/demo-data.mjs`。3か月分の家計簿を生成し、審査用アカウントへ投入する。
@@ -502,12 +536,14 @@ node scripts/demo-data.mjs --push          # 本番のデモ口座へ投入（�
 - [x] ~~アプリ内のアカウント削除~~ 2026-09-02 実装（上記 4.6）
 - [x] ~~輸出コンプライアンスの判断~~ 2026-09-04 に `false` で確定（上記 2 章）
 - [ ] 説明文・キーワード・スクリーンショット
-- [ ] **デモ帳簿を審査用アカウントへ投入（提出直前に）。** 上記 4.9
+- [x] ~~デモ帳簿を審査用アカウントへ投入~~ 2026-09-06 実施。サーバーから
+      読み直して確認（科目29・仕訳57・貸借の不一致0）
+- [ ] 提出直前に投入し直すか判断する。当月が薄いままなら「先月」で撮る（上記 4.9）
 - [ ] **動作診断（`/diag`）を残すか消すかの判断。** 上記 4.8
 - [x] ~~`lp/privacy.html` の更新分をデプロイ~~ 2026-09-05 実施。
       本番とローカルの一致、「8. iOS アプリについて」「9. アプリ内の広告配信について」を確認
 - [x] ~~アプリ内の新規登録~~ 2026-09-02 実装（上記 4.7）
-- [ ] 審査メモ用のテスト用アカウント（任意。上記 4.6）
+- [x] ~~審査メモ用のテスト用アカウント~~ 2026-09-06 作成（下記）
 - [ ] 配信地域は**日本のみ**。App Store Connect の「価格および配信状況」で設定する
 - [x] ~~配布物から開発環境を外した~~ 2026-09-05 に静的確認。`ENVIRONMENTS` は
       `prod` のみで、dev/staging を指す文字列も切替UIも残っていない
