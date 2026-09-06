@@ -264,7 +264,7 @@ An account is optional and only used to sync the same ledger across devices.
 If you want to check the sync feature, please use the demo account below.
 
   Email:    appreview@kurofukubo.com
-  Password: -fPrm47E#Af8k
+  Password: R4gsZwhK485Nqi
 
 Notes for review:
 
@@ -451,7 +451,10 @@ App Review Guidelines を読み直して突き合わせた結果。
 | 項目 | 値 |
 |---|---|
 | メール | `appreview@kurofukubo.com` |
-| パスワード | `-fPrm47E#Af8k` |
+| パスワード | `R4gsZwhK485Nqi` |
+
+⚠ **記号を入れない。**審査担当は手で入力する。最初 `-fPrm47E#Af8k` にしたが、
+`-` と `#` は打ち間違いを誘うし、CLI でもフラグと解釈されて手間が増えた。
 | 作成方法 | `admin-create-user` + `admin-set-user-password --permanent` |
 
 ⚠ **このメールアドレスは実在しない。**`admin-create-user` は確認メールを

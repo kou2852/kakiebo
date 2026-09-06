@@ -80,14 +80,40 @@ export default function Sync() {
     }
   };
 
+  // ログアウトしても端末の帳簿は消さない。アカウント無しでも使えるアプリなので、
+  // 消すと「ログアウトしたらデータが無くなった」になる。
+  // ただし暗号鍵は消す。鍵は kk_dek_<env> で利用者ごとに分かれておらず、
+  // 残したまま別の人がログインすると、その人の暗号文を前の人の鍵で開こうとして失敗する。
+  const confirmSignOut = () =>
+    Alert.alert('ログアウトしますか？',
+      'この端末に保存した帳簿はそのまま残ります。もう一度ログインすれば同期を再開できます。'
+      + '\n\n暗号化を使っている場合、この端末に預けた鍵は消えます。次回はパスフレーズの入力が要ります。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: 'ログアウト',
+          style: 'destructive',
+          onPress: async () => { await d.forgetDek(); await auth.signOut(); },
+        },
+      ]);
+
   return (
     <Screen refresh={refresh}>
       <Card title="接続">
         <Row label="ログイン" value={auth.email || '未ログイン'} />
         {d.unlocked ? <Row label="暗号化" value="解錠済み（この端末に鍵を保持）" /> : null}
         <View ref={connectRef} collapsable={false}>
-          <Button label="アカウントに接続 / 帳簿を取り込む" onPress={() => router.push('/connect')} />
+          <Button
+            label={auth.signedIn ? '帳簿を取り込む' : 'アカウントに接続 / 帳簿を取り込む'}
+            onPress={() => router.push('/connect')}
+          />
         </View>
+        {/* ログアウトは connect 画面の奥にもあるが、接続済みの人がそこを開く動機がなく、
+            事実上たどり着けなかった。ログアウトは審査でも必ず試される操作なので、
+            この画面に直接置く。 */}
+        {auth.signedIn ? (
+          <Button label="ログアウト" variant="ghost" onPress={confirmSignOut} />
+        ) : null}
       </Card>
 
       <Card title="同期">
