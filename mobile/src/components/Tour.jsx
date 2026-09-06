@@ -30,7 +30,14 @@ export default function Tour() {
   // ずれの出どころを理屈で当てるより、同じ物差しで測った差を使う方が確実。
   const rootRef = useRef(null);
   const [origin, setOrigin] = useState({ x: 0, y: 0 });
-  const measureSelf = () => {
+  // 覆いの大きさ。窓の寸法とは原点も高さも違うので、位置の計算にはこちらを使う。
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  // 吹き出しの高さ。下に入るかの判定に使う。決め打ちの数値だと、
+  // 文字を大きくしている端末や小さい画面で判断を誤る。
+  const [bubbleH, setBubbleH] = useState(0);
+  const onRootLayout = (e) => {
+    const { width, height } = e.nativeEvent.layout;
+    setBox((b) => (Math.abs(b.w - width) < 1 && Math.abs(b.h - height) < 1 ? b : { w: width, h: height }));
     const node = rootRef.current;
     if (node?.measureInWindow) {
       node.measureInWindow((x, y) => {
@@ -52,7 +59,12 @@ export default function Tour() {
   } : null;
 
   // 吹き出しは穴の下に置く。下に入りきらなければ上へ。
-  const below = hole ? SH - (hole.y + hole.h) > 240 : true;
+  // 高さは実測値を使う（初回だけ 240 で仮置き）。
+  const need = (bubbleH || 240) + GAP;
+  const below = hole ? (box.h || SH) - (hole.y + hole.h) > need : true;
+
+  const W = box.w || SW;
+  const H = box.h || SH;
 
   const bubble = {
     backgroundColor: t.bg1,
@@ -60,11 +72,18 @@ export default function Tour() {
     padding: 16,
     gap: 10,
     marginHorizontal: 14,
+    // タブレットで全幅に伸びると読みにくい。supportsTablet: true なので効いてくる。
+    maxWidth: 520,
+    alignSelf: 'center',
+    width: '100%',
     ...t.shadow,
   };
 
   const content = (
-    <View style={bubble}>
+    <View style={bubble} onLayout={(e) => {
+      const h = e.nativeEvent.layout.height;
+      setBubbleH((v) => (Math.abs(v - h) < 1 ? v : h));
+    }}>
       <Text style={{ color: t.tx3, fontSize: 12.5, fontWeight: '700' }}>
         {TOURS[tour.tourId]?.label} · {index + 1} / {total}
       </Text>
@@ -107,16 +126,16 @@ export default function Tour() {
     <View
       ref={rootRef}
       collapsable={false}
-      onLayout={measureSelf}
+      onLayout={onRootLayout}
       style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 9999, elevation: 24 }}
     >
       {hole ? (
         <>
           {/* 穴の上下左右。暗幕を押しても閉じない（誤操作で消えると案内が途切れるため） */}
-          <View style={{ position: 'absolute', left: 0, top: 0, width: SW, height: hole.y, backgroundColor: VEIL }} />
-          <View style={{ position: 'absolute', left: 0, top: hole.y + hole.h, width: SW, height: SH, backgroundColor: VEIL }} />
+          <View style={{ position: 'absolute', left: 0, top: 0, width: W, height: hole.y, backgroundColor: VEIL }} />
+          <View style={{ position: 'absolute', left: 0, top: hole.y + hole.h, width: W, height: H, backgroundColor: VEIL }} />
           <View style={{ position: 'absolute', left: 0, top: hole.y, width: hole.x, height: hole.h, backgroundColor: VEIL }} />
-          <View style={{ position: 'absolute', left: hole.x + hole.w, top: hole.y, width: SW, height: hole.h, backgroundColor: VEIL }} />
+          <View style={{ position: 'absolute', left: hole.x + hole.w, top: hole.y, width: W, height: hole.h, backgroundColor: VEIL }} />
           {/* 穴の縁。どこを指しているか分かるように枠だけ描く */}
           <View pointerEvents="none" style={{
             position: 'absolute', left: hole.x, top: hole.y, width: hole.w, height: hole.h,
@@ -124,7 +143,7 @@ export default function Tour() {
           }} />
           <View style={{
             position: 'absolute', left: 0, right: 0,
-            ...(below ? { top: hole.y + hole.h + GAP } : { bottom: SH - hole.y + GAP }),
+            ...(below ? { top: hole.y + hole.h + GAP } : { bottom: H - hole.y + GAP }),
           }}>
             {content}
           </View>
