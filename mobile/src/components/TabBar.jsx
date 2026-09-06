@@ -20,6 +20,9 @@ const ICONS = {
   settings: 'settings-outline',
 };
 
+// 記帳ボタンが帯から上へ出る量。広告との間隔もこれに合わせる。
+const FAB_RISE = 23;
+
 export default function TabBar({ state, descriptors, navigation }) {
   const addRef = useTourTarget('add-button');
   const t = useTheme();
@@ -56,6 +59,11 @@ export default function TabBar({ state, descriptors, navigation }) {
   return (
     <View style={{ backgroundColor: t.bg1 }}>
       <AnchoredAd />
+      {/* 記帳ボタンは帯から上へ 23dp 出る。その分の逃げをここで作る。
+          広告に重ねてはいけない。AdMob は操作要素を広告のすぐ隣へ置くことを
+          誤クリックの原因として禁じており、広告が覆われた状態も不可視の
+          インプレッションになる。違反すると配信を止められる。 */}
+      <View style={{ height: FAB_RISE + 3 }} />
       <View style={{
         flexDirection: 'row', alignItems: 'flex-start',
         borderTopWidth: 1, borderTopColor: t.bd,
@@ -63,13 +71,17 @@ export default function TabBar({ state, descriptors, navigation }) {
       }}>
         {routes.slice(0, half).map(tab)}
 
-        <View ref={addRef} collapsable={false} style={{ width: 80, alignItems: 'center' }}>
+        <View style={{ width: 80, alignItems: 'center' }}>
+          {/* ツアーの目印はボタン自身に付ける。囲みの View に付けると、
+              上へ出た分が入らず、指す位置が下へずれる。 */}
           <TouchableOpacity
+            ref={addRef}
+            collapsable={false}
             accessibilityRole="button"
             accessibilityLabel="記帳する"
             onPress={() => navigation.navigate(ENTRY_ROUTE)}
             style={[{
-              width: 64, height: 64, borderRadius: 32, marginTop: -23,
+              width: 64, height: 64, borderRadius: 32, marginTop: -FAB_RISE,
               backgroundColor: state.index === entryIndex ? t.acDeep : t.ac,
               alignItems: 'center', justifyContent: 'center',
             }, t.shadow]}
