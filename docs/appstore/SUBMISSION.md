@@ -158,7 +158,19 @@ node scripts/prod-bundle.check.cjs <一時ディレクトリ>
 |---|---|
 | プライバシーポリシー | `https://kurofukubo.com/privacy.html` |
 | サポート | `https://kurofukubo.com/contact.html` |
-| マーケティング（任意） | `https://kurofukubo.com/` |
+| **マーケティング** | `https://kurofukubo.com/` |
+
+⚠ **マーケティングURL は空欄にしない。** AdMob のクローラは App Store の掲載情報に
+ある開発者サイトの URL を見て、そのドメイン直下の `/app-ads.txt` を探す。
+App Store ではこれがマーケティングURL にあたる。空欄だと探しに行く先が無く、
+`app-ads.txt` が永久に「未確認」のままになり、承認済みの販売者として
+認識されず入札が減る。
+
+ドメインは一致している（`https://kurofukubo.com/app-ads.txt` は HTTP 200。
+`www` 付きでも引ける）。
+
+⚠ **クロールはアプリが公開されてから。** 掲載情報を読みに行く仕組みなので、
+審査中は確認されない。公開後に AdMob 管理画面で「認証済み」になったかを見ること。
 
 2026-09-05 にデプロイ済み。本番とローカルの一致を確認。
 
@@ -594,6 +606,12 @@ node scripts/demo-data.mjs --push          # 本番のデモ口座へ投入（�
 
 ## 5. 残っている作業
 
+
+- [ ] **公開後に AdMob 管理画面で `app-ads.txt` が「認証済み」になったか確認。**
+      マーケティングURL が空欄だとクロールされない
+- [ ] **公開後、本番広告が配信され始める前に `src/ads.js` の `TEST_DEVICES` へ
+      自分の端末を登録。** 登録せずに自分の広告を触ると無効なトラフィックと
+      判定され、AdMob アカウントが停止されうる
 - [x] ~~AdMob の本番ID~~ 2026-09-02 に取得して反映済み（上記 4.5）
 - [ ] **本番IDを載せたビルドを作る。** `app.json` の `iosAppId` を変えたので
       fingerprint は build 10 の `eed776eb…` から `aa1e139c…` に変わった。
