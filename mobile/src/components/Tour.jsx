@@ -50,6 +50,13 @@ export default function Tour() {
   const { step, index, total, last, rect, stop, prev, nextOrStop, start } = tour;
 
 
+  // 操作を待つステップでは、画面を塞がない。
+  //
+  // 「実際に操作すると次へ進みます」と言いながら吹き出しが入力欄と保存ボタンを
+  // 覆ってしまい、操作できなかった（実際にそうなった）。この間は暗幕を出さず、
+  // 吹き出しも下端へ寄せて畳む。対象の枠だけ残して、どこを触ればよいかは示す。
+  const gated = !!(step.awaitJournal || step.awaitAccount);
+
   // 穴の位置。対象が見つからなければ吹き出しだけ中央に出す。
   const hole = SPOTLIGHT && rect ? {
     x: Math.max(0, rect.x - origin.x - PAD),
@@ -88,9 +95,11 @@ export default function Tour() {
         {TOURS[tour.tourId]?.label} · {index + 1} / {total}
       </Text>
       <Text style={{ color: t.tx, fontSize: 18, fontWeight: '800' }}>{step.title}</Text>
-      <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 22 }}>{step.body}</Text>
+      {gated ? null : (
+        <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 22 }}>{step.body}</Text>
+      )}
 
-      {step.awaitJournal || step.awaitAccount ? (
+      {gated ? (
         <Text style={{ color: t.ac, fontSize: 13, fontWeight: '700' }}>
           実際に操作すると次へ進みます
         </Text>
@@ -127,9 +136,24 @@ export default function Tour() {
       ref={rootRef}
       collapsable={false}
       onLayout={onRootLayout}
+      // box-none にしないと、覆い自身が画面全体の触りを受けてしまい、
+      // 穴の中も押せなくなる。「ここを押して」と示しているのに押せない状態だった。
+      // 子（暗幕と吹き出し）は今までどおり触りを受ける。
+      pointerEvents="box-none"
       style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 9999, elevation: 24 }}
     >
-      {hole ? (
+      {gated ? (
+        <>
+          {/* 対象の枠だけ。暗幕は出さない（操作の邪魔になる） */}
+          {hole ? (
+            <View pointerEvents="none" style={{
+              position: 'absolute', left: hole.x, top: hole.y, width: hole.w, height: hole.h,
+              borderWidth: 2, borderColor: t.ac, borderRadius: 10,
+            }} />
+          ) : null}
+          <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>{content}</View>
+        </>
+      ) : hole ? (
         <>
           {/* 穴の上下左右。暗幕を押しても閉じない（誤操作で消えると案内が途切れるため） */}
           <View style={{ position: 'absolute', left: 0, top: 0, width: W, height: hole.y, backgroundColor: VEIL }} />
