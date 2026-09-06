@@ -72,38 +72,55 @@ export function TourProvider({ children }) {
     if (step?.awaitAccount && accounts.length > atStep.current.accounts) next();
   }, [accounts.length, step, next]);
 
-  // 対象の位置を測る。画面遷移の直後はまだ描画されていないので、見つかるまで少し粘る。
-  // 見つからないまま諦めた場合は測らない。rect が null のままなら中央の吹き出しになる。
+  // 対象の位置を測る。
+  //
+  // ⚠ 最初に得た値を信じてはいけない。画面遷移のアニメーション中に measureInWindow を
+  // 呼ぶと、まだ最終位置へ配置される前の座標が返る。実測では、勘定科目画面の
+  // 「勘定科目を追加」が y=20dp と報告された（正しくは 130dp 付近）。x=13dp は画面の
+  // 余白と一致していたので、ScrollView の内側での位置をそのまま返していたと分かる。
+  //
+  // そこで、見つかった後も間を置いて測り直し、最後の値を使う。
   const targetKey = step?.target;
   useEffect(() => {
     if (!targetKey) return undefined;
 
     let alive = true;
     let tries = 0;
-    let timer;
-    const find = () => {
+    const timers = [];
+    const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+
+    const take = () => {
       if (!alive) return;
       const measure = targets.current.get(targetKey);
       if (!measure) {
-        if (tries++ < 40) timer = setTimeout(find, 100);
+        if (tries++ < 40) at(100, take);
         return;
       }
       measure((r) => {
         if (!alive) return;
         // 画面に入っていて、まともな大きさがあるものだけを採る。
-        // レイアウトが決まる前の measureInWindow は 0,0 を返すことがあり、
-        // それを信じると画面の左上の何も無い所を指してしまう（実際に指した）。
         const { height: sh, width: sw } = Dimensions.get('window');
         const ok = r && r.width > 8 && r.height > 8
           && r.y >= 0 && r.x >= 0
           && r.y + r.height <= sh && r.x + r.width <= sw + 1;
-        if (ok) setFound({ key: targetKey, rect: r });
-        else if (tries++ < 40) timer = setTimeout(find, 120);
-        // 見つからないまま尽きたら rect は null のまま。中央の吹き出しに落ちる。
+        if (ok) {
+          // 変わったときだけ更新する。測り直しは続くので、毎回入れると描き直しが止まらない。
+          setFound((prevFound) => {
+            const q = prevFound && prevFound.key === targetKey ? prevFound.rect : null;
+            const same = q && Math.abs(q.x - r.x) < 1 && Math.abs(q.y - r.y) < 1
+              && Math.abs(q.width - r.width) < 1 && Math.abs(q.height - r.height) < 1;
+            return same ? prevFound : { key: targetKey, rect: r };
+          });
+          // 遷移が落ち着いてからもう一度。スクロールで動いても追える。
+          at(450, take);
+        } else if (tries++ < 40) {
+          at(120, take);
+        }
       });
     };
-    timer = setTimeout(find, 250); // 遷移アニメーションの分だけ待つ
-    return () => { alive = false; clearTimeout(timer); };
+
+    at(400, take);
+    return () => { alive = false; timers.forEach(clearTimeout); };
   }, [tourId, index, targetKey]);
 
   // 今のステップで測ったものだけを使う。前のステップの位置が残って指し違えるのを防ぐ。

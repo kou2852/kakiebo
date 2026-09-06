@@ -6,23 +6,16 @@
 // ⚠ Modal は使わない。Modal は別ウィンドウとして描かれるため、
 // measureInWindow が返すアプリ窓の座標とずれ、指す位置が合わなくなる。
 // アプリと同じ窓に絶対配置すれば、測った座標をそのまま使える。
+import { useRef, useState } from 'react';
 import { Pressable, Text, useWindowDimensions, View } from 'react-native';
 import { useTheme } from '../theme';
 import { useTour } from '../store/TourProvider';
 import { TOURS } from '../tours';
 import { Button } from './ui';
 
-// ⚠ スポットライトは未完成のため止めている。
-//
-// useTourTarget の measureInWindow が返す座標と、実際の要素の位置がずれる。
-// 勘定科目画面の「勘定科目を追加」は uiautomator で y=340〜402 にあるのに、
-// 穴は y=48〜186 に描かれた。Modal をやめてアプリ内の絶対配置にしても、
-// 完全な再起動を挟んでも、位置は1画素も変わらなかった。原因は未特定。
-//
-// 間違った場所を指すくらいなら指さない方がよいので、当面は中央の吹き出しだけ出す。
-// 画面遷移・説明・進行・操作待ちはそのまま働く。
-// 直せたらここを true に戻す。
-const SPOTLIGHT = false;
+// 対象が見つからないときは穴を開けず、中央の吹き出しだけ出す。
+// 間違った場所を指すくらいなら指さない方がよい。
+const SPOTLIGHT = true;
 
 const VEIL = 'rgba(0,0,0,0.62)';
 const PAD = 6;      // 穴を対象より少し広く取る
@@ -32,14 +25,28 @@ export default function Tour() {
   const t = useTheme();
   const { height: SH, width: SW } = useWindowDimensions();
   const tour = useTour();
+  // この覆い自身の窓座標。対象と同じ関数で測り、差を取って覆いの中の位置にする。
+  // 対象の measureInWindow をそのまま使うと 48dp ほど上へずれた（実測）。
+  // ずれの出どころを理屈で当てるより、同じ物差しで測った差を使う方が確実。
+  const rootRef = useRef(null);
+  const [origin, setOrigin] = useState({ x: 0, y: 0 });
+  const measureSelf = () => {
+    const node = rootRef.current;
+    if (node?.measureInWindow) {
+      node.measureInWindow((x, y) => {
+        setOrigin((o) => (Math.abs(o.x - x) < 1 && Math.abs(o.y - y) < 1 ? o : { x, y }));
+      });
+    }
+  };
   if (!tour?.step) return null;
 
   const { step, index, total, last, rect, stop, prev, nextOrStop, start } = tour;
 
+
   // 穴の位置。対象が見つからなければ吹き出しだけ中央に出す。
   const hole = SPOTLIGHT && rect ? {
-    x: Math.max(0, rect.x - PAD),
-    y: Math.max(0, rect.y - PAD),
+    x: Math.max(0, rect.x - origin.x - PAD),
+    y: Math.max(0, rect.y - origin.y - PAD),
     w: rect.width + PAD * 2,
     h: rect.height + PAD * 2,
   } : null;
@@ -97,7 +104,12 @@ export default function Tour() {
   );
 
   return (
-    <View style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 9999, elevation: 24 }}>
+    <View
+      ref={rootRef}
+      collapsable={false}
+      onLayout={measureSelf}
+      style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 9999, elevation: 24 }}
+    >
       {hole ? (
         <>
           {/* 穴の上下左右。暗幕を押しても閉じない（誤操作で消えると案内が途切れるため） */}
