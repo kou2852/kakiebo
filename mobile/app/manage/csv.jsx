@@ -16,6 +16,7 @@ import { Button, Card, ChipRow, Field, Input, Screen } from '../../src/component
 import { fa, uid } from '../../src/utils/format';
 import { CC, detectCsvFormat, normD, normalizeForeignCsv, pAm, parseCT, resolveAccount, rowsToCSV } from '../../src/utils/csv';
 import { applyMapping, guessByContent, guessMapping, loadMapping, looksHeaderless, rawRows, saveMapping } from '../../src/utils/csvMapping';
+import { useTourTarget } from '../../src/store/TourProvider';
 
 const SIGNS = [
   { value: 'positive', label: '支出が正の数' },
@@ -23,6 +24,7 @@ const SIGNS = [
 ];
 
 export default function Csv() {
+  const panelRef = useTourTarget('csv-panel');
   const t = useTheme();
   const { journals, accounts, rules, save } = useData();
 
@@ -168,12 +170,14 @@ export default function Csv() {
 
   return (
     <Screen>
-      <Card title="書き出し">
-        <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 22 }}>
-          仕訳 {journals.length.toLocaleString('ja-JP')} 件を CSV ファイルとして書き出します。
-        </Text>
-        <Button label="CSV を書き出す" onPress={doExport} disabled={!journals.length} />
-      </Card>
+      <View ref={panelRef} collapsable={false}>
+        <Card title="書き出し">
+          <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 22 }}>
+            仕訳 {journals.length.toLocaleString('ja-JP')} 件を CSV ファイルとして書き出します。
+          </Text>
+          <Button label="CSV を書き出す" onPress={doExport} disabled={!journals.length} />
+        </Card>
+      </View>
 
       <Card title="取込">
         <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 21 }}>

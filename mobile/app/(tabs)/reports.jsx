@@ -10,6 +10,7 @@ import { faBal, fas } from '../../src/utils/format';
 import {
   accountBalance, balanceSheet, balancesAsOf, calcBalances, computeCashFlow, filterByPeriod,
 } from '../../src/utils/bookkeeping';
+import { useTourTarget } from '../../src/store/TourProvider';
 
 const MODES = [
   { value: 'bs', label: '貸借対照表' },
@@ -19,6 +20,7 @@ const MODES = [
 ];
 
 export default function Reports() {
+  const tabsRef = useTourTarget('report-tabs');
   const [mode, setMode] = useState('bs');
   const { accounts, journals } = useData();
 
@@ -51,7 +53,9 @@ export default function Reports() {
 
   return (
     <Screen>
-      <UnderlineTabs options={MODES} value={mode} onChange={setMode} />
+      <View ref={tabsRef} collapsable={false}>
+        <UnderlineTabs options={MODES} value={mode} onChange={setMode} />
+      </View>
       {mode === 'cc' ? null : <PeriodBar period={period} />}
 
       {mode === 'bs' ? <BS r={r} end={period.end} />

@@ -12,8 +12,10 @@ import { useTheme } from '../../src/theme';
 import { Button, Card, Field, Input, Screen } from '../../src/components/ui';
 import * as api from '../../src/api/client';
 import { changePassphrase, regenerateRecovery, seal, setupEncryption } from '../../src/crypto';
+import { useTourTarget } from '../../src/store/TourProvider';
 
 export default function Encryption() {
+  const panelRef = useTourTarget('encryption-panel');
   const t = useTheme();
   const auth = useAuth();
   const d = useData();
@@ -148,26 +150,28 @@ export default function Encryption() {
 
   return (
     <Screen>
-      <Card title="状態">
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-          <Text style={{ color: t.tx2, fontSize: 15 }}>暗号化</Text>
-          <Text style={{ color: state.enabled ? t.grn : t.tx3, fontSize: 15, fontWeight: '700' }}>
-            {state.enabled ? '有効' : '無効'}
-          </Text>
-        </View>
-        {state.enabled ? (
+      <View ref={panelRef} collapsable={false}>
+        <Card title="状態">
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={{ color: t.tx2, fontSize: 15 }}>この端末</Text>
-            <Text style={{ color: d.unlocked ? t.grn : t.red, fontSize: 15, fontWeight: '700' }}>
-              {d.unlocked ? '解錠済み' : '未解錠'}
+            <Text style={{ color: t.tx2, fontSize: 15 }}>暗号化</Text>
+            <Text style={{ color: state.enabled ? t.grn : t.tx3, fontSize: 15, fontWeight: '700' }}>
+              {state.enabled ? '有効' : '無効'}
             </Text>
           </View>
-        ) : null}
-        <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
-          有効にすると、家計データは端末内で暗号化してから送られます。パスフレーズも鍵もサーバーへは送りません。
-          失うと運営でも復旧できません。
-        </Text>
-      </Card>
+          {state.enabled ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ color: t.tx2, fontSize: 15 }}>この端末</Text>
+              <Text style={{ color: d.unlocked ? t.grn : t.red, fontSize: 15, fontWeight: '700' }}>
+                {d.unlocked ? '解錠済み' : '未解錠'}
+              </Text>
+            </View>
+          ) : null}
+          <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
+            有効にすると、家計データは端末内で暗号化してから送られます。パスフレーズも鍵もサーバーへは送りません。
+            失うと運営でも復旧できません。
+          </Text>
+        </Card>
+      </View>
 
       {busy ? <Card><Text style={{ color: t.ac, fontSize: 15 }}>{busy}</Text></Card> : null}
 

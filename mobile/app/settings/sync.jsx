@@ -14,6 +14,7 @@ import { useTheme } from '../../src/theme';
 import { Button, Card, Screen } from '../../src/components/ui';
 import { useSyncRefresh } from '../../src/store/useSyncRefresh';
 import { resetAll } from '../../src/db';
+import { useTourTarget } from '../../src/store/TourProvider';
 
 function Row({ label, value }) {
   const t = useTheme();
@@ -26,6 +27,7 @@ function Row({ label, value }) {
 }
 
 export default function Sync() {
+  const connectRef = useTourTarget('sync-connect');
   const t = useTheme();
   const router = useRouter();
   const auth = useAuth();
@@ -83,7 +85,9 @@ export default function Sync() {
       <Card title="接続">
         <Row label="ログイン" value={auth.email || '未ログイン'} />
         {d.unlocked ? <Row label="暗号化" value="解錠済み（この端末に鍵を保持）" /> : null}
-        <Button label="アカウントに接続 / 帳簿を取り込む" onPress={() => router.push('/connect')} />
+        <View ref={connectRef} collapsable={false}>
+          <Button label="アカウントに接続 / 帳簿を取り込む" onPress={() => router.push('/connect')} />
+        </View>
       </Card>
 
       <Card title="同期">

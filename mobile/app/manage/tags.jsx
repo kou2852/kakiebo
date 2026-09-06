@@ -4,12 +4,14 @@ import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, Empty, Field, Input, Screen, sep } from '../../src/components/ui';
 import { uid } from '../../src/utils/format';
+import { useTourTarget } from '../../src/store/TourProvider';
 
 // Web 版 utils/format.js の TAG_COLORS と同じ並び
 const COLORS = ['#0d9488', '#14b8a6', '#10b981', '#5eb0e8', '#8b5cf6', '#f08a3c',
   '#e0a020', '#f43f5e', '#2bb673', '#4ad0a0', '#a78bfa', '#7fd1c4'];
 
 export default function Tags() {
+  const listRef = useTourTarget('tag-list');
   const t = useTheme();
   const { tags, journals, save, del } = useData();
   const [editing, setEditing] = useState(null);
@@ -57,7 +59,9 @@ export default function Tags() {
 
   return (
     <Screen>
-      <Button label="タグを追加" onPress={() => setEditing({ name: '', color: COLORS[0] })} />
+      <View ref={listRef} collapsable={false}>
+        <Button label="タグを追加" onPress={() => setEditing({ name: '', color: COLORS[0] })} />
+      </View>
       <Card>
         {tags.length === 0 ? <Empty text="タグがありません" /> : tags.map((g) => (
           <TouchableOpacity key={g.id} onPress={() => setEditing({ ...g })} onLongPress={() => remove(g)}

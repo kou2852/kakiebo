@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Alert, Text, TouchableOpacity } from 'react-native';
+import { Alert, Text, TouchableOpacity, View } from 'react-native';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, ChipRow, Empty, Field, Input, Screen, sep } from '../../src/components/ui';
 import { fa, today, uid } from '../../src/utils/format';
 import { dueRecurring, generateRecurring } from '../../src/utils/autoGen';
+import { useTourTarget } from '../../src/store/TourProvider';
 
 const FREQ = [
   { value: 'monthly', label: '毎月' },
@@ -17,6 +18,7 @@ const TYPES = [
 ];
 
 export default function Recurring() {
+  const listRef = useTourTarget('recurring-list');
   const t = useTheme();
   const { recurring, journals, accounts, save, del, setAll } = useData();
   const [editing, setEditing] = useState(null);
@@ -128,7 +130,9 @@ export default function Recurring() {
         </Card>
       ) : null}
 
-      <Button label="定期取引を追加" onPress={startNew} />
+      <View ref={listRef} collapsable={false}>
+        <Button label="定期取引を追加" onPress={startNew} />
+      </View>
       <Card>
         {recurring.length === 0 ? <Empty text="定期取引がありません" /> : recurring.map((r) => (
           <TouchableOpacity key={r.id} onPress={() => startEdit(r)} onLongPress={() => remove(r)}

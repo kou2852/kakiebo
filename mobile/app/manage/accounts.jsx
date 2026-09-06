@@ -11,6 +11,7 @@ import { useTourTarget } from '../../src/store/TourProvider';
 const TYPE_OPTS = Object.entries(ACCOUNT_TYPES).map(([value, label]) => ({ value, label }));
 
 export default function Accounts() {
+  const listRef = useTourTarget('account-list');
   const addRef = useTourTarget('account-add');
   const t = useTheme();
   const { accounts, journals, save, del } = useData();
@@ -107,11 +108,14 @@ export default function Accounts() {
       <View ref={addRef} collapsable={false}>
         <Button label="勘定科目を追加" onPress={startNew} />
       </View>
-      {TYPE_OPTS.map(({ value, label }) => {
+      {/* 一覧は種別ごとに分かれているので、囲みは最初の塊だけに付ける。
+          ツアーは「科目は自由に足せる」と伝えるのが目的で、全部を囲む必要はない。 */}
+      {TYPE_OPTS.map(({ value, label }, typeIndex) => {
         const rows = accounts.filter((a) => a.type === value).sort((a, b) => (a.code > b.code ? 1 : -1));
         if (!rows.length) return null;
         return (
-          <Card key={value} title={label}>
+          <View key={value} ref={typeIndex === 0 ? listRef : undefined} collapsable={false}>
+          <Card title={label}>
             {rows.map((a) => (
               <TouchableOpacity key={a.id} onPress={() => setEditing({ ...a })} onLongPress={() => remove(a)}
                 style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 9 }, sep(t)]}>
@@ -123,6 +127,7 @@ export default function Accounts() {
               </TouchableOpacity>
             ))}
           </Card>
+          </View>
         );
       })}
       <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>タップで編集・長押しで削除</Text>

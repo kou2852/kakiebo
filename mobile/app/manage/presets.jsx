@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Alert, Text, TouchableOpacity } from 'react-native';
+import { Alert, Text, TouchableOpacity, View } from 'react-native';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, ChipRow, Empty, Field, Input, Screen, sep } from '../../src/components/ui';
 import { fa, uid } from '../../src/utils/format';
+import { useTourTarget } from '../../src/store/TourProvider';
 
 // 入力画面で1タップで呼び出す科目の組み合わせ。金額と日付は都度入力なので持たない。
 const TYPES = [
@@ -12,6 +13,7 @@ const TYPES = [
 ];
 
 export default function Presets() {
+  const listRef = useTourTarget('preset-list');
   const t = useTheme();
   const { presets, accounts, save, del } = useData();
   const [editing, setEditing] = useState(null);
@@ -89,7 +91,9 @@ export default function Presets() {
 
   return (
     <Screen>
-      <Button label="プリセットを追加" onPress={startNew} />
+      <View ref={listRef} collapsable={false}>
+        <Button label="プリセットを追加" onPress={startNew} />
+      </View>
       <Card>
         {presets.length === 0 ? <Empty text="プリセットがありません" /> : presets.map((p) => (
           <TouchableOpacity key={p.id} onPress={() => startEdit(p)} onLongPress={() => remove(p)}
