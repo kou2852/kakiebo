@@ -6,10 +6,12 @@ import { Button, Card, ChipRow, Field, Input, Screen, sep } from '../../src/comp
 import { ACCOUNT_TYPES, faBal, uid } from '../../src/utils/format';
 import { accountBalance, calcBalances } from '../../src/utils/bookkeeping';
 import { nextCode } from '../../src/utils/accountCode';
+import { useTourTarget } from '../../src/store/TourProvider';
 
 const TYPE_OPTS = Object.entries(ACCOUNT_TYPES).map(([value, label]) => ({ value, label }));
 
 export default function Accounts() {
+  const addRef = useTourTarget('account-add');
   const t = useTheme();
   const { accounts, journals, save, del } = useData();
   const [editing, setEditing] = useState(null); // { id?, name, code, type }
@@ -102,7 +104,9 @@ export default function Accounts() {
 
   return (
     <Screen>
-      <Button label="勘定科目を追加" onPress={startNew} />
+      <View ref={addRef} collapsable={false}>
+        <Button label="勘定科目を追加" onPress={startNew} />
+      </View>
       {TYPE_OPTS.map(({ value, label }) => {
         const rows = accounts.filter((a) => a.type === value).sort((a, b) => (a.code > b.code ? 1 : -1));
         if (!rows.length) return null;

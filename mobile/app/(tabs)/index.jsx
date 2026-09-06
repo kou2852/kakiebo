@@ -17,8 +17,13 @@ import {
   isCashAccount, investmentSummary, monthlyTrend, netWorthTrend,
 } from '../../src/utils/bookkeeping';
 import { dueRecurring, pendingCC } from '../../src/utils/autoGen';
+import { useTourTarget } from '../../src/store/TourProvider';
 
 export default function Dashboard() {
+  // ツアーで指し示す位置。要素そのものではなく囲みの View に付ける
+  // （Hero や PeriodBar は ref を受け取らないため）。
+  const netWorthRef = useTourTarget('networth');
+  const periodRef = useTourTarget('period-bar');
   const t = useTheme();
   const router = useRouter();
   const { loading, accounts, journals, budgets, recurring, wallets } = useData();
@@ -115,6 +120,7 @@ export default function Dashboard() {
 
   return (
     <Screen>
+      <View ref={netWorthRef} collapsable={false}>
       <Hero
         label={`純資産（${m.end === today() ? '今日' : m.end}）`}
         value={faBal(m.netWorth)}
@@ -128,6 +134,7 @@ export default function Dashboard() {
           </View>
         ) : null}
       </Hero>
+      </View>
 
       {dueCards.length || dueRec.length ? (
         <Card title="未記帳の自動取引">
@@ -145,7 +152,9 @@ export default function Dashboard() {
         </Card>
       ) : null}
 
-      <PeriodBar period={period} />
+      <View ref={periodRef} collapsable={false}>
+        <PeriodBar period={period} />
+      </View>
 
       <Card title={`${period.label}の収支`}>
         <KpiRow>

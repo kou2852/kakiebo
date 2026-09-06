@@ -11,6 +11,8 @@ import { useQuickActionRouting } from '../src/quickActions';
 import { initAds } from '../src/ads';
 import { useTheme, useThemeMode } from '../src/theme';
 import { ThemeProvider } from '../src/store/ThemeProvider';
+import { TourProvider, useTour } from '../src/store/TourProvider';
+import Tour from '../src/components/Tour';
 
 // ステータスバーの文字色は、端末設定ではなくアプリで選んだ配色に合わせる。
 function ThemedStatusBar() {
@@ -65,6 +67,14 @@ function Nav() {
   );
 }
 
+/** 初回だけツアーを出す。帳簿の読み込みを待ってから出す。 */
+function FirstRunTour() {
+  const { loading } = useData();
+  const { maybeStartFirstRun } = useTour();
+  useEffect(() => { if (!loading) maybeStartFirstRun(); }, [loading, maybeStartFirstRun]);
+  return null;
+}
+
 export default function RootLayout() {
   // 広告SDKは起動時に一度だけ初期化する（暗黙初期化だと初回表示が遅れる）
   useEffect(() => { initAds(); }, []);
@@ -73,9 +83,13 @@ export default function RootLayout() {
       <ThemeProvider>
         <AuthProvider>
         <DataProvider>
-          <AppLock>
-            <Nav />
-          </AppLock>
+          <TourProvider>
+            <AppLock>
+              <Nav />
+            </AppLock>
+            <FirstRunTour />
+            <Tour />
+          </TourProvider>
           <KdfBridge />
           <ThemedStatusBar />
         </DataProvider>

@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import AnchoredAd from './Ad';
+import { useTourTarget } from '../store/TourProvider';
 
 // 中央ボタンで開くルート。タブとしては出さない。
 const ENTRY_ROUTE = 'journal';
@@ -20,6 +21,7 @@ const ICONS = {
 };
 
 export default function TabBar({ state, descriptors, navigation }) {
+  const addRef = useTourTarget('add-button');
   const t = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -61,7 +63,7 @@ export default function TabBar({ state, descriptors, navigation }) {
       }}>
         {routes.slice(0, half).map(tab)}
 
-        <View style={{ width: 80, alignItems: 'center' }}>
+        <View ref={addRef} collapsable={false} style={{ width: 80, alignItems: 'center' }}>
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="記帳する"

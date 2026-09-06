@@ -2,7 +2,9 @@
 // Web版の GuidePage をそのまま持ってくると分量が過ぎるので、モバイルで実際にできる操作に絞った。
 import { Text, View } from 'react-native';
 import { useTheme } from '../src/theme';
-import { Card, Screen } from '../src/components/ui';
+import { Card, MenuList, Screen } from '../src/components/ui';
+import { useTour } from '../src/store/TourProvider';
+import { TOURS, TOUR_MENU } from '../src/tours';
 
 const SECTIONS = [
   {
@@ -50,8 +52,19 @@ const SECTIONS = [
 
 export default function Guide() {
   const t = useTheme();
+  const { start } = useTour();
   return (
     <Screen>
+      {/* 読ませるより触らせた方が早い。ツアーを先頭に置く。 */}
+      <MenuList title="画面を見ながら覚える" items={TOUR_MENU.map((id) => ({
+        label: TOURS[id].label,
+        onPress: () => start(id),
+      }))} />
+
+      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>
+        選ぶと実際の画面を指しながら案内します
+      </Text>
+
       {SECTIONS.map((s) => (
         <Card key={s.title} title={s.title}>
           <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 23 }}>{s.body}</Text>
