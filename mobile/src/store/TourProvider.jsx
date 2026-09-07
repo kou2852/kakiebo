@@ -18,6 +18,10 @@ export const useTour = () => useContext(Ctx);
 
 const SEEN_KEY = 'tour.firstRun.seen';
 
+// ステップが出てからゲートを構えるまでの待ち時間。
+// 画面遷移や同期の完了で件数が動くのを「ユーザーが操作した」と取り違えないための間。
+const ARM_DELAY = 700;
+
 export function TourProvider({ children }) {
   const router = useRouter();
   const { journals, accounts } = useData();
@@ -31,15 +35,18 @@ export function TourProvider({ children }) {
   // 指し示す対象の登録簿。key → measureInWindow を呼ぶ関数。
   const targets = useRef(new Map());
   // ゲート判定用に、ステップ開始時点の件数を控える
-  const atStep = useRef({ journals: 0, accounts: 0 });
+  const atStep = useRef(null);
 
   const steps = TOURS[tourId]?.steps || [];
   const step = steps[index] || null;
   const last = index >= steps.length - 1;
 
-  const register = useCallback((key, measure) => {
+  // 同じ画面が重なって開かれると、同じ key の要素が二つ登録される。
+  // 先にマウントした方が後から片付くと、後から登録した生きている方まで消えてしまう。
+  // 消すのは「自分が入れた関数がまだ入っているとき」だけにする。
+  const register = useCallback((key, measure, mine) => {
     if (measure) targets.current.set(key, measure);
-    else targets.current.delete(key);
+    else if (!mine || targets.current.get(key) === mine) targets.current.delete(key);
   }, []);
 
   const stop = useCallback(() => { setTourId(null); setIndex(0); }, []);
@@ -54,23 +61,32 @@ export function TourProvider({ children }) {
   const prev = useCallback(() => setIndex((v) => Math.max(0, v - 1)), []);
   const nextOrStop = useCallback(() => { if (last) stop(); else next(); }, [last, next, stop]);
 
-  // ステップ開始：対象の画面へ移動し、件数を控える
+  // ステップ開始：対象の画面へ移動し、少し置いてから件数を控える。
+  //
+  // ⚠ push ではなく navigate。同じ経路を push すると画面が重なって増える。
+  //   firstRun は '/' を続けて2ステップ指すので、push だとダッシュボードが二重になり、
+  //   古い方が片付くときに新しい方の登録まで巻き添えで消えていた（＝指す先を見失う）。
+  //
+  // ⚠ 件数を控えるのを遅らせているのは、遷移直後や同期完了で件数が動くのを
+  //   「ユーザーが操作した」と誤認して、読む前に次へ飛ぶのを防ぐため。
   useEffect(() => {
-    if (!step) return;
-    if (step.route) router.push(step.route);
-    atStep.current = { journals: journals.length, accounts: accounts.length };
+    if (!step) return undefined;
+    if (step.route) router.navigate(step.route);
+    atStep.current = null;
+    const t = setTimeout(() => {
+      atStep.current = { journals: journals.length, accounts: accounts.length };
+    }, ARM_DELAY);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tourId, index]);
 
-  // 記帳したら自動で次へ
+  // 記帳・口座追加で自動的に次へ。構える前の変化では動かない。
   useEffect(() => {
-    if (step?.awaitJournal && journals.length > atStep.current.journals) next();
-  }, [journals.length, step, next]);
-
-  // 口座・科目を足したら自動で次へ
-  useEffect(() => {
-    if (step?.awaitAccount && accounts.length > atStep.current.accounts) next();
-  }, [accounts.length, step, next]);
+    const base = atStep.current;
+    if (!base) return;
+    if (step?.awaitJournal && journals.length > base.journals) next();
+    else if (step?.awaitAccount && accounts.length > base.accounts) next();
+  }, [journals.length, accounts.length, step, next]);
 
   // 対象の位置を測る。
   //
@@ -162,12 +178,14 @@ export function useTourTarget(key) {
 
   useEffect(() => {
     if (!register) return undefined;
-    register(key, (cb) => {
+    const measure = (cb) => {
       const node = ref.current;
       if (!node || !node.measureInWindow) { cb(null); return; }
       node.measureInWindow((x, y, width, height) => cb({ x, y, width, height }));
-    });
-    return () => register(key, null);
+    };
+    register(key, measure);
+    // 自分が入れた関数のときだけ消す（同じ key の二重登録を巻き添えにしない）
+    return () => register(key, null, measure);
   }, [key, register]);
 
   return ref;
