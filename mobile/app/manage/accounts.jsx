@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Alert, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, ChipRow, Field, Input, Screen, sep } from '../../src/components/ui';
-import { ACCOUNT_TYPES, faBal, uid } from '../../src/utils/format';
+import { ACCOUNT_TYPES, faBal, today, uid } from '../../src/utils/format';
+import { EQUITY_ID } from '../../src/utils/accountCode';
+import { lastClosingDate } from '../../src/utils/creditCard';
 import { accountBalance, calcBalances } from '../../src/utils/bookkeeping';
 import { nextCode } from '../../src/utils/accountCode';
 import { useTourTarget } from '../../src/store/TourProvider';
@@ -24,7 +26,17 @@ export default function Accounts() {
     return s;
   }, [journals]);
 
-  const startNew = () => setEditing({ name: '', code: nextCode(accounts, 'expense'), type: 'expense' });
+  const startNew = () => setEditing({
+    name: '', code: nextCode(accounts, 'expense'), type: 'expense',
+    opening: '', wallet: false, walletName: '',
+  });
+
+  // 開始残高を聞くのは資産と負債だけ。収益・費用・純資産に「今いくらある」は無い。
+  // 新規のときだけ出す。既存科目の残高合わせは「実査・評価替え」で差額を記帳する
+  // （こちらで足すと、開いて保存するたびに二重に積み上がる）。
+  const showOpening = (e) => !e.id && (e.type === 'asset' || e.type === 'liability');
+  // 口座（支払い手段）を作れるのも資産と負債だけ。wallets.jsx と同じ条件。
+  const showWallet = (e) => !e.id && (e.type === 'asset' || e.type === 'liability');
 
   // 引落口座に選べるのは資産科目（現金・預金など）。
   const settleOpts = accounts.filter((a) => a.type === 'asset').map((a) => ({ value: a.id, label: a.name }));
@@ -42,7 +54,29 @@ export default function Accounts() {
         ccFrom: editing.ccFrom,
       }
       : {};
-    save('accounts', { id: editing.id || uid(), name, code, type: editing.type, ...cc });
+    const id = editing.id || uid();
+    save('accounts', { id, name, code, type: editing.type, ...cc });
+
+    // 開始残高。資産は (借)新科目/(貸)元入金、負債（既にある借金）は (借)元入金/(貸)新科目。
+    // ⚠ 相手科目が無いと貸借が合わない。元入金は既定科目なので通常あるが、
+    //   消された端末では記帳せず、科目だけ作る（黙って壊れた仕訳を作らない）。
+    const bal = Math.round(parseFloat(String(editing.opening || '').replace(/[¥,，]/g, '')) || 0);
+    const hasEquity = accounts.some((a) => a.id === EQUITY_ID);
+    if (showOpening(editing) && bal > 0 && hasEquity) {
+      const lines = editing.type === 'asset'
+        ? [{ accountId: id, side: 'dr', amount: bal, taxRate: 0 },
+          { accountId: EQUITY_ID, side: 'cr', amount: bal, taxRate: 0 }]
+        : [{ accountId: EQUITY_ID, side: 'dr', amount: bal, taxRate: 0 },
+          { accountId: id, side: 'cr', amount: bal, taxRate: 0 }];
+      // カードの開始残高は「次回の引落額」。直前の締め日に置くと次回の引落サイクルに乗る。
+      const date = cc.ccClose ? lastClosingDate(cc.ccClose) : today();
+      save('journals', { id: uid(), date, desc: `開始残高（${name}）`, lines });
+    }
+
+    // ⑨ 科目と一緒に口座も作る。口座画面から科目を作る導線は wallets.jsx 側にある。
+    if (showWallet(editing) && editing.wallet) {
+      save('wallets', { id: uid(), name: (editing.walletName || '').trim() || name, accountId: id });
+    }
     setEditing(null);
   };
 
@@ -70,6 +104,42 @@ export default function Accounts() {
             <Input value={editing.code} onChangeText={(v) => setEditing((e) => ({ ...e, code: v }))} keyboardType="number-pad" />
           </Field>
         </Card>
+
+        {/* ⑥⑪ 開始残高。資産は「いま持っている額」、負債は「いま借りている額」。
+            相手科目は元入金（自分で入れた元手）。Web 版 AccountModal と同じ仕訳を作る。 */}
+        {showOpening(editing) ? (
+          <Card title={editing.type === 'asset' ? '開始残高（任意）' : '現在の残高（任意）'}>
+            <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
+              {editing.type === 'asset'
+                ? 'いまこの科目にいくらあるかを入れると、相手を元入金として記帳します。あとから入れても構いません。'
+                : 'いまいくら借りているかを入れると、相手を元入金として記帳します。カードは「次回の引落額」を入れてください。'}
+            </Text>
+            <Field label="金額">
+              <Input value={String(editing.opening || '')} keyboardType="number-pad"
+                onChangeText={(v) => setEditing((e) => ({ ...e, opening: v }))} placeholder="例: 100000" />
+            </Field>
+          </Card>
+        ) : null}
+
+        {/* ⑨ 科目と一緒に口座（支払い手段）も作る */}
+        {showWallet(editing) ? (
+          <Card title="口座としても使う（任意）">
+            <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
+              口座にすると、記帳画面の支払方法として選べるようになります。
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Text style={{ color: t.tx, fontSize: 15 }}>この科目の口座も作る</Text>
+              <Switch value={!!editing.wallet} trackColor={{ true: t.ac }}
+                onValueChange={(v) => setEditing((e) => ({ ...e, wallet: v }))} />
+            </View>
+            {editing.wallet ? (
+              <Field label="口座の名称（空なら科目名と同じ）">
+                <Input value={editing.walletName || ''} placeholder={editing.name || '例: 生活費口座'}
+                  onChangeText={(v) => setEditing((e) => ({ ...e, walletName: v }))} />
+              </Field>
+            ) : null}
+          </Card>
+        ) : null}
 
         {editing.type === 'liability' ? (
           <Card title="クレジットカードの設定（任意）">
