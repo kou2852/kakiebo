@@ -4,6 +4,7 @@
 // 「管理へ行くボタン」が別々で、同じものを2つの見た目で示していた。
 import { Alert, Linking, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import * as Updates from 'expo-updates';
 import { useAuth } from '../../src/store/AuthProvider';
 import { useData } from '../../src/store/DataProvider';
 import { useThemeMode, useTheme } from '../../src/theme';
@@ -22,14 +23,22 @@ export default function Settings() {
   const go = (href) => () => router.push(href);
   const n = (v) => `${v.length} 件`;
 
+  // 消したあとは読み込み直す。消えたはずの帳簿が画面に残ったままだと、
+  // 消えていないように見える。再起動を利用者にやらせない（sync.jsx の削除と同じ扱い）。
+  const doReset = async () => {
+    await resetAll();
+    try {
+      await Updates.reloadAsync();
+    } catch {
+      // 開発ビルドなど reload が使えない環境向けの逃げ道。
+      Alert.alert('消去しました', 'アプリを再起動してください');
+    }
+  };
+
   const confirmReset = () =>
-    Alert.alert('端末のデータを消去しますか？', 'この端末に保存した帳簿を削除して初期状態に戻します。アプリを再起動してください。', [
+    Alert.alert('端末のデータを消去しますか？', 'この端末に保存した帳簿を削除して初期状態に戻します。', [
       { text: 'キャンセル', style: 'cancel' },
-      {
-        text: '消去',
-        style: 'destructive',
-        onPress: () => resetAll().then(() => Alert.alert('消去しました', 'アプリを再起動してください')),
-      },
+      { text: '消去', style: 'destructive', onPress: doReset },
     ]);
 
   return (

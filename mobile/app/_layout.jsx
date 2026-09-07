@@ -1,6 +1,7 @@
 import '../src/polyfills';
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../src/store/AuthProvider';
@@ -13,6 +14,11 @@ import { useTheme, useThemeMode } from '../src/theme';
 import { ThemeProvider } from '../src/store/ThemeProvider';
 import { TourProvider, useTour } from '../src/store/TourProvider';
 import Tour from '../src/components/Tour';
+
+// スプラッシュは既定だと最初の描画と同時に消える。起動が速い端末では一瞬すぎて
+// 何が出たのか分からないので、自動で消えるのを止めて最低表示時間を持たせる。
+SplashScreen.preventAutoHideAsync().catch(() => {});
+const SPLASH_HOLD_MS = 500;
 
 // ステータスバーの文字色は、端末設定ではなくアプリで選んだ配色に合わせる。
 function ThemedStatusBar() {
@@ -78,6 +84,12 @@ function FirstRunTour() {
 export default function RootLayout() {
   // 広告SDKは起動時に一度だけ初期化する（暗黙初期化だと初回表示が遅れる）
   useEffect(() => { initAds(); }, []);
+  // 自動で消すのを止めてあるので、ここで責任を持って消す。
+  // 失敗しても握りつぶさない（スプラッシュが残ったままになると何も操作できない）。
+  useEffect(() => {
+    const t = setTimeout(() => { SplashScreen.hideAsync().catch(() => {}); }, SPLASH_HOLD_MS);
+    return () => clearTimeout(t);
+  }, []);
   return (
     <SafeAreaProvider>
       <ThemeProvider>
