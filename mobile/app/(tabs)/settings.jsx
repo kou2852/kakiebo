@@ -3,6 +3,7 @@
 // 管理（勘定科目・タグ等）もここに統合した。以前は「件数を出すカード」と
 // 「管理へ行くボタン」が別々で、同じものを2つの見た目で示していた。
 import { Alert, Linking, Text, View } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
 import * as Updates from 'expo-updates';
 import { useAuth } from '../../src/store/AuthProvider';
@@ -12,6 +13,17 @@ import { MenuList, Screen } from '../../src/components/ui';
 import Constants from 'expo-constants';
 import { BUILD_STAMP } from '../../src/buildStamp';
 import { resetAll } from '../../src/db';
+import { codeCollisions } from '../../src/store/merge';
+
+// 規約・ポリシーはアプリ内ブラウザで開く。
+//
+// ⚠ Linking.openURL だと Safari に飛ばされ、どのアプリから来たのか分からなくなる。
+//   openBrowserAsync なら配色を合わせた画面がアプリの上に重なり、閉じれば戻る。
+const openInApp = (url, t) => WebBrowser.openBrowserAsync(url, {
+  toolbarColor: t.bg1,
+  controlsColor: t.ac,
+  presentationStyle: 'pageSheet',
+}).catch(() => Linking.openURL(url)); // 端末に対応ブラウザが無い場合の逃げ道
 
 export default function Settings() {
   const t = useTheme();
@@ -21,6 +33,8 @@ export default function Settings() {
   const theme = useThemeMode();
 
   const go = (href) => () => router.push(href);
+  // 別IDなのに同じ勘定科目コードを持つ組の数。0 なら項目自体を出さない。
+  const dupCodes = codeCollisions({ accounts: d.accounts }, { accounts: [] }, { accounts: d.accounts }).length;
   const n = (v) => `${v.length} 件`;
 
   // 消したあとは読み込み直す。消えたはずの帳簿が画面に残ったままだと、
@@ -46,8 +60,10 @@ export default function Settings() {
       <MenuList items={[
         {
           label: 'アカウントと同期',
-          value: d.pendingCount ? `未送信 ${d.pendingCount} 件` : (auth.email || '未ログイン'),
-          alert: d.pendingCount > 0,
+          // 未ログイン時は送り先が無いので「未送信」と言わない。キューは残す
+          // （初回ログイン時に送るために要る）。表示だけ抑える。
+          value: auth.signedIn && d.pendingCount ? `未送信 ${d.pendingCount} 件` : (auth.email || '未ログイン'),
+          alert: auth.signedIn && d.pendingCount > 0,
           onPress: go('/settings/sync'),
         },
         { label: '外観', value: theme.mode === 'auto' ? '端末に合わせる' : (theme.resolved === 'light' ? 'ライト' : 'ダーク'), onPress: go('/settings/appearance') },
@@ -58,6 +74,9 @@ export default function Settings() {
 
       <MenuList title="帳簿の基礎" items={[
         { label: '勘定科目', value: n(d.accounts), onPress: go('/manage/accounts') },
+        // 帳簿を合わせたあとにコードが重なることがある。放置すると一覧の並びが
+        // 崩れたままになるので、後からでも直せる入口をここに置く。
+        ...(dupCodes ? [{ label: 'コードの重複を直す', value: `${dupCodes} 件`, alert: true, onPress: go('/resolve-codes') }] : []),
         { label: '口座・カード', value: n(d.wallets), onPress: go('/manage/wallets') },
         { label: 'タグ', value: n(d.tags), onPress: go('/manage/tags') },
       ]} />
@@ -83,8 +102,8 @@ export default function Settings() {
         { label: '使い方', onPress: go('/guide') },
         { label: '問い合わせ', onPress: go('/inquiry') },
         // 5.1.1(i)「プライバシーポリシーへのリンクをアプリ内の分かりやすい場所に置く」
-        { label: '利用規約', onPress: () => Linking.openURL('https://kurofukubo.com/terms.html') },
-        { label: 'プライバシーポリシー', onPress: () => Linking.openURL('https://kurofukubo.com/privacy.html') },
+        { label: '利用規約', onPress: () => openInApp('https://kurofukubo.com/terms.html', t) },
+        { label: 'プライバシーポリシー', onPress: () => openInApp('https://kurofukubo.com/privacy.html', t) },
       ]} />
 
       {/* 取り返しがつかない操作なので、他の項目と地続きにしない */}
