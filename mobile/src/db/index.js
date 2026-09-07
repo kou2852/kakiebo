@@ -65,6 +65,18 @@ export async function clearPendingUpTo(seq) {
   await db.runAsync('DELETE FROM pending WHERE seq <= ?', [seq]);
 }
 
+/**
+ * 未送信キューを全部捨てる。
+ *
+ * ⚠ 利用者が「サーバーを正にする」と明示的に選んだときだけ呼ぶこと。
+ *   自動では絶対に呼ばない。未送信の操作はまだサーバーに入っていない変更であり、
+ *   黙って捨てると端末でした記帳が消える。
+ */
+export async function clearAllPending() {
+  const db = await conn();
+  await db.runAsync('DELETE FROM pending');
+}
+
 export async function resetAll() {
   const db = await conn();
   await db.execAsync('DELETE FROM dataset; DELETE FROM pending;');

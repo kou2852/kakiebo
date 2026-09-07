@@ -69,6 +69,7 @@ function Nav() {
       <Stack.Screen name="ledger/bulk" options={{ title: 'まとめて編集' }} />
       <Stack.Screen name="shortcuts" options={{ title: 'ショートカット' }} />
       <Stack.Screen name="guide" options={{ title: '使い方' }} />
+      <Stack.Screen name="resolve-codes" options={{ title: 'コードの重複' }} />
     </Stack>
   );
 }

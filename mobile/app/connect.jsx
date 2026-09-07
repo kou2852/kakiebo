@@ -4,6 +4,7 @@
 // アカウントは端末を跨いで持ち歩くためのもので、登録を必須にはしない。
 import { useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Text, TouchableOpacity, View } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/store/AuthProvider';
@@ -11,7 +12,20 @@ import { useData } from '../src/store/DataProvider';
 import { useTheme, useThemeMode } from '../src/theme';
 import { Button, Card, Field, Input, Screen, Segmented } from '../src/components/ui';
 import { probe, pullEncrypted, pullPlain, unlockWith } from '../src/store/pull';
+import { COLLECTIONS, codeCollisions, diffSummary, hasContent, mergeDatasets } from '../src/store/merge';
+import { clearAllPending, readLocal } from '../src/db';
+import { emptyDataset } from '../src/db/defaults';
 import { authMessage } from '../src/auth/cognito';
+
+// 規約・ポリシーはアプリ内ブラウザで開く。
+//
+// ⚠ Linking.openURL だと Safari に飛ばされ、どのアプリから来たのか分からなくなる。
+//   openBrowserAsync なら配色を合わせた画面がアプリの上に重なり、閉じれば戻る。
+const openInApp = (url, t) => WebBrowser.openBrowserAsync(url, {
+  toolbarColor: t.bg1,
+  controlsColor: t.ac,
+  presentationStyle: 'pageSheet',
+}).catch(() => Linking.openURL(url)); // 端末に対応ブラウザが無い場合の逃げ道
 
 const MODES = [{ value: 'signin', label: 'ログイン' }, { value: 'signup', label: '新規登録' }];
 
@@ -57,7 +71,8 @@ export default function Connect() {
   const t = useTheme();
   const router = useRouter();
   const auth = useAuth();
-  const { pendingCount, replaceAll, rememberDek } = useData();
+  const d = useData();
+  const { pendingCount, replaceAll, rememberDek } = d;
 
   const [mode, setMode] = useState('signin');
   const [mail, setMail] = useState('');
@@ -139,18 +154,117 @@ export default function Connect() {
     try {
       const p = await probe();
       if (p.encrypted) { setBundle(p.bundle); setCt(p.ct); }
-      else await importPlain();
+      else await reconcile(await pullPlain());
     } catch (e) { fail(e); } finally { setBusy(null); }
   };
 
-  const finish = async (dataset) => {
-    await replaceAll(dataset);
-    const n = dataset.journals.length;
-    Alert.alert('取り込みました', `仕訳 ${n.toLocaleString('ja-JP')} 件 / 勘定科目 ${dataset.accounts.length} 件`,
-      [{ text: 'OK', onPress: () => router.back() }]);
+  /**
+   * サーバーと端末の帳簿を突き合わせて繋ぐ。
+   *
+   * ⚠ 以前はここが無条件の取り込み（replaceAll）だった。新規アカウントでも
+   *   サーバーの空の帳簿で端末を上書きするため、ゲストで記帳した人が
+   *   Apple / Google でアカウントを作ると帳簿が消えていた。
+   *
+   * 端末に中身があるかは、データだけでなく未送信キューの有無も見る。
+   * 既定科目の名前を変えただけの端末を「空」と誤判定しないため。
+   */
+  const reconcile = async (server, dek) => {
+    const local = (await readLocal())?.dataset || emptyDataset();
+    const localHas = hasContent(local) || pendingCount > 0;
+    const serverHas = hasContent(server);
+
+    // どちらも初期状態。取り込むものも送るものも無いので、黙って終わる。
+    if (!localHas && !serverHas) { router.back(); return; }
+
+    // 端末が初期状態なら、取り込んでも失うものが無い。
+    if (!localHas) {
+      await replaceAll(server);
+      Alert.alert('取り込みました',
+        `仕訳 ${server.journals.length.toLocaleString('ja-JP')} 件 / 勘定科目 ${server.accounts.length} 件`,
+        [{ text: 'OK', onPress: () => router.back() }]);
+      return;
+    }
+
+    // サーバーが空なら、端末の帳簿を送る。未送信キューを流すだけで済む。
+    if (!serverHas) { await pushLocal(dek, server, local); return; }
+
+    // 両方に中身があっても、差分が無いなら聞くことが無い。
+    // ⚠ 実機で、取り込み直後に入り直すと 0件/0件/0件 の選択を迫られた。
+    //   「合わせるか選べ」と言いながら合わせる対象が無い、という無意味な問い合わせになる。
+    const diff = diffSummary(server, local);
+    if (!diff.onlyLocal && !diff.onlyServer && !diff.conflict) { router.back(); return; }
+
+    // 両方に中身があり、実際に食い違っている。どちらを正とするかは利用者が決める。
+    askPrefer(server, local, dek);
   };
 
-  const importPlain = async () => finish(await pullPlain());
+  /**
+   * 合わせ終わったあとの案内。
+   *
+   * 科目は id で突き合わせるので、id が違えば両方残る。その結果「別の科目なのに
+   * コードが同じ」が生まれる。コードは並び順と体系の根拠なので、放っておくと
+   * どちらがどれか読めない。消さずに、直す場所へ案内する。
+   */
+  const doneWith = (title, body, server, local) => {
+    const dup = server && local ? codeCollisions(mergeDatasets(server, local, 'local'), server, local) : [];
+    if (!dup.length) {
+      Alert.alert(title, body, [{ text: 'OK', onPress: () => router.back() }]);
+      return;
+    }
+    Alert.alert(title,
+      `${body}\n\n別の科目に同じ勘定科目コードが付きました（${dup.length} 件）。`
+      + 'どちらも消えていません。コードをずらすか名前を直して区別できます。',
+      [
+        { text: 'あとで', style: 'cancel', onPress: () => router.back() },
+        { text: 'いま直す', onPress: () => router.replace('/resolve-codes') },
+      ]);
+  };
+
+  const pushLocal = async (dek, server, local) => {
+    setBusy('保存中…');
+    try {
+      await d.sync(dek);
+      doneWith('保存しました', 'この端末の帳簿をサーバーに保存しました。他の端末からも見られます。', server, local);
+    } catch (e) { fail(e); } finally { setBusy(null); }
+  };
+
+  const askPrefer = (server, local, dek) => {
+    const { onlyLocal, onlyServer, conflict } = diffSummary(server, local);
+    Alert.alert('両方に帳簿があります',
+      `この端末だけにある: ${onlyLocal} 件
+サーバーだけにある: ${onlyServer} 件
+`
+      + `両方にあって内容が違う: ${conflict} 件
+
+`
+      + '合わせると、片方にしか無いものは必ず残ります。'
+      + '内容が違うものだけ、どちらを採るか選んでください。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: 'この端末を正にする', onPress: () => pushLocal(dek, server, local) },
+        { text: 'サーバーを正にする', onPress: () => takeServer(server, local, dek) },
+      ]);
+  };
+
+  /**
+   * サーバーを正にして合わせる。
+   *
+   * 端末にしか無いものは積み直して送るので消えない。消えるのは「両方にあって
+   * 内容が違うもの」の端末側だけで、それは利用者が選んだ結果である。
+   */
+  const takeServer = async (server, local, dek) => {
+    setBusy('合わせています…');
+    try {
+      await clearAllPending();          // 選ばれた破棄。自動では絶対に呼ばない
+      await replaceAll(mergeDatasets(server, local, 'server'));
+      for (const c of COLLECTIONS) {    // サーバーに無い分だけ積み直す
+        const ids = new Set((server[c] || []).map((x) => x.id));
+        for (const item of local[c] || []) if (!ids.has(item.id)) d.save(c, item);
+      }
+      await d.sync(dek);
+      doneWith('合わせました', 'サーバーの内容を正として、この端末だけにあったものを足しました。', server, local);
+    } catch (e) { fail(e); } finally { setBusy(null); }
+  };
 
   const doUnlock = async () => {
     setBusy('解錠中…');
@@ -158,7 +272,7 @@ export default function Connect() {
       const dek = await unlockWith(bundle, passphrase);
       await rememberDek(dek); // 次回からパスフレーズ入力を省く（鍵は端末の Keychain のみ）
       setPassphrase('');
-      await finish(pullEncrypted(dek, ct));
+      await reconcile(pullEncrypted(dek, ct), dek);
     } catch {
       // AES-GCM の認証が失敗した＝鍵が違う。原因を取り違えないよう文言を分ける。
       Alert.alert('解錠できません', 'パスフレーズが違います');
@@ -169,15 +283,6 @@ export default function Connect() {
 
   return (
     <Screen>
-      {pendingCount > 0 ? (
-        <Card>
-          <Text style={{ color: t.red, fontSize: 15, lineHeight: 22 }}>
-            この端末に未送信の変更が {pendingCount} 件あります。取り込みはサーバーの内容で
-            まるごと置き換えるため、この変更は消えます。先に「いま同期する」で送ってください。
-          </Text>
-        </Card>
-      ) : null}
-
 
       {awaiting ? (
         <Card title="確認コードの入力">
@@ -221,11 +326,11 @@ export default function Connect() {
 
           <Text style={{ color: t.tx3, fontSize: 13.5, lineHeight: 20 }}>
             続けると
-            <Text style={{ color: t.ac }} onPress={() => Linking.openURL('https://kurofukubo.com/terms.html')}>
+            <Text style={{ color: t.ac }} onPress={() => openInApp('https://kurofukubo.com/terms.html', t)}>
               利用規約
             </Text>
             と
-            <Text style={{ color: t.ac }} onPress={() => Linking.openURL('https://kurofukubo.com/privacy.html')}>
+            <Text style={{ color: t.ac }} onPress={() => openInApp('https://kurofukubo.com/privacy.html', t)}>
               プライバシーポリシー
             </Text>
             に同意したものとみなします。
@@ -244,7 +349,11 @@ export default function Connect() {
       ) : (
         <Card title="ログイン済み">
           <Text style={{ color: t.tx, fontSize: 15 }}>{auth.email}</Text>
-          <Button label="帳簿を取り込む" onPress={inspect} disabled={!!busy} />
+          {/* ⚠ 解錠待ち（bundle あり）のときは出さない。押すと probe からやり直しになり、
+              解錠しないまま突き合わせへ進む経路ができる。 */}
+          {bundle ? null : (
+            <Button label="サーバーの帳簿と突き合わせる" onPress={inspect} disabled={!!busy} />
+          )}
           <Button label="ログアウト" variant="ghost" onPress={() => { auth.signOut(); setBundle(null); setCt(null); }} />
         </Card>
       )}

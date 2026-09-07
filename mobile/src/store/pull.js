@@ -4,9 +4,25 @@ import * as api from '../api/client';
 import { open } from '../crypto';
 import { unlock } from '../crypto';
 
-/** 暗号化が有効なアカウントか調べる。{ encrypted, bundle, ct, rev } */
+/**
+ * 暗号化が有効なアカウントか調べる。{ encrypted, bundle, ct, rev }
+ *
+ * ⚠ 例外を握りつぶして「暗号化なし」に倒してはいけない。
+ *   以前は catch(() => null) だったため、通信断・500・タイムアウトでも
+ *   「平文アカウント」と判定し、空の平文コレクションを取り込んで端末の帳簿を
+ *   消す経路になっていた。パスフレーズを聞かれることもない。
+ *
+ *   「暗号化なし」と断定してよいのは、サーバーが明示的に「無い」と答えたとき
+ *   （404 = まだ一度も暗号化を有効にしていない）だけ。それ以外は投げて中断する。
+ */
 export async function probe() {
-  const ed = await api.encdata.get().catch(() => null);
+  let ed;
+  try {
+    ed = await api.encdata.get();
+  } catch (e) {
+    if (e?.status === 404) return { encrypted: false };
+    throw e;
+  }
   return { encrypted: !!(ed && ed.bundle && ed.ct), ...(ed || {}) };
 }
 
