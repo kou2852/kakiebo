@@ -46,12 +46,13 @@ export default function Sync() {
       // アカウントの鍵が端末に残る。
       await d.forgetDek();
       await resetAll();
-      // 消した直後の画面には、もう存在しない帳簿が残っている。読み込み直して確実に消す。
-      try {
-        await Updates.reloadAsync();
-      } catch {
-        Alert.alert('削除しました', 'アプリを再起動してください。');
-      }
+      // ⚠ 黙って再起動しない。以前は即 reloadAsync していたため結果が見えず、
+      //   「アカウント自体は消えたのか」が利用者に分からなかった。
+      Alert.alert('削除しました',
+        'サーバーの帳簿とログイン情報、この端末の帳簿を削除しました。\n'
+        + '「再起動」を押すとアプリを読み込み直します。',
+        [{ text: '再起動', onPress: () => { Updates.reloadAsync().catch(() => {}); } }],
+        { cancelable: false });
     } catch (e) {
       Alert.alert('削除できません', e?.message || String(e));
     } finally {
@@ -84,19 +85,48 @@ export default function Sync() {
   // 消すと「ログアウトしたらデータが無くなった」になる。
   // ただし暗号鍵は消す。鍵は kk_dek_<env> で利用者ごとに分かれておらず、
   // 残したまま別の人がログインすると、その人の暗号文を前の人の鍵で開こうとして失敗する。
-  const confirmSignOut = () =>
-    Alert.alert('ログアウトしますか？',
-      'この端末に保存した帳簿はそのまま残ります。もう一度ログインすれば同期を再開できます。'
-      + '\n\n暗号化を使っている場合、この端末に預けた鍵は消えます。次回はパスフレーズの入力が要ります。',
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: 'ログアウト',
-          style: 'destructive',
-          onPress: async () => { await d.forgetDek(); await auth.signOut(); },
-        },
-      ]);
+  const signOutNow = async () => { await d.forgetDek(); await auth.signOut(); };
 
+  const SIGN_OUT_BODY = 'この端末に保存した帳簿はそのまま残ります。もう一度ログインすれば同期を再開できます。'
+    + '\n\n暗号化を使っている場合、この端末に預けた鍵は消えます。次回はパスフレーズの入力が要ります。';
+
+  const confirmSignOut = () => {
+    // ⚠ 未送信のまま出ると、次に別のアカウントで入ったとき送り先が変わる。
+    //   勝手に捨てず、送るかどうかを選ばせる。破棄の選択肢は置かない
+    //   （残しても困らない。次の接続時に突き合わせで扱われる）。
+    if (d.pendingCount) {
+      Alert.alert('未送信の変更があります',
+        `まだサーバーへ送っていない変更が ${d.pendingCount} 件あります。\n`
+        + '送らずにログアウトしても端末には残りますが、次に別のアカウントで'
+        + 'ログインすると、その帳簿と突き合わせることになります。',
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          {
+            text: '送らずにログアウト',
+            style: 'destructive',
+            onPress: () => Alert.alert('ログアウトしますか？', SIGN_OUT_BODY, [
+              { text: 'キャンセル', style: 'cancel' },
+              { text: 'ログアウト', style: 'destructive', onPress: signOutNow },
+            ]),
+          },
+          {
+            text: '送ってからログアウト',
+            onPress: async () => {
+              try { await d.sync(); } catch (e) {
+                Alert.alert('送れませんでした', (e?.message || String(e)));
+                return;
+              }
+              await signOutNow();
+            },
+          },
+        ]);
+      return;
+    }
+    Alert.alert('ログアウトしますか？', SIGN_OUT_BODY, [
+      { text: 'キャンセル', style: 'cancel' },
+      { text: 'ログアウト', style: 'destructive', onPress: signOutNow },
+    ]);
+  };
   return (
     <Screen refresh={refresh}>
       <Card title="接続">
@@ -104,7 +134,7 @@ export default function Sync() {
         {d.unlocked ? <Row label="暗号化" value="解錠済み（この端末に鍵を保持）" /> : null}
         <View ref={connectRef} collapsable={false}>
           <Button
-            label={auth.signedIn ? '帳簿を取り込む' : 'アカウントに接続 / 帳簿を取り込む'}
+            label={auth.signedIn ? 'サーバーの帳簿と突き合わせる' : 'アカウントに接続'}
             onPress={() => router.push('/connect')}
           />
         </View>
@@ -117,7 +147,11 @@ export default function Sync() {
       </Card>
 
       <Card title="同期">
-        <Row label="未送信の変更" value={`${d.pendingCount} 件`} />
+        {/* 未ログイン時は送り先が無いので「未送信」という言い方をしない。
+            キューは残す（初回ログイン時に送るために要る）。表示だけ抑える。 */}
+        {auth.signedIn
+          ? <Row label="未送信の変更" value={`${d.pendingCount} 件`} />
+          : <Row label="同期" value="アカウント未接続" />}
         {d.lastSync?.error ? (
           <Text style={{ color: t.red, fontSize: 14 }}>前回の同期に失敗: {d.lastSync.error}</Text>
         ) : d.lastSync ? (
