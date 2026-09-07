@@ -177,6 +177,8 @@ export function ChipRow({ options, value, onChange }) {
 export function Segmented({ options, value, onChange }) {
   const t = useTheme();
   return (
+    // ⚠ 地と非選択の差が小さいと、ライト配色でどれが選ばれているか読めない。
+    //   非選択にも枠と背景を与えて、押せる範囲を見せる。
     <View style={{ flexDirection: 'row', backgroundColor: t.bg3, borderRadius: 10, padding: 2, gap: 2 }}>
       {options.map((o) => {
         const on = o.value === value;
@@ -184,9 +186,11 @@ export function Segmented({ options, value, onChange }) {
           <TouchableOpacity
             key={String(o.value)} onPress={() => onChange(o.value)}
             style={[{ flex: 1, borderRadius: 8, paddingVertical: 7, alignItems: 'center' },
-              on ? { backgroundColor: t.ac } : null]}
+              on
+                ? { backgroundColor: t.ac }
+                : { backgroundColor: t.bg1, borderWidth: 1, borderColor: t.bd }]}
           >
-            <Text style={{ color: on ? t.acTx : t.tx2, fontSize: 15, fontWeight: on ? '700' : '600' }}
+            <Text style={{ color: on ? t.acTx : t.tx, fontSize: 15, fontWeight: on ? '700' : '600' }}
               numberOfLines={1}>{o.label}</Text>
           </TouchableOpacity>
         );
