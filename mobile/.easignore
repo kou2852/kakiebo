@@ -1,0 +1,17 @@
+# EAS Build へアップロードしない物。
+#
+# ⚠ このファイルが存在すると、eas-cli は .gitignore ではなく こちら を見る。
+#   .gitignore に書いてあるものも、ここに書かないと送られる。二重管理になるが仕方ない。
+
+node_modules/
+.expo/
+dist/
+*.log
+
+# expo prebuild の生成物。EAS 側でビルド時に作られるので送る必要がない。
+#
+# ⚠ android/app/build は 1.5GB 近くある。これを送ろうとして C ドライブの一時領域を
+#   使い切り、2026-09-07 に ENOSPC でビルドが落ちた。
+#   （.gitignore には入っていたが、.easignore が無いと eas-cli は無視してくれない）
+/android/
+/ios/
