@@ -60,11 +60,29 @@ Parameters:
     Default: ""
     NoEcho: true
     Description: Google OAuth クライアントシークレット。デプロイ時に SSM SecureString から読んで渡す（ファイルに保存しない）。
+  AppleServicesId:
+    Type: String
+    Default: ""
+    Description: Sign in with Apple の Services ID（公開値。OAuth の client_id になる）。空なら Apple IdP を作成しない。
+  AppleTeamId:
+    Type: String
+    Default: ""
+    Description: Apple Developer の Team ID（10文字。ポータル右上）。
+  AppleKeyId:
+    Type: String
+    Default: ""
+    Description: Sign in with Apple 用キーの Key ID（10文字。AuthKey_XXXXXXXXXX.p8 の XXXXXXXXXX）。
+  ApplePrivateKey:
+    Type: String
+    Default: ""
+    NoEcho: true
+    Description: .p8 の中身。BEGIN/END 行と改行を除いた本文を1行で渡す。GoogleClientSecret と同じくデプロイ時に SSM SecureString から読んで渡す（ファイルに保存しない）。
 
 Conditions:
   HasAlarmEmail: !Not [!Equals [!Ref AlarmEmail, ""]]
   HasSes: !Not [!Equals [!Ref SesIdentityArn, ""]]
   HasGoogle: !Not [!Equals [!Ref GoogleClientId, ""]]
+  HasApple: !Not [!Equals [!Ref AppleServicesId, ""]]
   HasLpOrigin: !Not [!Equals [!Ref LpOrigin, ""]]
   HasMobileRedirect: !Not [!Equals [!Ref MobileRedirectUris, ""]]
 
@@ -120,12 +138,22 @@ Resources:
         AccessToken: hours
         IdToken: hours
         RefreshToken: days
-      # OAuth (Hosted UI / Google など外部IdP用)。
-      # !Ref GoogleIdP は ProviderName("Google") を返しつつ暗黙の依存を張る。
+      # OAuth (Hosted UI / Google・Apple など外部IdP用)。
+      # !Ref XxxIdP は ProviderName を返しつつ暗黙の依存を張る。
+      #
+      # Apple は App Store Guideline 4.8 のために要る。Google のような外部ログインを
+      # 出すなら「メールアドレスを伏せたまま登録できる」選択肢の併設が必須で、
+      # それを満たせるのは Apple の Hide My Email だけ。Google を外して回避しない。
       SupportedIdentityProviders: !If
         - HasGoogle
-        - [COGNITO, !Ref GoogleIdP]
-        - [COGNITO]
+        - !If
+          - HasApple
+          - [COGNITO, !Ref GoogleIdP, !Ref AppleIdP]
+          - [COGNITO, !Ref GoogleIdP]
+        - !If
+          - HasApple
+          - [COGNITO, !Ref AppleIdP]
+          - [COGNITO]
       # モバイルアプリはカスタムスキームに戻る。Google は埋め込みWebViewでの認証を拒否するため、
       # システムブラウザ経由になり、Web と同じオリジンには戻せない。
       CallbackURLs: !If
@@ -164,6 +192,28 @@ Resources:
       AttributeMapping:
         email: email
         name: name
+
+  # Sign in with Apple。
+  # ProviderName の "SignInWithApple" は Cognito の予約名で変更できない。
+  # モバイル側は mobile/src/auth/oauth.js の IDP.apple がこの名前を渡している。
+  #
+  # ⚠ AttributeMapping は email だけにする。Apple が name を返すのは初回認可のときだけで、
+  #   2回目以降は返らない。マッピングしておくと更新のたびに空を書きに行くことになる。
+  AppleIdP:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Condition: HasApple
+    Properties:
+      UserPoolId: !Ref UserPool
+      ProviderName: SignInWithApple
+      ProviderType: SignInWithApple
+      ProviderDetails:
+        client_id: !Ref AppleServicesId
+        team_id: !Ref AppleTeamId
+        key_id: !Ref AppleKeyId
+        private_key: !Ref ApplePrivateKey
+        authorize_scopes: "email name"
+      AttributeMapping:
+        email: email
 
   # ── DynamoDB ──
   KakeiboTable:
@@ -770,3 +820,9 @@ Outputs:
   GoogleRedirectUri:
     Description: Value to register as an Authorized redirect URI in Google Cloud Console
     Value: !Sub https://kurofukubo-auth-${Stage}.auth.${AWS::Region}.amazoncognito.com/oauth2/idpresponse
+  AppleReturnUrl:
+    Description: Value to register as a Return URL in the Apple Services ID (Sign in with Apple)
+    Value: !Sub https://kurofukubo-auth-${Stage}.auth.${AWS::Region}.amazoncognito.com/oauth2/idpresponse
+  AppleDomain:
+    Description: Value to register under "Domains and Subdomains" in the Apple Services ID
+    Value: !Sub kurofukubo-auth-${Stage}.auth.${AWS::Region}.amazoncognito.com

@@ -3,7 +3,7 @@
     "name": "kurofukubo",
     "slug": "kurofukubo",
     "scheme": "kurofukubo",
-    "version": "0.1.2",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -11,6 +11,9 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kurofukubo.app",
+      "entitlements": {
+        "com.apple.developer.applesignin": ["Default"]
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSFaceIDUsageDescription": "保存した暗号化キーを取り出して家計簿を解錠します。"

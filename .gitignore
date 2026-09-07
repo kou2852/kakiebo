@@ -58,3 +58,8 @@ backend/packaged-*.yaml
 # LP が配信するのは lp/video/ 配下だけで、こちらは成果物を作るための作業場。
 # git に入れると clone のたびに全員が取得することになり、消しても履歴からは消えない。
 /video/
+
+# 秘密鍵。Sign in with Apple の .p8 など。中身は SSM SecureString が正本で、
+# ここに置くのは手元での再利用のためだけ。絶対にコミットしない。
+secrets/
+*.p8

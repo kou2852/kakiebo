@@ -7,21 +7,26 @@ import * as api from '../api/client';
 import { DEFAULT_ENV, ENVIRONMENTS } from '../config';
 
 const ENV_KEY = 'kk_env';
+
+// 外部IdPで入ったときの表示名。Apple は Hide My Email だと中継アドレスが来るので、
+// メールをそのまま出さずプロバイダ名で示す。
+const IDP_LABEL = { google: 'Google アカウント', apple: 'Apple アカウント' };
 const Ctx = createContext(null);
 export const useAuth = () => useContext(Ctx);
 
-// ID トークンの供給元。Google(OAuth) を優先し、無ければ SRP のセッションを使う。
+// ID トークンの供給元。外部IdP(OAuth) を優先し、無ければ SRP のセッションを使う。
 const tokenFor = async (env) => (await oauth.getOAuthIdToken(env)) || (await cognito.currentIdToken(env));
 
 export function AuthProvider({ children }) {
   const [env, setEnvState] = useState(DEFAULT_ENV);
   const [email, setEmail] = useState(null);
-  const [via, setVia] = useState(null); // 'password' | 'google'
+  const [via, setVia] = useState(null); // 'password' | 'google' | 'apple'
   const [booting, setBooting] = useState(true);
 
-  // 保存済みセッションの復元。Google(OAuth) を先に見る。Web 版と同じ優先順。
+  // 保存済みセッションの復元。外部IdP(OAuth) を先に見る。Web 版と同じ優先順。
   const restore = useCallback(async (e) => {
-    if (await oauth.hasOAuthSession(e)) { setEmail('Google アカウント'); setVia('google'); return; }
+    const idp = await oauth.oauthProvider(e);
+    if (idp) { setEmail(IDP_LABEL[idp] || 'アカウント'); setVia(idp); return; }
     if (await cognito.currentIdToken(e)) { setEmail(cognito.currentEmail(e)); setVia('password'); return; }
     setEmail(null); setVia(null);
   }, []);
@@ -59,8 +64,14 @@ export function AuthProvider({ children }) {
       setEmail(mail); setVia('password');
     },
     signInWithGoogle: async () => {
-      await oauth.loginWithGoogle(env);
-      setEmail('Google アカウント'); setVia('google');
+      await oauth.loginWithIdp(env, 'google');
+      setEmail(IDP_LABEL.google); setVia('google');
+    },
+    // Guideline 4.8。Hide My Email を選ばれると中継アドレスが来るので、
+    // メール本文で本人に届ける前提の機能をここに足さないこと。
+    signInWithApple: async () => {
+      await oauth.loginWithIdp(env, 'apple');
+      setEmail(IDP_LABEL.apple); setVia('apple');
     },
     redirectUri: oauth.redirectUri,
     signUp: (mail, password) => cognito.signUp(env, mail, password),

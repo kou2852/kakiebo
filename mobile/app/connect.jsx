@@ -3,11 +3,12 @@
 // アカウントが無くてもアプリは全機能が使える（帳簿は端末内で完結する）。
 // アカウントは端末を跨いで持ち歩くためのもので、登録を必須にはしない。
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/store/AuthProvider';
 import { useData } from '../src/store/DataProvider';
-import { useTheme } from '../src/theme';
+import { useTheme, useThemeMode } from '../src/theme';
 import { Button, Card, Field, Input, Screen, Segmented } from '../src/components/ui';
 import { probe, pullEncrypted, pullPlain, unlockWith } from '../src/store/pull';
 import { authMessage } from '../src/auth/cognito';
@@ -18,6 +19,39 @@ const MODES = [{ value: 'signin', label: 'ログイン' }, { value: 'signup', la
 // 画面に出しておかないと、登録を押してから弾かれて理由が分からない。
 const PW_RULE = '8文字以上。英小文字と数字を含めてください。';
 const pwOk = (v) => v.length >= 8 && /[a-z]/.test(v) && /[0-9]/.test(v);
+
+/**
+ * Sign in with Apple のボタン。
+ *
+ * ⚠ 見た目を勝手に変えないこと。Apple のデザイン規定で、地色は黒・白・白+枠線の
+ * いずれか、ロゴと文言はセットで出す、と決まっている。ここでは明るい配色のとき黒地、
+ * 暗い配色のとき白地にしている。
+ *
+ * ⚠ 他のログイン手段より目立たなくしてはいけない（規定）。Google が枠線ボタンなので、
+ * こちらは塗りつぶしにして上に置いてある。順番も入れ替えないこと。
+ */
+function AppleButton({ onPress, disabled }) {
+  const { resolved } = useThemeMode();
+  const dark = resolved === 'dark';
+  const fg = dark ? '#000000' : '#ffffff';
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel="Appleで続ける"
+      style={{
+        backgroundColor: dark ? '#ffffff' : '#000000',
+        opacity: disabled ? 0.4 : 1,
+        borderRadius: 12, paddingVertical: 12, paddingHorizontal: 18,
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+      }}
+    >
+      <Ionicons name="logo-apple" size={19} color={fg} style={{ marginTop: -2 }} />
+      <Text style={{ color: fg, fontWeight: '700', fontSize: 16 }}>Appleで続ける</Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function Connect() {
   const t = useTheme();
@@ -41,6 +75,14 @@ export default function Connect() {
     setBusy('Google に接続中…');
     try {
       await auth.signInWithGoogle();
+      await inspect();
+    } catch (e) { fail(e); } finally { setBusy(null); }
+  };
+
+  const doApple = async () => {
+    setBusy('Apple に接続中…');
+    try {
+      await auth.signInWithApple();
       await inspect();
     } catch (e) { fail(e); } finally { setBusy(null); }
   };
@@ -174,6 +216,7 @@ export default function Connect() {
             <Button label="ログイン" onPress={doSignIn} disabled={!mail.trim() || !password || !!busy} />
           )}
 
+          <AppleButton onPress={doApple} disabled={!!busy} />
           <Button label="Google で続ける" variant="ghost" onPress={doGoogle} disabled={!!busy} />
 
           <Text style={{ color: t.tx3, fontSize: 13.5, lineHeight: 20 }}>

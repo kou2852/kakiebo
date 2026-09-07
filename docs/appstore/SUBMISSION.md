@@ -667,3 +667,100 @@ node scripts/demo-data.mjs --push          # 本番のデモ口座へ投入（�
       `prod` のみで、dev/staging を指す文字列も切替UIも残っていない
 - [ ] **実機での通し確認**: 本番アカウントでログイン → 取り込み → 同期 → 削除
       （本番 Cognito にアカウントを作るため、実施には許可が要る）
+
+
+## Sign in with Apple（Guideline 4.8）
+
+### なぜ要るか
+
+Google ログインを出しているため。4.8 は、外部/ソーシャルログインで主アカウントを作らせるアプリに、
+**同等の選択肢**として次を満たすログインの併設を求める。
+
+1. 収集は氏名とメールアドレスのみ
+2. **メールアドレスを伏せたままアカウントを作れる**
+3. 広告目的で利用状況を収集しない
+
+2 を満たせるのは実質 Sign in with Apple の **Hide My Email** だけ。自前のメール＋パスワードは
+Cognito が確認コードを送るため実在のアドレスを要求し、2 を満たさない。
+Apple が公表している免除（自社認証**のみ** / 教育・法人 / 公的ID / 特定サービスのクライアント）に
+「アカウントが任意」「ゲストで使える」は含まれないので、ゲスト利用可であることは根拠にならない。
+
+**Google を外して回避しない。** 動いている機能をプラットフォーム単位で削ることになる。
+
+### アプリ側（実装済み）
+
+| ファイル | 内容 |
+|---|---|
+| `src/auth/oauth.js` | `loginWithIdp(env, 'google' | 'apple')`。`IDP` で Cognito のプロバイダ名に対応付け。保存する記録に `idp` を持たせ、`oauthProvider()` で復元時に判別 |
+| `src/store/AuthProvider.jsx` | `signInWithApple` を追加。`via` は `'password' | 'google' | 'apple'` |
+| `app/connect.jsx` | `AppleButton`。Apple のデザイン規定に従い明色時は黒地・暗色時は白地。Google より上に置き、塗りつぶしで**より目立たせている**（規定：他のログイン手段より目立たなくしてはいけない） |
+
+### Apple Developer 側（要作業）
+
+1. **App ID に capability を足す** — Certificates, Identifiers & Profiles → Identifiers →
+   `com.kurofukubo.app` → **Sign In with Apple** にチェック → Save
+2. **Services ID を作る** — Identifiers → + → **Services IDs**
+   - Description: `kurofukubo Sign in`
+   - Identifier: `com.kurofukubo.app.signin`（Bundle ID と同じにはできない）
+3. 作った Services ID を開き **Sign In with Apple** → Configure
+   - Primary App ID: `com.kurofukubo.app`
+   - Domains and Subdomains: `kurofukubo-auth-prod.auth.ap-northeast-1.amazoncognito.com`
+   - Return URLs: `https://kurofukubo-auth-prod.auth.ap-northeast-1.amazoncognito.com/oauth2/idpresponse`
+4. **キーを作る** — Keys → + → Key Name `kurofukubo SIWA` → **Sign in with Apple** にチェック →
+   Configure → Primary App ID `com.kurofukubo.app` → Register → **.p8 をダウンロード**
+   - ⚠ .p8 は**一度しか落とせない**
+   - Key ID（キーの画面）と Team ID（ポータル右上）を控える
+
+集めるもの: **Services ID / Team ID / Key ID / .p8 の中身**。
+.p8 はリポジトリにも Obsidian にも置かない。
+
+### Cognito 側（本番設定変更・実行前に許可を取る）
+
+⚠ **CLI で直接足さないこと。** User Pool・アプリクライアント・Google IdP はすべて
+`backend/template.yaml` の管理下にある。`aws cognito-idp create-identity-provider` で足すと
+次の `sam deploy` で消えるか、スタックと食い違う。**SAM 経由で入れる。**
+
+テンプレートは修正済み（`AppleIdP` リソース、`HasApple` 条件、
+`SupportedIdentityProviders` の Google×Apple 4通り分岐、Outputs 2本）。
+残るのはパラメータを渡してデプロイするだけ。
+
+| パラメータ | 値 | 秘密 |
+|---|---|---|
+| `AppleServicesId` | `com.kurofukubo.app.signin` | 公開 |
+| `AppleTeamId` | Apple Developer ポータル右上の10文字 | 公開 |
+| `AppleKeyId` | `AuthKey_XXXXXXXXXX.p8` の XXXXXXXXXX | 公開 |
+| `ApplePrivateKey` | .p8 の中身（BEGIN/END と改行を除いた本文1行） | **秘密** |
+
+秘密の扱いは `GoogleClientSecret` と同じにする。SSM SecureString に置き、
+デプロイ時に読んで渡す。**コマンドラインに直書きしない**（履歴とプロセス一覧に残る）。
+
+```sh
+# 1) SSM に入れる（一度だけ）
+aws ssm put-parameter --name /kakeibo/apple-private-key --type SecureString --value "<.p8の本文1行>"
+
+# 2) デプロイ時に読んで渡す
+sec=$(aws ssm get-parameter --name /kakeibo/apple-private-key --with-decryption --query Parameter.Value --output text)
+sam deploy --config-env prod --parameter-overrides "... ApplePrivateKey=$sec AppleServicesId=... AppleTeamId=... AppleKeyId=..."
+```
+
+⚠ `--parameter-overrides` は**書かなかったパラメータを既定値に戻す**。
+既存の `Stage` / `AllowedOrigin` / `LpOrigin` / `AlarmEmail` / `GoogleClientId` /
+`GoogleClientSecret` / `MobileRedirectUris` を必ず全部添えること。
+`docs/NEXT_STEPS.md` の prod デプロイ行が現行の正解なので、そこに Apple の4つを足す。
+
+⚠ `sam deploy` は本番への干渉。**change set を確認してから実行**（`confirm_changeset = true` 済み）。
+変更が `AppleIdP` の追加と `UserPoolClient` の更新だけであることを目視する。
+
+### 確認
+
+- `connect.jsx` の「Appleで続ける」→ Apple のサインイン画面 → **Hide My Email を選ぶ**
+- Cognito に `@privaterelay.appleid.com` のユーザーが増えること
+- そのアカウントで同期できること
+
+### 1.0 での割り切り
+
+**同じ人がメール登録と Apple 登録で別アカウントになる。** Apple は Hide My Email だと
+中継アドレスを返すため、自前登録時のメールと一致しない。統合（アカウントリンク）は 1.0 では行わない。
+
+**Hide My Email のアカウントには、こちらからメールを送れない。** 中継の転送は送信元ドメインを
+Apple に登録している場合のみ機能する。メール本文で本人に届ける前提の機能を足すときは、ここを見直すこと。

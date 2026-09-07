@@ -1,9 +1,14 @@
-// Cognito Hosted UI を使った Google ログイン（認可コード + PKCE）。
+// Cognito Hosted UI を使った外部IdPログイン（認可コード + PKCE）。Google と Apple。
 // frontend/src/auth/oauth.js の移植。相違点は2つだけ:
 //   - リダイレクト先がアプリのスキーム（kurofukubo://auth）
 //   - ブラウザは ASWebAuthenticationSession（システムのSafari）を使う。
 //     Google は埋め込み WebView での認証を拒否する（disallowed_useragent）ため、
 //     アプリ内 WebView で代用することはできない。
+//
+// Apple は App Store Guideline 4.8 のために要る。Google のような外部ログインを出すなら、
+// 「メールアドレスを伏せたままアカウントを作れる」選択肢を併設しなければならない。
+// Apple の Hide My Email だけがこれを満たす（自前のメール+パスワードは確認コードのために
+// 実在のアドレスを要求するので満たせない）。Google を外すのではなく Apple を足して解決する。
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
@@ -11,6 +16,9 @@ import { digestStringAsync, CryptoDigestAlgorithm, CryptoEncoding, getRandomByte
 import { ENVIRONMENTS } from '../config';
 
 WebBrowser.maybeCompleteAuthSession();
+
+// Cognito 側のプロバイダ名。Apple の 'SignInWithApple' は Cognito の予約名で、変更できない。
+export const IDP = { google: 'Google', apple: 'SignInWithApple' };
 
 const key = (env) => `kk_oauth_${env}`;
 const domain = (env) => ENVIRONMENTS[env].authDomain;
@@ -29,13 +37,15 @@ async function read(env) {
   try { return JSON.parse(await AsyncStorage.getItem(key(env))); } catch { return null; }
 }
 
-async function store(env, tok, prev) {
+async function store(env, tok, prev, idp) {
   const rec = {
     id: tok.id_token,
     access: tok.access_token,
     // refresh_token は初回交換時のみ返るので前回分を引き継ぐ
     refresh: tok.refresh_token || prev?.refresh,
     exp: Date.now() + (tok.expires_in - 60) * 1000,
+    // どちらで入ったか。復元したときの表示に使う。
+    idp: idp || prev?.idp || 'google',
   };
   await AsyncStorage.setItem(key(env), JSON.stringify(rec));
   return rec;
@@ -43,6 +53,13 @@ async function store(env, tok, prev) {
 
 export const clearOAuth = (env) => AsyncStorage.removeItem(key(env));
 export const hasOAuthSession = async (env) => !!(await read(env));
+
+/** 保存済みセッションがどちらの IdP のものか。'google' | 'apple' | null。 */
+export async function oauthProvider(env) {
+  const rec = await read(env);
+  // idp を持たない古い記録は Google（Apple を足す前は Google しか無かった）。
+  return rec ? (rec.idp || 'google') : null;
+}
 
 async function tokenRequest(env, body) {
   const res = await fetch(`${domain(env)}/oauth2/token`, {
@@ -54,13 +71,13 @@ async function tokenRequest(env, body) {
   return res.json();
 }
 
-/** Google でログイン。成功したら ID トークンを返す。 */
-export async function loginWithGoogle(env) {
+/** 外部IdPでログイン。which は 'google' | 'apple'。成功したら ID トークンを返す。 */
+export async function loginWithIdp(env, which) {
   const state = hex(16);
   const verifier = hex(32);
 
   const u = new URL(`${domain(env)}/oauth2/authorize`);
-  u.searchParams.set('identity_provider', 'Google');
+  u.searchParams.set('identity_provider', IDP[which]);
   u.searchParams.set('client_id', ENVIRONMENTS[env].clientId);
   u.searchParams.set('response_type', 'code');
   u.searchParams.set('scope', 'email openid profile');
@@ -85,7 +102,7 @@ export async function loginWithGoogle(env) {
     redirect_uri: redirectUri,
     code_verifier: verifier,
   });
-  const rec = await store(env, tok, null);
+  const rec = await store(env, tok, null, which);
   return rec.id;
 }
 
