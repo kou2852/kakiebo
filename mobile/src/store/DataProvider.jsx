@@ -4,7 +4,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import { clearPendingUpTo, listPending, readLocal, writeLocal } from '../db';
+import { clearPendingUpTo, listPending, loadIdMap, readLocal, rememberId, writeLocal } from '../db';
 import { applyIntent, upsert, remove, replace } from '../db/intents';
 import { emptyDataset } from '../db/defaults';
 import { syncNow } from './sync';
@@ -56,33 +56,72 @@ export function DataProvider({ children }) {
   });
   useEffect(() => () => { if (flushTimer.current) clearTimeout(flushTimer.current); }, []);
 
+  /**
+   * 端末への書き込みを直列化する。
+   *
+   * ⚠ writeLocal は withTransactionAsync を使う。同じ接続で重ねると
+   *   「cannot start a transaction within a transaction」で片方が落ち、
+   *   その意図が失われる。commit は完了を待たないので、1つの操作で save を
+   *   2回以上呼ぶと後の分が消える。
+   *
+   *   実際、「科目＋開始残高の仕訳＋口座」を1操作で作る画面で、仕訳と口座が
+   *   永続化されなかった。画面には反映されるので（メモリ上は正しい）、
+   *   アプリを再起動するまで気づけない。失敗は console.warn に消えていた。
+   */
+  const writeChain = useRef(Promise.resolve());
+  const queueWrite = useCallback((fn) => {
+    const next = writeChain.current.then(fn, fn);
+    writeChain.current = next.catch(() => {});
+    return next;
+  }, []);
+
   // 意図を1つ適用して即座に保存する。UI は保存完了を待たない（オフライン前提のため）。
   const commit = useCallback((intent) => {
     setDataset((prev) => {
       const next = applyIntent(prev, intent);
-      writeLocal(next, rev.current, intent)
+      queueWrite(() => writeLocal(next, rev.current, intent))
         .then(() => { refreshPending(); scheduleSync(); })
         .catch((e) => console.warn('保存に失敗:', e?.message));
       return next;
     });
-  }, [refreshPending, scheduleSync]);
+  }, [queueWrite, refreshPending, scheduleSync]);
+
+  /**
+   * 複数の意図をまとめて積む。**積み終わってから解決する。**
+   *
+   * ⚠ commit は setDataset の中で writeLocal を投げっぱなしにするので、直後に
+   *   sync すると「まだ積まれていない意図」を置き去りにしたまま同期が走り、
+   *   その戻り（サーバーの内容）で端末が上書きされて消える。
+   *   同期の前に確実に積みたい場所では必ずこちらを使う。
+   */
+  const commitAll = useCallback(async (intents) => {
+    if (!intents.length) return;
+    let cur = (await readLocal())?.dataset || emptyDataset();
+    for (const intent of intents) {
+      cur = applyIntent(cur, intent);
+      await queueWrite(() => writeLocal(cur, rev.current, intent));
+    }
+    setDataset(cur);
+    await refreshPending();
+  }, [queueWrite, refreshPending]);
 
   // サーバーから取り込んだ帳簿でローカルを丸ごと置き換える（読み取り専用の取り込み）。
   const replaceAll = useCallback(async (next, serverRev = 0) => {
     rev.current = serverRev;
-    await writeLocal(next, serverRev, null);
+    await queueWrite(() => writeLocal(next, serverRev, null));
     setDataset(next);
-  }, []);
+  }, [queueWrite]);
 
   // 未送信の操作をサーバーへ反映し、確定した状態でローカルを置き換える。
-  const sync = useCallback(async (overrideDek) => {
+  const runSync = useCallback(async (overrideDek) => {
     setSyncing(true);
     try {
       const pending = await listPending();
       const local = await readLocal();
-      const r = await syncNow({ dek: overrideDek || dek, local: local.dataset, pending });
+      const idMap = await loadIdMap();
+      const r = await syncNow({ dek: overrideDek || dek, local: local.dataset, pending, idMap, rememberId });
       rev.current = r.rev;
-      await writeLocal(r.dataset, r.rev, null);
+      await queueWrite(() => writeLocal(r.dataset, r.rev, null));
       await clearPendingUpTo(r.upTo);
       setDataset(r.dataset);
       await refreshPending();
@@ -94,7 +133,24 @@ export function DataProvider({ children }) {
     } finally {
       setSyncing(false);
     }
-  }, [dek, refreshPending]);
+  }, [dek, queueWrite, refreshPending]);
+
+  /**
+   * 同期を直列化する。
+   *
+   * ⚠ ログイン直後は autoSync と接続画面の同期が同時に走る。並行して走ると、
+   *   両方が同じ未送信を「サーバーに無い」と判断して二重に作る。実測で
+   *   科目1件・仕訳1件が5件ずつに増えた。後から来たものは前を待たせる。
+   */
+  const syncChain = useRef(Promise.resolve());
+  const sync = useCallback((overrideDek) => {
+    const run = syncChain.current.then(
+      () => runSync(overrideDek),
+      () => runSync(overrideDek)
+    );
+    syncChain.current = run.catch(() => {});
+    return run;
+  }, [runSync]);
 
   // 未送信の操作を自動で送る。
   //
@@ -139,13 +195,14 @@ export function DataProvider({ children }) {
 
   const api = useMemo(() => ({
     save: (collection, item) => commit(upsert(collection, item)),
+    commitAll,
     del: (collection, id) => commit(remove(collection, id)),
     setAll: (collection, items) => commit(replace(collection, items)),
     replaceAll,
     sync,
     rememberDek,
     forgetDek,
-  }), [commit, replaceAll, sync, rememberDek, forgetDek]);
+  }), [commit, commitAll, replaceAll, sync, rememberDek, forgetDek]);
 
   const value = useMemo(() => ({
     loading: dataset === null,

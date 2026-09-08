@@ -5,6 +5,7 @@ import { useTheme } from '../../src/theme';
 import { Button, Card, ChipRow, Field, Input, Screen, sep } from '../../src/components/ui';
 import { ACCOUNT_TYPES, faBal, today, uid } from '../../src/utils/format';
 import { EQUITY_ID } from '../../src/utils/accountCode';
+import { upsert } from '../../src/db/intents';
 import { lastClosingDate } from '../../src/utils/creditCard';
 import { accountBalance, calcBalances } from '../../src/utils/bookkeeping';
 import { nextCode } from '../../src/utils/accountCode';
@@ -16,7 +17,7 @@ export default function Accounts() {
   const listRef = useTourTarget('account-list');
   const addRef = useTourTarget('account-add');
   const t = useTheme();
-  const { accounts, journals, save, del } = useData();
+  const { accounts, journals, commitAll, del } = useData();
   const [editing, setEditing] = useState(null); // { id?, name, code, type }
 
   const balances = useMemo(() => calcBalances(journals, accounts), [journals, accounts]);
@@ -54,8 +55,10 @@ export default function Accounts() {
         ccFrom: editing.ccFrom,
       }
       : {};
+    // ⚠ save を続けて呼ばない。commit は書き込みの完了を待たないので、
+    //   まとめて commitAll で積む（直列化した上で、積み終わりを待てる）。
     const id = editing.id || uid();
-    save('accounts', { id, name, code, type: editing.type, ...cc });
+    const intents = [upsert('accounts', { id, name, code, type: editing.type, ...cc })];
 
     // 開始残高。資産は (借)新科目/(貸)元入金、負債（既にある借金）は (借)元入金/(貸)新科目。
     // ⚠ 相手科目が無いと貸借が合わない。元入金は既定科目なので通常あるが、
@@ -70,13 +73,14 @@ export default function Accounts() {
           { accountId: id, side: 'cr', amount: bal, taxRate: 0 }];
       // カードの開始残高は「次回の引落額」。直前の締め日に置くと次回の引落サイクルに乗る。
       const date = cc.ccClose ? lastClosingDate(cc.ccClose) : today();
-      save('journals', { id: uid(), date, desc: `開始残高（${name}）`, lines });
+      intents.push(upsert('journals', { id: uid(), date, desc: `開始残高（${name}）`, lines }));
     }
 
     // ⑨ 科目と一緒に口座も作る。口座画面から科目を作る導線は wallets.jsx 側にある。
     if (showWallet(editing) && editing.wallet) {
-      save('wallets', { id: uid(), name: (editing.walletName || '').trim() || name, accountId: id });
+      intents.push(upsert('wallets', { id: uid(), name: (editing.walletName || '').trim() || name, accountId: id }));
     }
+    commitAll(intents);
     setEditing(null);
   };
 

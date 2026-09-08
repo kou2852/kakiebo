@@ -40,7 +40,7 @@ async function pushEncrypted(dek, intents) {
 }
 
 /** 平文アカウント: 仕訳・科目は1件ずつ、その他はコレクション単位で全置換。 */
-async function pushPlain(intents, local) {
+async function pushPlain(intents, local, ctx) {
   const snapshot = await api.data.exportAll();
   const server = normalize(snapshot);
   const revs = snapshot.revs || {};
@@ -48,8 +48,37 @@ async function pushPlain(intents, local) {
 
   // サーバーは作成時に自前で id を採番する。オフラインで作った仕訳の id は通らないので、
   // 対応表を持ち、後続の更新・削除を採番後の id へ読み替える。
-  const idMap = new Map();
+  // ⚠ 対応表は端末に永続化したものから始める。毎回まっさらにすると、
+  //   既にサーバーへ作ったものを「無い」と判断して作り直し、帳簿が重複する。
+  const idMap = new Map(ctx?.idMap || []);
   const rid = (id) => idMap.get(id) || id;
+  const learn = async (localId, serverId) => {
+    idMap.set(localId, serverId);
+    // 途中で落ちても次回に効くよう、その場で書く。
+    await ctx?.rememberId?.(localId, serverId);
+  };
+
+  /**
+   * 科目IDを参照している側にも採番結果を反映する。
+   *
+   * ⚠ 以前は rid を intent.item.id にしか使っておらず、仕訳の lines[].accountId や
+   *   口座の accountId は端末で作った古いIDのまま送っていた。サーバーは科目を作るとき
+   *   uuid を振り直す（backend/src/handlers/accounts.js）ので、参照先の無い仕訳が
+   *   出来上がる。貸借が合わなくなり、残高も出ない。画面上はエラーにならないので
+   *   気づけない。
+   *
+   * 科目を作る意図は口座・仕訳より先に積まれる前提（画面側がその順で save する）。
+   */
+  const remap = (item) => {
+    let out = item;
+    if (Array.isArray(item.lines)) {
+      out = { ...out, lines: item.lines.map((l) => (l.accountId ? { ...l, accountId: rid(l.accountId) } : l)) };
+    }
+    for (const k of ['accountId', 'drAccountId', 'crAccountId']) {
+      if (out[k]) out = { ...out, [k]: rid(out[k]) };
+    }
+    return out;
+  };
 
   const perItem = {
     journals: { ep: coll.journals, ids: new Set(server.journals.map((j) => j.id)) },
@@ -62,10 +91,10 @@ async function pushPlain(intents, local) {
     if (target) {
       const { ep, ids } = target;
       if (intent.t === 'upsert') {
-        const { id, ...body } = intent.item;
+        const { id, ...body } = remap(intent.item);
         const sid = rid(id);
         if (ids.has(sid)) await ep.update(sid, body);
-        else { const created = await ep.create(body); idMap.set(id, created.id); ids.add(created.id); }
+        else { const created = await ep.create(body); await learn(id, created.id); ids.add(created.id); }
       } else if (intent.t === 'remove') {
         const sid = rid(intent.id);
         if (ids.has(sid)) { await ep.remove(sid); ids.delete(sid); }
@@ -77,15 +106,18 @@ async function pushPlain(intents, local) {
 
   // 全置換のコレクションは、意図を1件ずつ送らず最終状態をまとめて送る（Web 版と同じ扱い）。
   for (const c of bulk) {
-    if (PLAIN[c]) { await PLAIN[c].save(local[c]); continue; }
+    // 全置換のコレクションも科目IDを参照する（口座・予算・タグ配分・自動仕訳ルール・
+    // プリセット・定期取引）。採番し直された分を反映してから送る。
+    const items = (local[c] || []).map(remap);
+    if (PLAIN[c]) { await PLAIN[c].save(items); continue; }
     const ep = VERSIONED[c];
     if (!ep) continue;
     try {
-      await ep.save(local[c], revs[c] ?? 0);
+      await ep.save(items, revs[c] ?? 0);
     } catch (e) {
       if (e.status !== 409) throw e;
       const fresh = await ep.list(); // 他端末が先に保存していた。版番号を取り直して1回だけ再試行。
-      await ep.save(local[c], fresh.rev);
+      await ep.save(items, fresh.rev);
     }
   }
 
@@ -94,14 +126,14 @@ async function pushPlain(intents, local) {
 }
 
 /** アカウントの形態を判定して同期する。 */
-export async function syncNow({ dek, local, pending }) {
+export async function syncNow({ dek, local, pending, idMap, rememberId }) {
   const ed = await api.encdata.get().catch(() => null);
   const encrypted = !!(ed && ed.bundle);
   if (encrypted && !dek) throw new Error('暗号化が有効です。先に解錠してください');
 
   const result = encrypted
     ? await pushEncrypted(dek, pending.map((p) => p.intent))
-    : await pushPlain(pending.map((p) => p.intent), local);
+    : await pushPlain(pending.map((p) => p.intent), local, { idMap, rememberId });
 
   // 同期中に積まれた操作を巻き込まないよう、処理した最後の seq までを消す。
   return { ...result, upTo: pending.length ? pending[pending.length - 1].seq : 0 };

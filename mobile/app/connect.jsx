@@ -13,6 +13,7 @@ import { useTheme, useThemeMode } from '../src/theme';
 import { Button, Card, Field, Input, Screen, Segmented } from '../src/components/ui';
 import { probe, pullEncrypted, pullPlain, unlockWith } from '../src/store/pull';
 import { COLLECTIONS, codeCollisions, diffSummary, hasContent, mergeDatasets } from '../src/store/merge';
+import { replace, upsert } from '../src/db/intents';
 import { clearAllPending, readLocal } from '../src/db';
 import { emptyDataset } from '../src/db/defaults';
 import { authMessage } from '../src/auth/cognito';
@@ -220,9 +221,35 @@ export default function Connect() {
       ]);
   };
 
+  /**
+   * サーバーに無いものを意図として積む。積み終わるまで待つ。
+   *
+   * ⚠ 未送信キューが空のまま sync を呼んではいけない。pushPlain は意図が無いと
+   *   何も送らず、最後に exportAll の結果（＝サーバーの内容）を返す。DataProvider は
+   *   それで端末を上書きするので、サーバーが空なら端末の帳簿が消える。
+   *   「取り込みを置換にしない」修正を入れた後も、この分岐に同じ事故が残っていた。
+   */
+  const queueMissing = async (server, local) => {
+    // ⚠ 予算とタグ配分は id を持たない。applyIntent の upsert は x.id === item.id で
+    //   突き合わせるので、id 無しだと undefined === undefined が真になり1件目を
+    //   上書きし続ける（＝件数が壊れる）。これらは replace（全置換）で積む。
+    //   実際、5件の予算が壊れた状態でサーバーへ送られ、SK が重複して 502 になった。
+    const NO_ID = ['budgets', 'allocs'];
+    const intents = [];
+    for (const c of COLLECTIONS) {
+      const ids = new Set((server[c] || []).map((x) => x.id));
+      const missing = (local[c] || []).filter((item) => !ids.has(item.id));
+      if (!missing.length) continue;
+      if (NO_ID.includes(c)) intents.push(replace(c, local[c] || []));
+      else for (const item of missing) intents.push(upsert(c, item));
+    }
+    await d.commitAll(intents);
+  };
+
   const pushLocal = async (dek, server, local) => {
     setBusy('保存中…');
     try {
+      await queueMissing(server, local);
       await d.sync(dek);
       doneWith('保存しました', 'この端末の帳簿をサーバーに保存しました。他の端末からも見られます。', server, local);
     } catch (e) { fail(e); } finally { setBusy(null); }
@@ -257,10 +284,9 @@ export default function Connect() {
     try {
       await clearAllPending();          // 選ばれた破棄。自動では絶対に呼ばない
       await replaceAll(mergeDatasets(server, local, 'server'));
-      for (const c of COLLECTIONS) {    // サーバーに無い分だけ積み直す
-        const ids = new Set((server[c] || []).map((x) => x.id));
-        for (const item of local[c] || []) if (!ids.has(item.id)) d.save(c, item);
-      }
+      // ⚠ save は積み終わりを待てない。待たずに sync すると、積む前に同期が終わって
+      //   端末だけにあった分が消える。commitAll で積み終わってから送る。
+      await queueMissing(server, local);
       await d.sync(dek);
       doneWith('合わせました', 'サーバーの内容を正として、この端末だけにあったものを足しました。', server, local);
     } catch (e) { fail(e); } finally { setBusy(null); }

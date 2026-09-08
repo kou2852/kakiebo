@@ -19,6 +19,16 @@ function conn() {
           rev INTEGER NOT NULL DEFAULT 0,   -- 同期済みサーバー版番号
           updated_at TEXT NOT NULL
         );
+        -- サーバーが採番し直したIDの対応表。
+        --
+        -- ⚠ これが無いと、同期のたびに対応表が作り直され、既にサーバーへ作った
+        --   仕訳や科目を「まだ無い」と判断して作り直す。部分失敗の再試行や
+        --   同期の多重起動で帳簿が丸ごと重複する（実測で 1件→5件、57件→459件）。
+        CREATE TABLE IF NOT EXISTS idmap (
+          local_id TEXT PRIMARY KEY,
+          server_id TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS pending (
           seq INTEGER PRIMARY KEY AUTOINCREMENT,
           intent TEXT NOT NULL,             -- 未同期の操作（サーバー最新へ再適用する）
@@ -53,6 +63,21 @@ export async function writeLocal(dataset, rev, intent) {
   });
 }
 
+/** サーバーが採番し直したIDの対応表を読む。local_id -> server_id。 */
+export async function loadIdMap() {
+  const db = await conn();
+  const rows = await db.getAllAsync('SELECT local_id, server_id FROM idmap');
+  return new Map(rows.map((r) => [r.local_id, r.server_id]));
+}
+
+/** 対応を1件覚える。同期が途中で落ちても残るよう、作成のたびに書く。 */
+export async function rememberId(localId, serverId) {
+  if (!localId || !serverId || localId === serverId) return;
+  const db = await conn();
+  await db.runAsync('INSERT OR REPLACE INTO idmap (local_id, server_id, created_at) VALUES (?, ?, ?)',
+    [localId, serverId, new Date().toISOString()]);
+}
+
 export async function listPending() {
   const db = await conn();
   const rows = await db.getAllAsync('SELECT seq, intent FROM pending ORDER BY seq');
@@ -79,5 +104,5 @@ export async function clearAllPending() {
 
 export async function resetAll() {
   const db = await conn();
-  await db.execAsync('DELETE FROM dataset; DELETE FROM pending;');
+  await db.execAsync('DELETE FROM dataset; DELETE FROM pending; DELETE FROM idmap;');
 }
