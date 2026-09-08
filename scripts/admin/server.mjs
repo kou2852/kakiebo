@@ -90,13 +90,24 @@ function getRegisteredUsers(days) {
   try {
     users = awsJson([
       'cognito-idp', 'list-users', '--user-pool-id', USER_POOL_ID,
-      '--attributes-to-get', 'sub', '--query', 'Users[].[UserStatus,UserCreateDate]',
+      '--attributes-to-get', 'sub', '--query', 'Users[].[UserStatus,UserCreateDate,Username]',
     ], '登録ユーザー数の取得');
   } catch { return null; } // 認証切れ等でも他の数字は出す
   if (!Array.isArray(users)) return null;
+  // 連合ログインのプロバイダは Username の接頭辞で分かる（Cognito が付ける）。
+  // 'Google_xxx' / 'SignInWithApple_xxx' / それ以外はメール登録（Username は sub）。
+  //
+  // ⚠ 以前は EXTERNAL_PROVIDER を全部「Google」に寄せていた。合計は合うが、
+  //   Apple を入れた効果が測れない。最初の Apple 利用者が来る前に直しておく。
+  const provider = (username) => (username?.startsWith('Google_') ? 'google'
+    : username?.startsWith('SignInWithApple_') ? 'apple' : 'email');
+
   const by = {};
   for (const [s] of users) by[s] = (by[s] || 0) + 1;
   const unconfirmed = by.UNCONFIRMED || 0;
+
+  const byProvider = { google: 0, apple: 0, email: 0 };
+  for (const [st, , un] of users) if (st !== 'UNCONFIRMED') byProvider[provider(un)]++;
 
   // 期間内の新規登録。ログのビーコンではなく Cognito の作成日時を正とする。
   // ビーコン(registered)は Google のログインも数えてしまうので獲得数には使えない。
@@ -106,14 +117,14 @@ function getRegisteredUsers(days) {
 
   // 日別の新規登録。日付はJSTで切る（アクセスログ側もJSTに揃えてあるため）。
   const dayMap = {};
-  for (const [s, created] of users) {
+  for (const [s, created, un] of users) {
     if (s === 'UNCONFIRMED') continue;
     const t = new Date(created).getTime();
     if (since != null && t < since) continue;
     const day = jstDayOfIso(created);
-    const e = (dayMap[day] ||= { date: day, count: 0, google: 0, email: 0 });
+    const e = (dayMap[day] ||= { date: day, count: 0, google: 0, apple: 0, email: 0 });
     e.count++;
-    if (s === 'EXTERNAL_PROVIDER') e.google++; else e.email++;
+    e[provider(un)]++;
   }
   const byDay = Object.keys(dayMap).sort().map((k) => dayMap[k]);
 
@@ -121,8 +132,9 @@ function getRegisteredUsers(days) {
   return {
     total: users.length - unconfirmed,
     unconfirmed,
-    google: by.EXTERNAL_PROVIDER || 0, // Googleログイン。確認コードの概念がなく常に確認済み
-    email: by.CONFIRMED || 0,          // メール登録で確認コードを通した人
+    google: byProvider.google,         // Googleログイン。確認コードの概念がなく常に確認済み
+    apple: byProvider.apple,           // Sign in with Apple。同上
+    email: byProvider.email,           // メール登録で確認コードを通した人
     inPeriod,                          // 期間内の新規登録（null = 期間指定なし）
     byDay,                             // 期間内の新規登録の日別内訳（登録があった日のみ）
   };
@@ -1229,7 +1241,7 @@ function render(d){
   // ビーコンは Google の別端末ログインも拾うので獲得数としては使えない。
   h += lead(ru==null||ru.inPeriod==null?'—':ru.inPeriod, '人', 'この期間の新規登録', 'Cognito の登録日時', true);
   h += lead(ru==null?'—':ru.total, '人', '登録ユーザー数（累計）',
-    ru==null ? 'Cognito' : 'Google '+ru.google+' / メール '+ru.email+(ru.unconfirmed?'（未確認 '+ru.unconfirmed+'）':''));
+    ru==null ? 'Cognito' : 'Google '+ru.google+' / Apple '+ru.apple+' / メール '+ru.email+(ru.unconfirmed?'（未確認 '+ru.unconfirmed+'）':''));
   h += lead(o.humanDistinct, '人', '実人数', '重複IPを除いた人数');
   h += lead(o.human, '回', '人間の訪問（オープン）', '1人あたり '+(o.humanDistinct?(o.human/o.humanDistinct).toFixed(1):'—')+'回');
   h += '</div>';
@@ -1265,7 +1277,7 @@ function render(d){
       for(const r of [...ru.byDay].reverse()){
         h += '<span class="chip k">'+r.date.slice(5).replace('-','/')+' <b>'+r.count+'</b>'
            + '<span style="color:var(--tx3);font-size:11px">'
-           + (r.google?' Google'+r.google:'') + (r.email?' メール'+r.email:'') + '</span></span>';
+           + (r.google?' Google'+r.google:'') + (r.apple?' Apple'+r.apple:'') + (r.email?' メール'+r.email:'') + '</span></span>';
       }
       h += '</div>';
     }
