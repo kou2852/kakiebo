@@ -1,5 +1,7 @@
 import '../src/polyfills';
-import { useEffect } from 'react';
+import { Component, useEffect } from 'react';
+import { Pressable, Text, View } from 'react-native';
+import * as Updates from 'expo-updates';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -19,6 +21,60 @@ import Tour from '../src/components/Tour';
 // 何が出たのか分からないので、自動で消えるのを止めて最低表示時間を持たせる。
 SplashScreen.preventAutoHideAsync().catch(() => {});
 const SPLASH_HOLD_MS = 500;
+
+/**
+ * 起動時に描画が失敗したときの受け皿。
+ *
+ * ⚠ スプラッシュを preventAutoHide で止めているので、描画に失敗すると
+ *   スプラッシュのまま固まる。利用者は操作もできず、何が起きたかも分からない。
+ *   時間で当てずっぽうに消すのではなく、例外を捕まえた時点で消す。
+ *
+ * ⚠ ここで端末のデータを消さない。描画に失敗しただけで帳簿を捨てるのは筋が違う。
+ *   利用者には再起動だけを提示し、消すかどうかは本人に決めさせる。
+ *
+ * ⚠ 配色プロバイダ自体が落ちている可能性があるので、テーマに依存しない色で描く。
+ */
+class StartupBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error) {
+    // 何より先にスプラッシュを消す。これをしないと下のUIが見えない。
+    SplashScreen.hideAsync().catch(() => {});
+    console.error('起動に失敗:', error?.message || String(error));
+  }
+
+  render() {
+    const { error } = this.state;
+    if (!error) return this.props.children;
+    return (
+      <View style={{ flex: 1, backgroundColor: '#f4f5f6', padding: 24, justifyContent: 'center', gap: 16 }}>
+        <Text style={{ color: '#11181c', fontSize: 20, fontWeight: '800' }}>
+          起動できませんでした
+        </Text>
+        <Text style={{ color: '#3a4145', fontSize: 15, lineHeight: 22 }}>
+          アプリの読み込み中に問題が起きました。この端末に保存した帳簿は消えていません。
+          再起動しても直らない場合は、設定の「問い合わせ」からご連絡ください。
+        </Text>
+        <Text style={{ color: '#6b7378', fontSize: 12.5 }} numberOfLines={4}>
+          {String(error?.message || error)}
+        </Text>
+        <Pressable
+          onPress={() => { Updates.reloadAsync().catch(() => {}); }}
+          style={{ backgroundColor: '#0f766e', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}
+        >
+          <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '700' }}>再起動する</Text>
+        </Pressable>
+      </View>
+    );
+  }
+}
 
 // ステータスバーの文字色は、端末設定ではなくアプリで選んだ配色に合わせる。
 function ThemedStatusBar() {
@@ -92,6 +148,7 @@ export default function RootLayout() {
     return () => clearTimeout(t);
   }, []);
   return (
+    <StartupBoundary>
     <SafeAreaProvider>
       <ThemeProvider>
         <AuthProvider>
@@ -109,5 +166,6 @@ export default function RootLayout() {
         </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
+    </StartupBoundary>
   );
 }
