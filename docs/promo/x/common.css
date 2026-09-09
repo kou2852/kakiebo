@@ -1,0 +1,37 @@
+/* X投稿用カード（1600×900 = 16:9）。LPと同じ配色・書体で作る。 */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=Zen+Kaku+Gothic+New:wght@400;700;900&display=swap');
+
+:root {
+  --ac: #2f6e55; --ac2: #265a45; --ac-tint: #f0f4f1;
+  --tx: #28322d; --tx2: #68716c; --tx3: #98a09b;
+  --bd: #e5e3da; --bd2: #d5d2c6; --ivory: #f7f6f1;
+  --mono: 'IBM Plex Mono', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  width: 1600px; height: 900px; overflow: hidden;
+  font-family: 'Zen Kaku Gothic New', 'Yu Gothic', 'Meiryo', sans-serif;
+  color: var(--tx); background: var(--ivory);
+  -webkit-font-smoothing: antialiased;
+}
+.eyebrow {
+  font-family: var(--mono); font-size: 17px; font-weight: 500;
+  letter-spacing: .18em; color: var(--ac);
+  display: flex; align-items: center; gap: 12px;
+}
+.eyebrow::before { content: ""; width: 26px; height: 1px; background: var(--ac); }
+
+/* 端末の枠 */
+.phone { background: #1e2724; border-radius: 30px; padding: 8px; box-shadow: 0 30px 60px -28px rgba(34,48,43,.55); }
+.phone img { display: block; width: 100%; border-radius: 23px; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--mono); font-size: 15px; letter-spacing: .06em; color: var(--ac);
+  background: #fff; border: 1px solid var(--bd2); border-radius: 999px; padding: 10px 22px;
+}
+.badge::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--ac); }
+
+.brand { display: flex; align-items: baseline; gap: 12px; }
+.brand b { font-size: 30px; font-weight: 900; letter-spacing: .02em; }
+.brand span { font-family: var(--mono); font-size: 16px; color: var(--tx3); }
