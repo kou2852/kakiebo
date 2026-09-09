@@ -43,7 +43,23 @@
   document.addEventListener('click', function (ev) {
     var t = ev.target;
     var a = t && t.closest && t.closest('a[href]');
-    if (!a || a.hostname !== 'app.kurofukubo.com') return;
+    if (!a) return;
+    // App Store は別ドメイン。GA4の「外部リンクのクリック」には入るが、どのCTAから
+    // 出たかが残らないので、cta_app_start と同じ粒度で自前で送る。
+    // ※ cta_appstore も管理画面でキーイベントに指定して初めてCVとして数えられる。
+    if (a.hostname === 'apps.apple.com') {
+      var ios = [].filter.call(document.querySelectorAll('a[href]'), function (x) {
+        return x.hostname === 'apps.apple.com';
+      });
+      window.gtag('event', 'cta_appstore', {
+        link_url: a.href,
+        cta_location: 'ios' + (ios.indexOf(a) + 1),
+        // バッジは画像リンクで textContent が空になるため alt で補う
+        cta_text: ((a.textContent || '').trim() || ((a.querySelector('img') || {}).alt || '')).replace(/\s+/g, ' ').slice(0, 60)
+      });
+      return;
+    }
+    if (a.hostname !== 'app.kurofukubo.com') return;
     window.gtag('event', 'cta_app_start', {
       link_url: a.href,
       cta_location: 'cta' + (ctaList().indexOf(a) + 1),

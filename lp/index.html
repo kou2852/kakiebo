@@ -27,7 +27,7 @@
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"kurofukubo","alternateName":"黒福簿","url":"https://kurofukubo.com/","sameAs":["https://x.com/pakupaku_x_x_x"],"applicationCategory":"FinanceApplication","operatingSystem":"Web","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"},"description":"現金・証券・NISA/iDeCo・ローンまで含めた純資産を一画面で把握できる資産・家計管理アプリ。運営者にも中身が見えないE2E暗号化に対応。貸借対照表・損益計算書も自動作成。","author":{"@type":"Person","name":"ぱくぱく","url":"https://kurofukubo.com/about.html"}}
 </script>
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"簿記の知識がなくても使えますか？","acceptedAnswer":{"@type":"Answer","text":"はい。クイック入力に「食費 1200 現金」のように書くだけで、裏側で正しい複式簿記の仕訳が自動生成されます。借方・貸方を意識するのは、使いたくなってからで十分です。"}},{"@type":"Question","name":"無料で利用できますか？","acceptedAnswer":{"@type":"Answer","text":"現在はベータ版として、全機能を無料で提供しています。クレジットカードの登録も不要です。"}},{"@type":"Question","name":"スマートフォンでも利用できますか？","acceptedAnswer":{"@type":"Answer","text":"はい。ブラウザで動くWebサービスなので、スマートフォンからもアプリのインストールなしで利用できます。"}},{"@type":"Question","name":"一般的な家計簿との違いは何ですか？","acceptedAnswer":{"@type":"Answer","text":"支出の記録だけでなく「どこから払ったか」まで記録するため、口座残高・資産・負債・収支がひとつにつながります。貸借対照表や損益計算書も自動で作られます。"}},{"@type":"Question","name":"銀行やクレジットカードとの自動連携はありますか？","acceptedAnswer":{"@type":"Answer","text":"自動連携はありません。金融機関の認証情報をお預かりしない安全設計のためです。明細はCSV取込または手入力で記帳します。"}},{"@type":"Question","name":"データは安全に管理されますか？","acceptedAnswer":{"@type":"Answer","text":"ゲスト利用時はデータが端末内にのみ保存されます。アカウント作成後は暗号化してクラウドに保存され、E2E暗号化を有効にすると運営者にも中身が読めません。"}}]}
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"簿記の知識がなくても使えますか？","acceptedAnswer":{"@type":"Answer","text":"はい。クイック入力に「食費 1200 現金」のように書くだけで、裏側で正しい複式簿記の仕訳が自動生成されます。借方・貸方を意識するのは、使いたくなってからで十分です。"}},{"@type":"Question","name":"無料で利用できますか？","acceptedAnswer":{"@type":"Answer","text":"現在はベータ版として、全機能を無料で提供しています。クレジットカードの登録も不要です。"}},{"@type":"Question","name":"スマートフォンでも利用できますか？","acceptedAnswer":{"@type":"Answer","text":"はい。ブラウザで動くWebサービスなので、スマートフォンからも利用できます。iPhoneアプリは現在Appleの審査中で、公開後は同じアカウントで同じ帳簿が見られます。"}},{"@type":"Question","name":"一般的な家計簿との違いは何ですか？","acceptedAnswer":{"@type":"Answer","text":"支出の記録だけでなく「どこから払ったか」まで記録するため、口座残高・資産・負債・収支がひとつにつながります。貸借対照表や損益計算書も自動で作られます。"}},{"@type":"Question","name":"銀行やクレジットカードとの自動連携はありますか？","acceptedAnswer":{"@type":"Answer","text":"自動連携はありません。金融機関の認証情報をお預かりしない安全設計のためです。明細はCSV取込または手入力で記帳します。"}},{"@type":"Question","name":"データは安全に管理されますか？","acceptedAnswer":{"@type":"Answer","text":"ゲスト利用時はデータが端末内にのみ保存されます。アカウント作成後は暗号化してクラウドに保存され、E2E暗号化を有効にすると運営者にも中身が読めません。"}}]}
 </script>
 <script defer src="/analytics.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -203,6 +203,20 @@ footer{background:#1a2622;padding:40px 0}
 .foot-links{display:flex;gap:20px;flex-wrap:wrap}
 .foot-links a{font-size:12.5px;color:#93a39a}
 .foot-links a:hover{color:#fff}
+/* ios app band */
+.ios{background:var(--ac-tint)}
+.ios-in{display:grid;grid-template-columns:1fr .82fr;gap:64px;align-items:center}
+.ios h2{margin:14px 0 0}
+.ios-pt{list-style:none;margin:26px 0 0;padding:0;display:grid;gap:13px}
+.ios-pt li{position:relative;padding-left:26px;font-size:15px;line-height:1.8;color:var(--tx2)}
+.ios-pt li strong{color:var(--tx);font-weight:700}
+.ios-pt li::before{content:"";position:absolute;left:3px;top:11px;width:8px;height:8px;border-radius:50%;background:var(--ac)}
+.ios-soon{display:inline-flex;align-items:center;gap:8px;margin-top:30px;font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--ac);background:#fff;border:1px solid var(--bd2);border-radius:999px;padding:7px 16px}
+.ios-soon::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ac)}
+.ios-cta{margin-top:18px;display:flex;width:fit-content}
+.ios-note{display:block;font-size:12.5px;line-height:1.9;color:var(--tx3);margin-top:20px;max-width:540px}
+.ios-im{display:flex;gap:18px;justify-content:center}
+.ios-im .phone{flex:1;max-width:210px}
 /* sticky mobile cta */
 .mcta{display:none;position:fixed;left:0;right:0;bottom:0;z-index:40;padding:12px 16px calc(12px + env(safe-area-inset-bottom));background:rgba(253,252,249,.95);backdrop-filter:blur(8px);border-top:1px solid var(--bd)}
 .mcta .btn{width:100%;padding:16px}
@@ -211,6 +225,7 @@ footer{background:#1a2622;padding:40px 0}
   .split,.split.rev{grid-template-columns:1fr;gap:36px}
   .split.rev .split-tx{order:-1}
   .personas{grid-template-columns:1fr}
+  .ios-in{grid-template-columns:1fr;gap:44px}
   section{padding:80px 0}
 }
 @media(max-width:640px){
@@ -223,6 +238,7 @@ footer{background:#1a2622;padding:40px 0}
   body{padding-bottom:78px}
   .persona{grid-template-columns:1fr}
   .persona-im{display:none}
+  .ios-im .phone:last-child{display:none}
   .hero-actions .btn{width:100%}
 }
 </style>
@@ -248,7 +264,7 @@ footer{background:#1a2622;padding:40px 0}
   <div class="wrap">
     <div class="hero-head">
       <h1>使ったお金だけでなく、<br><em>お金の流れまで見える</em>複式簿記の家計簿。</h1>
-      <p class="hero-sub">入力はいつもの家計簿のようにシンプル。<br>複式簿記の仕組みで、<strong>口座・資産・負債・収支</strong>がつながり、<strong>純資産</strong>まで見えます。</p>
+      <p class="hero-sub">入力はいつもの家計簿のようにシンプル。<br>複式簿記の仕組みで、<strong>口座・資産・負債・収支</strong>がつながり、<strong>純資産</strong>まで見えます。<br><strong>銀行連携は不要</strong>。ブラウザだけで、登録なしにすぐ試せます。</p>
       <div class="hero-actions">
         <a href="https://app.kurofukubo.com/?guest" class="btn btn-g">無料で家計簿を始める</a>
         <a href="#now" class="btn btn-ghost">できることを見る</a>
@@ -473,6 +489,33 @@ footer{background:#1a2622;padding:40px 0}
   </div>
 </section>
 
+<!-- 8.5 iOS APP（公開前）
+     ⚠ App Store のページは公開するまで存在しない（未公開IDは404）。
+        公開までは、リンクも公式バッジも置かない。 -->
+<section id="ios" class="ios">
+  <div class="wrap ios-in">
+    <div class="ios-tx">
+      <div class="eyebrow">iPHONE APP</div>
+      <h2>家計簿を、<br>ポケットに。</h2>
+      <p class="sec-desc">ブラウザ版と同じ帳簿を、iPhoneアプリでそのまま持ち歩けるようにしました。</p>
+      <ul class="ios-pt">
+        <li><strong>レシートを撮って記帳。</strong>文字の読み取りは端末の中だけで行い、写真も読み取り結果も外部には送りません</li>
+        <li><strong>電波がなくても記帳できる。</strong>いったん端末に保存し、つながったときに自動で同期します</li>
+        <li><strong>Face IDでロック。</strong>家計を人に見られたくない場面のために</li>
+        <li><strong>Siri・背面タップ・ショートカットから記帳。</strong>よく使う支払いを1アクションで</li>
+        <li><strong>貸借対照表・損益計算書・キャッシュフローも同じように見られます</strong></li>
+      </ul>
+      <div class="ios-soon">まもなく App Store で公開</div>
+      <a href="https://app.kurofukubo.com/?guest" class="btn btn-g ios-cta">ブラウザ版を先に使ってみる</a>
+      <small class="ios-note">アプリはアカウントでのログインが必要です。<strong>いま無料アカウントを作っておくと、公開後そのままログインするだけで同じ帳簿が続きます。</strong><br>ゲストのまま使った場合、端末に保存されたデータはアプリへは引き継がれません。</small>
+    </div>
+    <div class="ios-im">
+      <div class="phone"><div class="phone-scr"><img src="/img/ios-dashboard.webp" width="700" height="1515" alt="開発中のiPhoneアプリのダッシュボード。総資産・負債・純資産と今月の収支、資産構成のグラフが表示されている" loading="lazy"></div></div>
+      <div class="phone"><div class="phone-scr"><img src="/img/ios-entry.webp" width="700" height="1515" alt="開発中のiPhoneアプリの記帳画面" loading="lazy"></div></div>
+    </div>
+  </div>
+</section>
+
 <!-- 9. TRUST -->
 <section class="alt" id="trust">
   <div class="wrap">
@@ -498,7 +541,7 @@ footer{background:#1a2622;padding:40px 0}
     <div class="faq">
       <details><summary>簿記の知識がなくても使えますか？</summary><p class="faq-a">はい。クイック入力に「食費 1200 現金」のように書くだけで、裏側で正しい複式簿記の仕訳が自動生成されます。借方・貸方を意識するのは、使いたくなってからで十分です。</p></details>
       <details><summary>無料で利用できますか？</summary><p class="faq-a">現在はベータ版として、全機能を無料で提供しています。クレジットカードの登録も不要です。</p></details>
-      <details><summary>スマートフォンでも利用できますか？</summary><p class="faq-a">はい。ブラウザで動くWebサービスなので、スマートフォンからもアプリのインストールなしで利用できます。</p></details>
+      <details><summary>スマートフォンでも利用できますか？</summary><p class="faq-a">はい。ブラウザで動くWebサービスなので、スマートフォンからも利用できます。iPhoneアプリは現在Appleの審査中で、公開後は同じアカウントで同じ帳簿が見られます。</p></details>
       <details><summary>一般的な家計簿との違いは何ですか？</summary><p class="faq-a">支出の記録だけでなく「どこから払ったか」まで記録するため、口座残高・資産・負債・収支がひとつにつながります。貸借対照表や損益計算書も自動で作られます。</p></details>
       <details><summary>銀行やクレジットカードとの自動連携はありますか？</summary><p class="faq-a">自動連携はありません。金融機関の認証情報をお預かりしない安全設計のためです。明細はCSV取込または手入力で記帳します。</p></details>
       <details><summary>データは安全に管理されますか？</summary><p class="faq-a">ゲスト利用時はデータが端末内にのみ保存されます。アカウント作成後は暗号化してクラウドに保存され、E2E暗号化を有効にすると運営者にも中身が読めません。</p></details>
