@@ -272,7 +272,7 @@ Resources:
       # 「どの API がデータを書いたか」の特定に Lambda の実行時刻からの消去法を要した。
       AccessLogSetting:
         DestinationArn: !GetAtt ApiAccessLogGroup.Arn
-        Format: '{"time":"$context.requestTime","requestId":"$context.requestId","ip":"$context.identity.sourceIp","sub":"$context.authorizer.claims.sub","method":"$context.httpMethod","path":"$context.path","status":"$context.status","error":"$context.error.message","len":"$context.responseLength","ms":"$context.responseLatency"}'
+        Format: '{"time":"$context.requestTime","requestId":"$context.requestId","ip":"$context.identity.sourceIp","sub":"$context.authorizer.claims.sub","method":"$context.httpMethod","path":"$context.path","status":"$context.status","error":"$context.error.message","len":"$context.responseLength","ms":"$context.responseLatency","ua":"$context.identity.userAgent"}'
 
   # アクセスログの保存先。保持期間を切らないと無期限に増え続ける。
   ApiAccessLogGroup:

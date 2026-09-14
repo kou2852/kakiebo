@@ -24,6 +24,7 @@ const USER_POOL_ID = 'ap-northeast-1_ddBDF3HKK'; // kakeibo-users-prod
 const TABLE = 'kakeibo-prod'; // DynamoDB（ご意見は固定PK 'FEEDBACK' 配下）
 // 未確認サインアップの掃除ジョブ。設定ではなく実行ログを見て「本当に動いたか」を確認する
 const CLEANUP_LOG_GROUP = '/aws/lambda/kakeibo-saas-prod-CleanupUnconfirmedFunction-GvWvO3WXvqhh';
+const API_LOG_GROUP = '/aws/apigateway/kakeibo-saas-prod'; // API Gatewayのアクセスログ（保持90日）
 const CACHE_DIR = join(__dirname, '.cache-cflogs');
 
 // analyze-cflogs.mjs と同一の判定ルール
@@ -149,6 +150,81 @@ function getRegisteredUsers(days) {
 const iso = (d) => new Date(d).toISOString().slice(0, 19);
 
 /** 監視の4指標（遅延・流量・エラー・飽和）を CloudWatch から1回で取る */
+/**
+ * どの端末から使われているかを、API Gatewayのアクセスログから出す。
+ *
+ * なぜAPIログか: モバイルアプリには計測を入れていないが、APIは叩いている。
+ * ログには sub が載るので、アプリ更新なしで「誰が・いつ・何回」が分かる。
+ *
+ * ⚠ ua はログ書式に後から足した項目。追加より前の行には無く unknown に落ちる。
+ *    「iOSが0件」と「まだ記録していない」を混同しないこと。
+ * ⚠ iOS Safari の UA は Mozilla 始まりなので web。アプリ(CFNetwork/Darwin)と別物。
+ */
+const platformOf = (ua) => {
+  if (!ua) return 'unknown';
+  if (/CFNetwork|Darwin/i.test(ua)) return 'ios';
+  if (/okhttp|Android/i.test(ua)) return 'android';
+  if (/^Mozilla\//i.test(ua)) return 'web';
+  return 'other';
+};
+
+// ⚠ E2E暗号化を使っている人の書き込みは /api/journals を通らず /api/encdata に入る。
+//    片方だけ数えると暗号化利用者の記帳が丸ごと抜ける。
+const isWriteReq = (m, path) => (m === 'POST' || m === 'PUT')
+  && (/^\/api\/journals/.test(path) || /^\/api\/encdata/.test(path));
+
+const medianOf = (a) => {
+  if (!a.length) return 0;
+  const t = [...a].sort((x, y) => x - y), m = t.length >> 1;
+  return t.length % 2 ? t[m] : (t[m - 1] + t[m]) / 2;
+};
+
+function getPlatforms(days) {
+  const start = Date.now() - days * 86400000;
+  const rows = [];
+  let token = null;
+  try {
+    do {
+      const args = ['logs', 'filter-log-events', '--log-group-name', API_LOG_GROUP,
+        '--start-time', String(start), '--limit', '10000'];
+      if (token) args.push('--next-token', token);
+      const r = awsJson(args, 'APIアクセスログの取得');
+      for (const e of r.events || []) {
+        try { rows.push({ t: e.timestamp, ...JSON.parse(e.message) }); } catch { /* 書式外の行は捨てる */ }
+      }
+      token = r.nextToken || null;
+    } while (token && rows.length < 200000); // 暴走防止
+  } catch { return null; }
+
+  const byPf = {};
+  for (const r of rows) {
+    // 認証が通っていない行とプリフライトは人の活動ではない。混ぜると実態より多く出る。
+    if (!r.sub || r.sub === '-' || r.method === 'OPTIONS') continue;
+    const k = platformOf(r.ua);
+    const e = (byPf[k] ||= { requests: 0, writes: 0, users: new Set(), days: new Map() });
+    e.requests++;
+    if (isWriteReq(r.method, r.path || '')) e.writes++;
+    e.users.add(r.sub);
+    const d = jstDayOfIso(new Date(r.t).toISOString());
+    if (!e.days.has(r.sub)) e.days.set(r.sub, new Set());
+    e.days.get(r.sub).add(d);
+  }
+
+  const out = Object.entries(byPf).map(([platform, e]) => {
+    const counts = [...e.days.values()].map((x) => x.size);
+    return {
+      platform,
+      requests: e.requests,
+      writes: e.writes,
+      users: e.users.size,
+      // 2日以上使った人数。母数が小さいので率ではなく実数で出す。
+      returned: counts.filter((n) => n >= 2).length,
+      medianDays: medianOf(counts),
+    };
+  });
+  return out.sort((a, b) => b.users - a.users || b.requests - a.requests);
+}
+
 function getSignals() {
   const q = (Id, Namespace, MetricName, Stat, Dimensions) => ({
     Id, MetricStat: { Metric: { Namespace, MetricName, ...(Dimensions ? { Dimensions } : {}) }, Period: 86400, Stat },
@@ -952,6 +1028,8 @@ function evInfo(name){
   return {g:'その他', ja:name, u:'回'};
 }
 const GROUPS = ['獲得','ツアー','継続','アンケート','その他'];
+// ⚠ iOS Safari は「Web」に入る。ここでいう iOSアプリ は App Store 版のこと。
+const PF_JA = {ios:'iPhoneアプリ', android:'Androidアプリ', web:'ブラウザ', unknown:'不明（UA未記録）', other:'その他'};
 
 // 状態=毎日30秒（壊れていないか） / 成長=週1回（伸びているか）
 // 深掘り=必要時（なぜそうなったか） / 問い合わせ=毎日（返信する）
@@ -1403,6 +1481,27 @@ function journeySection(d){
 function renderDeep(d){
   let h = journeySection(d);
 
+  // 3.5 端末別（API Gatewayのアクセスログ）
+  h += '<div class="band"><h2>端末別の利用</h2><span class="hint">APIアクセスログ（認証済みのみ／OPTIONS除外）</span></div>';
+  if(!d.platforms){
+    h += '<p class="muted">APIアクセスログを取得できませんでした</p>';
+  } else if(!d.platforms.length){
+    h += '<p class="muted">この期間の記録がありません</p>';
+  } else {
+    h += '<div class="wrap"><table><tr><th>端末</th><th class="num">利用者</th><th class="num">記帳</th>'
+       + '<th class="num">2日以上使った人</th><th class="num">利用日数の中央値</th><th class="num">リクエスト</th></tr>';
+    for(const r of d.platforms){
+      h += '<tr><td>'+esc(PF_JA[r.platform]||r.platform)+'</td>'
+         + '<td class="num">'+r.users+'</td><td class="num">'+r.writes+'</td>'
+         + '<td class="num">'+r.returned+'</td><td class="num">'+r.medianDays+'</td>'
+         + '<td class="num">'+r.requests+'</td></tr>';
+    }
+    h += '</table></div>';
+    if(d.platforms.some(r=>r.platform==='unknown')){
+      h += '<p class="hint">「不明」はアクセスログに User-Agent を記録する前の行です。iOSが0件という意味ではありません。</p>';
+    }
+  }
+
   // 4. 自前イベント（種類ごと）
   h += '<div class="band"><h2>自前イベント計測</h2><span class="hint">/_e/*（bot・self除外）／「人」= ブラウザごとに1回、「回」= 毎回</span></div>';
   h += '<div class="cols">';
@@ -1644,6 +1743,7 @@ const server = createServer((req, res) => {
     try {
       syncLogs(days);
       const data = analyze(days);
+      data.platforms = getPlatforms(days); // 失敗時は null。画面側で出し分ける
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(data));
     } catch (e) {
