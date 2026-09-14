@@ -931,6 +931,7 @@ const EV_MAP = {
   ios_soon_shown:  {g:'獲得',    ja:'アプリ準備中の案内を表示', u:'人'},
   ios_promo_shown: {g:'獲得',    ja:'アプリ案内を表示',        u:'人'},
   ios_promo_click: {g:'獲得',    ja:'App Storeへ（案内から）', u:'人'},
+  ios_preorder_click:{g:'獲得',  ja:'予約注文へ（アプリ内から）', u:'回'},
   feedback_shown:  {g:'アンケート', ja:'アンケート表示',      u:'回'},
   feedback_shown_monthly:{g:'アンケート', ja:'月次アンケート表示', u:'回'},
   feedback_sent:   {g:'アンケート', ja:'アンケート送信',      u:'回'},

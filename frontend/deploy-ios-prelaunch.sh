@@ -36,12 +36,20 @@ echo "  バケット確認: $BUCKET"
 echo "== 1. ビルド =="
 npm run build
 
-# ビルド成果物にApp Storeへの参照が混ざっていないこと（公開前）。
-if grep -rq 'apps\.apple\.com\|apple-itunes-app' dist/ 2>/dev/null; then
-  echo "  !! dist に App Store への参照があります。公開前に配ってはいけません。"
+# Smart App Banner は公開後のもの。混ざっていたら止める。
+if grep -rq 'apple-itunes-app' dist/ 2>/dev/null; then
+  echo "  !! dist に Smart App Banner があります（公開後のもの）。"
   exit 1
 fi
-echo "  dist に App Store への参照なし"
+# App Store へのリンクは、リンク先が実際に開けるときだけ許す（予約注文中は 200、押す前は 404）。
+if grep -rq 'apps\.apple\.com' dist/ 2>/dev/null; then
+  # ⚠ 固定のURLではなく、release.js に書いたURLを確かめる（公開直後は形によって数分 404 のことがあった）。
+  for U in $(grep -o "https://apps\.apple\.com[^']*" src/config/release.js | sort -u); do
+    CODE=$(curl -sL -o /dev/null -w '%{http_code}' "$U")
+    [ "$CODE" = "200" ] || { echo "  !! App Store のページが開けません（$CODE）: $U"; exit 1; }
+  done
+  echo "  App Store のページ: 200（予約注文のリンクを配ってよい）"
+fi
 
 echo "== 2. 反映 =="
 # ハッシュ付きの資産が積み上がるだけなので --delete は付けない
@@ -58,6 +66,7 @@ MSYS_NO_PATHCONV=1 aws cloudfront create-invalidation \
 
 echo
 echo "== 完了。数分後に下で確認 =="
-echo "  curl -s https://app.kurofukubo.com/ | grep -c 'apple'   # 0 が正しい（公開前）"
+echo "  curl -s https://app.kurofukubo.com/ | grep -c 'apple-itunes-app'   # 0 が正しい（Smart App Banner は公開後）"
+echo "  ※ 'apple' だけで数えると apple-touch-icon が1件引っかかるので使わない"
 echo "  ブラウザで app.kurofukubo.com を開き、ベルに未読の赤ドットが出ること"
-echo "  「iPhoneアプリをまもなく公開します」が更新情報の先頭に出ること"
+echo "  更新情報の先頭が「iPhoneアプリを◯月◯日に公開します」で、予約注文のリンクがあること"

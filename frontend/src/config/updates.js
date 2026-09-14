@@ -1,6 +1,6 @@
-import { IOS_APP } from './release';
+import { IOS_APP, IOS_RELEASE_LABEL } from './release';
 
-// 公開前は「審査に提出しました」、公開後は「公開しました」に切り替える。
+// 公開前は「◯月◯日に公開します」、公開後は「公開しました」に切り替える。
 //
 // ⚠ 公開前に App Store へのリンクを出さない。未公開IDは 404 を返すので、
 //    リンクを置いた時点で全ユーザーに死んだリンクを見せることになる。
@@ -18,16 +18,17 @@ const IOS_UPDATE = IOS_APP.live && IOS_APP.date ? [{
   ],
   link: { href: IOS_APP.url, label: 'App Store で見る', event: 'ios_badge_click' },
 }] : [{
-  id: 'ios-submitted-' + IOS_APP.submittedOn,
-  date: IOS_APP.submittedOn,
-  title: 'iPhoneアプリをまもなく公開します',
+  id: 'ios-release-' + IOS_APP.releaseOn,
+  date: '2026-09-13', // 公開日を告知した日
+  title: `iPhoneアプリを${IOS_RELEASE_LABEL}に公開します`,
   items: [
-    'iPhone版を作っていました。いまApp Storeの審査中です。公開したら、この更新情報でお知らせします',
+    `iPhone版の審査が通りました。${IOS_RELEASE_LABEL}にApp Storeで公開します。いまApp Storeで予約注文を受け付けていて、予約しておくと公開日に自動でダウンロードされます`,
     'いまお使いのアカウントでログインすれば、同じ帳簿がそのまま見られるようになります。ブラウザ版もこれまでどおりお使いいただけます',
     'アプリだけの機能として、レシートを撮って記帳できるようにしました。文字の読み取りは端末の中だけで行い、写真も読み取り結果も外部には送りません',
     '電波がないところでも記帳でき、つながったときに自動で同期します。Face ID でアプリをロックすることもできます',
     'ゲストのままお使いの方へ。アプリはアカウントでのログインが必要です。いまアカウントを作っておくと、公開後そのままログインするだけで続きから使えます',
   ],
+  ...(IOS_APP.preorder ? { link: { href: IOS_APP.url, label: 'App Storeで予約注文する', event: 'ios_preorder_click' } } : {}),
 }];
 
 // アプリ内「更新情報（What's New）」。先頭が最新。id は既読管理（kk_update_seen）に使用。

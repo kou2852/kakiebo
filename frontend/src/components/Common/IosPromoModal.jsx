@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { IOS_APP } from '../../config/release';
+import { IOS_APP, IOS_RELEASE_LABEL } from '../../config/release';
 import { useData } from '../../contexts/DataContext';
 import { track } from '../../utils/track';
 import Modal from './Modal';
@@ -47,12 +47,13 @@ export default function IosPromoModal({ guestMode, blocked }) {
 
   const close = () => setOpen(false);
   const go = () => { track('ios_promo_click'); close(); };
+  const preorder = () => { track('ios_preorder_click'); close(); };
 
   return (
     <Modal
       open={open}
       onClose={close}
-      title={live ? '📱 iPhoneアプリができました' : '📱 iPhoneアプリをまもなく公開します'}
+      title={live ? '📱 iPhoneアプリができました' : `📱 iPhoneアプリを${IOS_RELEASE_LABEL}に公開します`}
       footer={live ? (
         <>
           <button className="btn btn-g" onClick={close}>あとで</button>
@@ -60,6 +61,14 @@ export default function IosPromoModal({ guestMode, blocked }) {
           <a className="btn btn-p" href={IOS_APP.url} target="_blank" rel="noopener noreferrer"
             onClick={go} style={{ textDecoration: 'none' }}>
             App Store で見る
+          </a>
+        </>
+      ) : IOS_APP.preorder ? (
+        <>
+          <button className="btn btn-g" onClick={close}>あとで</button>
+          <a className="btn btn-p" href={IOS_APP.url} target="_blank" rel="noopener noreferrer"
+            onClick={preorder} style={{ textDecoration: 'none' }}>
+            App Storeで予約注文する
           </a>
         </>
       ) : (
@@ -81,7 +90,7 @@ export default function IosPromoModal({ guestMode, blocked }) {
       <p style={{ fontSize: 13, color: 'var(--tx2)', lineHeight: 1.8, margin: 0 }}>
         {live
           ? 'App Store で「黒福簿」を公開しました。'
-          : 'iPhone版を作っていました。いまApp Storeの審査中です。'}
+          : `iPhone版を作っていました。${IOS_RELEASE_LABEL}にApp Storeで公開します。${IOS_APP.preorder ? '予約注文を受け付けています。' : ''}`}
         {guestMode
           ? 'アプリはアカウントでのログインが必要です。'
           : live
