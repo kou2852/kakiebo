@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import AnchoredAd from './Ad';
 import { useTourTarget } from '../store/TourProvider';
+import { useOnboarding } from '../store/OnboardingProvider';
 
 // 中央ボタンで開くルート。タブとしては出さない。
 const ENTRY_ROUTE = 'journal';
@@ -22,6 +23,7 @@ const ICONS = {
 
 export default function TabBar({ state, descriptors, navigation }) {
   const addRef = useTourTarget('add-button');
+  const onboarding = useOnboarding();
   const t = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -55,7 +57,13 @@ export default function TabBar({ state, descriptors, navigation }) {
 
   return (
     <View style={{ backgroundColor: t.bg1 }}>
-      <AnchoredAd />
+      {/*
+        ⚠ オンボーディング中は広告を置かない。タブバーはオンボーディングの覆いの下に隠れていて、
+          置くと見えない広告を読み込み、不可視のインプレッションになる（下の中央ボタンの注意と同じ）。
+          それに、隠れている間の読み込みで在庫が無いと取り直しまで1分空き、
+          オンボーディングを終えた直後のホームで広告が出ていなかった。
+      */}
+      {onboarding?.active ? null : <AnchoredAd />}
       <View style={{
         flexDirection: 'row', alignItems: 'flex-start',
         borderTopWidth: 1, borderTopColor: t.bd,
