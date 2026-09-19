@@ -23,6 +23,11 @@ export default function SettingsPage() {
   const [encBackup, setEncBackup] = useState(null); // 取り込み待ちの暗号化バックアップ
   const [reconciling, setReconciling] = useState(false);
 
+  // ⚠ 前後の空白は取り除いてから比べる。日本語入力では変換の確定で全角の空白が入りやすく、
+  //   「削除 」と入れた人が、ボタンが押せない理由も分からないまま止まっていた。
+  //   （String.prototype.trim は全角の空白 U+3000 も取り除く）
+  const confirmOk = confirmText.trim() === '削除';
+
   const handleDeleteAccount = async () => {
     setDeleting(true);
     track('account_deleted'); // 離脱計測。イベント名のみ・理由はここに含めない（家計データではない自由記述は別途サーバーへ）
@@ -164,10 +169,16 @@ export default function SettingsPage() {
               </p>
               <input className="fc" value={confirmText} onChange={(e) => setConfirmText(e.target.value)}
                 placeholder="削除" style={{ maxWidth: 200 }} />
+              {/* 押せない理由を黙っていると、壊れているように見える */}
+              {confirmText.trim() && !confirmOk && (
+                <p style={{ fontSize: 12, color: 'var(--red)', margin: '-4px 0 0' }}>
+                  「削除」の2文字だけを入力してください。
+                </p>
+              )}
               <div style={{ display: 'flex', gap: 8 }}>
                 <button className="btn btn-g" disabled={deleting}
                   onClick={() => { setConfirming(false); setConfirmText(''); setDeleteReason(''); }}>キャンセル</button>
-                <button className="btn btn-d" disabled={deleting || confirmText !== '削除'}
+                <button className="btn btn-d" disabled={deleting || !confirmOk}
                   onClick={handleDeleteAccount}>
                   {deleting ? '削除中...' : '完全に削除する'}
                 </button>
