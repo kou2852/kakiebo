@@ -10,7 +10,7 @@
 //
 // アプリID（app.json）とユニットID（下記）はどちらも本番のものが入っている。
 // テスト広告に切り替わるのは開発中（__DEV__）だけで、切り替える手段は他に無い。
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 // ネイティブモジュールが無い環境（Expo Go・広告を含まないビルド）では読み込みに失敗する。
 // アプリ全体を落とさず、広告だけ出さない形で切り離す。
@@ -50,10 +50,23 @@ const UNIT_ID = !Ads ? '' : __DEV__ ? Ads.TestIds.ADAPTIVE_BANNER : PROD_UNIT_ID
 // 課金が未実装なので実ログインユーザーは全員 free 扱い。
 export const AD_TIERS = { guest: true, free: true, pro: false, family: false };
 
+// 読み込みに失敗したときの取り直し。
+// ⚠ 以前は一度失敗すると、アプリを開き直すまで広告が戻らなかった。AdMob の審査中や
+//   在庫切れで一時的に広告が無いだけでも、その日はずっと空になる。
+const RETRY_MS = 60 * 1000;
+const MAX_RETRY = 5;
+
 export default function AnchoredAd({ tier = 'free' }) {
   const t = useTheme();
   // 読み込みに失敗したら枠ごと畳む。空白が残るとタブバーが浮いて見える。
   const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    if (!failed || attempt >= MAX_RETRY) return undefined;
+    const timer = setTimeout(() => { setAttempt((a) => a + 1); setFailed(false); }, RETRY_MS);
+    return () => clearTimeout(timer);
+  }, [failed, attempt]);
 
   if (!Ads || !ADS_ENABLED || !AD_TIERS[tier] || failed) return null;
   const { BannerAd, BannerAdSize } = Ads;
@@ -66,12 +79,19 @@ export default function AnchoredAd({ tier = 'free' }) {
       borderTopColor: t.bd,
     }}>
       <BannerAd
+        // 取り直すたびに新しい要求として出し直す
+        key={attempt}
         unitId={UNIT_ID}
         size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
         // 非パーソナライズに固定する。IDFA を使わないので ATT の許可ダイアログが不要になり、
         // 「家計データを外部に出さない」という訴求と矛盾しない。単価は下がるが意図した選択。
         requestOptions={{ requestNonPersonalizedAdsOnly: true }}
-        onAdFailedToLoad={() => setFailed(true)}
+        // ⚠ 理由を捨てない。「在庫が無い」のか「設定が誤っている」のかは、ここでしか分からない。
+        //   画面には出さず端末のログに残す（TEST_DEVICES の ID と同じ手段で読める）。
+        onAdFailedToLoad={(e) => {
+          console.warn(`[広告] 読み込み失敗 code=${e?.code ?? '?'} ${e?.message ?? ''}（${attempt + 1}回目）`);
+          setFailed(true);
+        }}
       />
     </View>
   );
