@@ -66,8 +66,9 @@ function Money({ value, onChange }) {
       borderRadius: 10, paddingHorizontal: on ? 11 : 12,
     }}>
       <Text style={{ color: t.tx3, fontSize: 17 }}>¥</Text>
+      {/* 見せるのは桁区切り、持つのは数字だけ。区切りは次の入力で剥がれるので、打ち足しても崩れない。 */}
       <TextInput
-        value={value}
+        value={value ? Number(value).toLocaleString('ja-JP') : ''}
         onChangeText={(v) => onChange(v.replace(/[^0-9]/g, ''))}
         onFocus={() => setOn(true)}
         onBlur={() => setOn(false)}
@@ -287,14 +288,17 @@ function Monthly({ draft, setDraft }) {
                 <Text style={{ color: t.tx2, fontSize: 13, fontWeight: '600' }}>
                   {m.dir === 'in' ? '入る日' : '出る日'}
                 </Text>
-                <TextInput
-                  value={String(m.day ?? '')}
-                  onChangeText={(v) => update(i, { day: Number(v.replace(/[^0-9]/g, '').slice(0, 2)) || '' })}
-                  keyboardType="number-pad"
-                  style={{
-                    backgroundColor: t.bg3, borderWidth: 1, borderColor: t.bd, borderRadius: 10,
-                    color: t.tx, fontSize: 17, paddingVertical: 11, textAlign: 'center',
-                  }} />
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: t.bg3, borderWidth: 1, borderColor: t.bd, borderRadius: 10,
+                }}>
+                  <TextInput
+                    value={String(m.day ?? '')}
+                    onChangeText={(v) => update(i, { day: Number(v.replace(/[^0-9]/g, '').slice(0, 2)) || '' })}
+                    keyboardType="number-pad"
+                    style={{ color: t.tx, fontSize: 17, paddingVertical: 11, paddingHorizontal: 4, minWidth: 34, textAlign: 'right' }} />
+                  <Text style={{ color: t.tx, fontSize: 17 }}>日</Text>
+                </View>
               </View>
               <View style={{ flex: 1, gap: 5 }}>
                 <Text style={{ color: t.tx2, fontSize: 13, fontWeight: '600' }}>金額</Text>
@@ -408,11 +412,11 @@ export default function Onboarding() {
 
   const goLogin = useCallback(() => { wentToLogin.current = true; router.push('/connect'); }, [router]);
 
-  const onSkip = useCallback(() => {
-    Alert.alert('登録をやめますか？',
-      'ここまで入れた内容は保存されません。口座も残高も、あとから設定でいつでも登録できます。',
-      [{ text: '登録を続ける', style: 'cancel' }, { text: 'やめる', style: 'destructive', onPress: () => skip() }]);
-  }, [skip]);
+  // 「あとで」の確認。OS の Alert を使わず画面内のシートで聞く。
+  // ⚠ Android の Alert は style: 'destructive' を無視するので、「やめる」が主操作と同じ色になる。
+  //   取り消せない操作（ここまでの入力が消える）を見分けられないので、自前で描く。
+  const [asking, setAsking] = useState(false);
+  const onSkip = useCallback(() => { Keyboard.dismiss(); setAsking(true); }, []);
 
   const onFinish = useCallback(() => {
     finish().catch(() => Alert.alert('保存できませんでした', '通信は要りません。もう一度お試しください。'));
@@ -430,6 +434,7 @@ export default function Onboarding() {
             : <Done summary={summary} />;
 
   return (
+    <>
     <View style={{
       position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
       backgroundColor: t.bg0,
@@ -452,7 +457,8 @@ export default function Onboarding() {
       <View style={{ paddingHorizontal: 20, paddingTop: 12, gap: 18 }}>
         <Dots index={index} total={total} />
         <View style={{ gap: 12 }}>
-          <Button label={last ? 'はじめる' : '次へ'} onPress={last ? onFinish : next} disabled={saving} />
+          {/* 最初と最後だけ「はじめる」。最初は登録を始める合図、最後は帳簿を使い始める合図。 */}
+          <Button label={last || step === 'welcome' ? 'はじめる' : '次へ'} onPress={last ? onFinish : next} disabled={saving} />
           {/* ログインはボタンの下。並べて大きく出すと、登録が要るように見える。 */}
           {step === 'welcome' ? (
             <Pressable onPress={goLogin} style={{ paddingVertical: 4 }}>
@@ -469,5 +475,32 @@ export default function Onboarding() {
         </View>
       </View>
     </View>
+
+    {/* 覆いの外に兄弟として置く。覆いは下にキーボード分の余白を持つので、中に入れると浮いて見える。 */}
+    {asking ? (
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+        <Pressable onPress={() => setAsking(false)} style={{ flex: 1, backgroundColor: 'rgba(12,18,24,0.5)' }}
+          accessibilityLabel="閉じる" />
+        <View style={[{
+          backgroundColor: t.bg1, borderTopLeftRadius: 18, borderTopRightRadius: 18,
+          paddingHorizontal: 20, paddingTop: 12, paddingBottom: Math.max(inset.bottom, 16) + 18, gap: 14,
+        }, t.shadow]}>
+          <View style={{ width: 38, height: 4, borderRadius: 2, backgroundColor: t.bd2, alignSelf: 'center' }} />
+          <Text style={{ color: t.tx, fontSize: 21, fontWeight: '800', letterSpacing: -0.2, marginTop: 4 }}>
+            登録をやめますか？
+          </Text>
+          <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 24 }}>
+            ここまで入れた内容は保存されません。口座も残高も、あとから設定でいつでも登録できます。
+          </Text>
+          <View style={{ gap: 4, marginTop: 4 }}>
+            <Button label="登録を続ける" onPress={() => setAsking(false)} />
+            <Pressable onPress={() => { setAsking(false); skip(); }} style={{ paddingVertical: 14 }}>
+              <Text style={{ color: t.red, fontSize: 15.5, fontWeight: '700', textAlign: 'center' }}>やめる</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    ) : null}
+    </>
   );
 }
