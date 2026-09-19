@@ -92,13 +92,16 @@ export function balancesAsOf(journals, accounts, date) {
 
 /**
  * 期間の開始日・終了日を計算。
+ * now はテストで日付を固定するための引数。画面からは渡さない。
  */
-export function getPeriodRange(mode, custom = {}) {
-  const now = new Date();
+export function getPeriodRange(mode, custom = {}, now = new Date()) {
   const y = now.getFullYear();
   const m = now.getMonth();
 
   switch (mode) {
+    case 'today':
+      // 今月1日〜今日。「今月」は月末までの先日付の仕訳も含むので、今日時点の実績はこちらで見る。
+      return { start: fmt(new Date(y, m, 1)), end: fmt(now) };
     case 'month':
       return { start: fmt(new Date(y, m, 1)), end: fmt(new Date(y, m + 1, 0)) };
     case 'lastm':
@@ -113,6 +116,16 @@ export function getPeriodRange(mode, custom = {}) {
     default:
       return { start: '1900-01-01', end: '2999-12-31' };
   }
+}
+
+/**
+ * 純資産・口座残高を「いつ時点」で出すか（収支は期間中、残高は期間末の時点）。
+ * 期間末が今日より先なら、先日付の仕訳も含めた見込みになる（今月なら月末の見込み）。
+ * 全期間だけは終端（2999-12-31）に意味が無いので今日で出す。
+ * todayStr は YYYY-MM-DD。
+ */
+export function balanceDate(mode, end, todayStr) {
+  return mode === 'all' ? todayStr : end;
 }
 
 // タグの符号判定。「そのタグのお金が増えたか減ったか」を科目区分と貸借から決める。

@@ -13,7 +13,7 @@ import Breakdown from '../../src/components/Breakdown';
 import Sparkline from '../../src/components/Sparkline';
 import { fa, faBal, fas, today } from '../../src/utils/format';
 import {
-  accountBalance, balanceSheet, calcBalances, filterByPeriod, getPeriodRange,
+  accountBalance, balanceDate, balanceSheet, calcBalances, filterByPeriod, getPeriodRange,
   isCashAccount, investmentSummary, monthlyTrend, netWorthTrend,
 } from '../../src/utils/bookkeeping';
 import { dueRecurring, pendingCC } from '../../src/utils/autoGen';
@@ -28,16 +28,20 @@ export default function Dashboard() {
   const router = useRouter();
   const { loading, accounts, journals, budgets, recurring, wallets } = useData();
 
-  // 純資産は「期間末の時点」、収支は「期間中」。既定は今月。
-  const period = usePeriod('month');
+  // 収支は「期間中」、純資産と口座残高は「期間末の時点」（2026-09-15 決定）。
+  //   今日: 今月1日〜今日。純資産は今日時点の実際の残高。
+  //   今月: 1日〜月末。純資産は先日付の仕訳（前もって作った定期取引など）も含めた月末の見込み。
+  // 既定は「今日」。開いてすぐ目に入る純資産を、見込みではなく実際の残高にするため。
+  const period = usePeriod('today');
 
   const m = useMemo(() => {
-    const { start } = period;
-    // 全期間を選ぶと終端が将来日付になる。時点残高は今日で切る。
-    const end = period.end > today() ? today() : period.end;
+    const { start, end } = period;
+    // ⚠ 収支を今日で打ち切らない。以前は時点残高のために今日で切った日付を収支にも使っていて、
+    //    「今月」を選んでも今日までしか集計されていなかった（画面には月末までと出ていた）。
+    const asOf = balanceDate(period.mode, end, today());
 
     // 借方残の負債は資産側へ振り替えて集計する（詳細は balanceSheet のコメント）
-    const bs = balanceSheet(journals, accounts, end);
+    const bs = balanceSheet(journals, accounts, asOf);
     const flow = calcBalances(filterByPeriod(journals, start, end), accounts);
     const sum = (type, bal) => accounts.filter((a) => a.type === type)
       .reduce((s, a) => s + accountBalance(a.id, accounts, bal), 0);
@@ -50,16 +54,17 @@ export default function Dashboard() {
 
     const income = sum('income', flow);
     const expense = sum('expense', flow);
-    return { netWorth: bs.netWorth, income, expense, balance: income - expense, expenses, end };
+    return { netWorth: bs.netWorth, income, expense, balance: income - expense, expenses, asOf };
   }, [accounts, journals, period]);
 
   // 口座別の残高。売掛金や固定資産まで並べても「どこにいくらあるか」は分からないので、
   // 口座として登録したものに絞る。登録が無ければ現金・預金の科目で代用する。
   // カードはここに出さない。負債であって「どこにいくらあるか」の答えにならないうえ、
   // 利用状況・締め・引落は専用のクレジット画面で見るほうが正確に分かる。
+  // 時点は純資産と同じ（今日なら今日、今月なら月末の見込み）。
   const byAccount = useMemo(() => {
-    const end = period.end > today() ? today() : period.end;
-    const bal = calcBalances(journals.filter((j) => j.date <= end), accounts);
+    const asOf = balanceDate(period.mode, period.end, today());
+    const bal = calcBalances(journals.filter((j) => j.date <= asOf), accounts);
     const walletIds = new Set((wallets || []).map((w) => w.accountId));
     const target = (a) => (walletIds.size ? walletIds.has(a.id) : isCashAccount(a));
     return accounts
@@ -74,10 +79,10 @@ export default function Dashboard() {
   const dueCards = useMemo(() => pendingCC(accounts, journals).filter((x) => x.due), [accounts, journals]);
   const dueRec = useMemo(() => dueRecurring(recurring, journals), [recurring, journals]);
 
-  // 推移は必ず期間の終端を基準にする。ここを今日で固定していたため、
+  // 推移は必ず純資産と同じ時点を基準にする。ここを今日で固定していたため、
   // 期間を先月に変えても純資産だけ動いて前月比が変わらなかった。
-  const worth = useMemo(() => netWorthTrend(journals, accounts, 6, m.end), [journals, accounts, m.end]);
-  const trend = useMemo(() => monthlyTrend(journals, accounts, 6, m.end), [journals, accounts, m.end]);
+  const worth = useMemo(() => netWorthTrend(journals, accounts, 6, m.asOf), [journals, accounts, m.asOf]);
+  const trend = useMemo(() => monthlyTrend(journals, accounts, 6, m.asOf), [journals, accounts, m.asOf]);
   const investments = useMemo(() => investmentSummary(journals, accounts), [journals, accounts]);
 
   // 予算は「1ヶ月あたりの額」。期間が複数月にまたがるなら月数分に伸ばす。
@@ -85,10 +90,11 @@ export default function Dashboard() {
   // 実際には収まっていても大幅に超過して見える。
   // 月数は日数から出す（30.44日＝1ヶ月）。暦の月末差と月の途中を端数で吸収できる。
   // 全期間は「いつまでの予算か」が決まらないので当月に固定する（Web 版と同じ扱い）。
+  // 支出は収支と同じ窓で数える（今日なら今日まで、今月なら月末まで）。
   const budget = useMemo(() => {
     const cur = getPeriodRange('month');
     const from = period.mode === 'all' ? cur.start : period.start;
-    const to = period.mode === 'all' ? cur.end : m.end;
+    const to = period.mode === 'all' ? cur.end : period.end;
     const days = Math.max(1, Math.round((new Date(`${to}T00:00:00`) - new Date(`${from}T00:00:00`)) / 86400000) + 1);
     const months = Math.max(1, Math.round((days / 30.44) * 10) / 10);
 
@@ -109,7 +115,7 @@ export default function Dashboard() {
       .filter(Boolean)
       .sort((x, y) => (y.used / y.budget) - (x.used / x.budget));
     return { rows, months };
-  }, [budgets, accounts, journals, period.mode, period.start, m.end]);
+  }, [budgets, accounts, journals, period.mode, period.start, period.end]);
 
   if (loading) return <Screen><Empty text="読み込み中…" /></Screen>;
 
@@ -118,11 +124,15 @@ export default function Dashboard() {
   const delta = hasTrend ? worth[worth.length - 1].net - prev : 0;
   const rate = prev ? (delta / Math.abs(prev)) * 100 : 0;
 
+  // 残高が「いつ時点」かを必ず出す。今日より先なら、実際の残高ではなく見込みだと明記する。
+  const td = today();
+  const projected = m.asOf > td;
+
   return (
     <Screen>
       <View ref={netWorthRef} collapsable={false}>
       <Hero
-        label={`純資産（${m.end === today() ? '今日' : m.end}）`}
+        label={`純資産（${m.asOf === td ? '今日' : projected ? `${m.asOf} 見込み` : m.asOf}）`}
         value={faBal(m.netWorth)}
         negative={m.netWorth < 0}
         sub={hasTrend ? `前月比 ${fas(delta)}（${rate >= 0 ? '+' : ''}${rate.toFixed(1)}%）` : undefined}
@@ -185,7 +195,9 @@ export default function Dashboard() {
             </View>
           ))}
           <Text style={{ color: t.tx3, fontSize: 13 }}>
-            {m.end === today() ? '今日' : m.end} 時点の残高です。
+            {m.asOf === td ? '今日時点の残高です。'
+              : projected ? `${m.asOf} 時点の見込みです。今日より先の日付の仕訳も含みます。`
+              : `${m.asOf} 時点の残高です。`}
           </Text>
         </Card>
       ) : null}

@@ -1,7 +1,11 @@
-// 期間の切り替え。Web 版 Dashboard/PeriodBar.jsx と同じ選択肢・同じ id を使う。
+// 期間の切り替え。Web 版 Dashboard/PeriodBar.jsx と同じ id を使う。
 //
 // これが無いと全画面が「今月」固定になり、先月や今年を見られない。
 // 資産管理として推移を追うのが目的なので、期間を動かせないのは機能として不足していた。
+//
+// ⚠ 「今日」は iOS だけにある（2026-09-15 追加。Web 版には入れない判断）。
+//    「今月」は1日〜月末で、先日付の仕訳（前もって作った定期取引など）も含む。
+//    今日時点の今月の実績を見たいときのために、1日〜今日の「今日」を分けた。
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { useTheme } from '../theme';
@@ -9,6 +13,7 @@ import { ChipRow, Input } from './ui';
 import { getPeriodRange } from '../utils/bookkeeping';
 
 const MODES = [
+  { value: 'today', label: '今日' },
   { value: 'month', label: '今月' },
   { value: 'lastm', label: '先月' },
   { value: 'last2m', label: '先々月' },
