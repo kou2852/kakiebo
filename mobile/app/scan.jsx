@@ -15,11 +15,13 @@ import { isAvailable, recognize } from '../modules/text-recognition';
 import { extractReceipt } from '../src/utils/receipt';
 import { fa, today } from '../src/utils/format';
 import { BUILD_STAMP } from '../src/buildStamp';
+import { useEntryAd } from '../src/components/Interstitial';
 
 export default function Scan() {
   const t = useTheme();
   const router = useRouter();
   const { accounts, rules, save } = useData();
+  const entryAd = useEntryAd();
 
   const [busy, setBusy] = useState(false);
   const [image, setImage] = useState(null);
@@ -125,8 +127,9 @@ export default function Scan() {
             submitLabel="記帳する"
             onSubmit={(j) => {
               save('journals', j);
+              entryAd.counted();
               Alert.alert('記帳しました', `${j.date}  ${fa(j.lines[0].amount)}`, [
-                { text: 'OK', onPress: () => router.back() },
+                { text: 'OK', onPress: () => { router.back(); entryAd.closed(); } },
               ]);
             }}
           />

@@ -14,12 +14,14 @@ import { Card, Screen } from '../src/components/ui';
 import QuickEntryBar from '../src/components/QuickEntryBar';
 import JournalForm from '../src/components/JournalForm';
 import { fa, today } from '../src/utils/format';
+import { useEntryAd } from '../src/components/Interstitial';
 
 export default function Add() {
   const t = useTheme();
   const router = useRouter();
   const { accounts, presets, save } = useData();
   const params = useLocalSearchParams();
+  const entryAd = useEntryAd();
 
   const amountParam = String(params.amount || '').replace(/[^0-9]/g, '');
 
@@ -52,8 +54,9 @@ export default function Add() {
   }, [params, accounts, presets, amountParam]);
 
   const done = (j) => {
+    entryAd.counted();
     Alert.alert('記帳しました', `${j.date}  ${fa(j.lines[0].amount)}`, [
-      { text: 'OK', onPress: () => router.replace('/') },
+      { text: 'OK', onPress: () => { router.replace('/'); entryAd.closed(); } },
     ]);
   };
 
