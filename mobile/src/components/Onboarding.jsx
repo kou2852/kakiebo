@@ -7,7 +7,7 @@
 //   出るので、上に覆いが残っていると触れない。戻ってきたら再判定する（取り込み済みなら畳む）。
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  AccessibilityInfo, Alert, Animated, Easing, Image, Keyboard, Pressable, ScrollView, Text, TextInput, View,
+  AccessibilityInfo, Alert, Animated, BackHandler, Easing, Image, Keyboard, Pressable, ScrollView, Text, TextInput, View,
 } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -486,6 +486,21 @@ export default function Onboarding() {
   //   取り消せない操作（ここまでの入力が消える）を見分けられないので、自前で描く。
   const [asking, setAsking] = useState(false);
   const onSkip = useCallback(() => { Keyboard.dismiss(); setAsking(true); }, []);
+
+  /**
+   * Android の戻るキーを画面左上の戻ると揃える。
+   * ⚠ 何もしないと、覆いの下にある画面の戻るとして扱われ、途中の画面でもアプリが閉じる。
+   *   1画面目だけは戻る先が無いので、これまでどおり OS に任せる（アプリを閉じる）。
+   */
+  useEffect(() => {
+    if (!active || path === '/connect') return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (asking) { setAsking(false); return true; }
+      if (index > 0) { back(); return true; }
+      return false;
+    });
+    return () => sub.remove();
+  }, [active, path, asking, index, back]);
 
   const onFinish = useCallback(() => {
     finish().catch(() => Alert.alert('保存できませんでした', '通信は要りません。もう一度お試しください。'));
