@@ -66,7 +66,10 @@ export default function Dashboard() {
     const asOf = balanceDate(period.mode, period.end, today());
     const bal = calcBalances(journals.filter((j) => j.date <= asOf), accounts);
     const walletIds = new Set((wallets || []).map((w) => w.accountId));
-    const target = (a) => (walletIds.size ? walletIds.has(a.id) : isCashAccount(a));
+    // ⚠ 資産だけに限る。口座を1つでも登録すると「口座に紐づく科目」を全部出す作りだったため、
+    //    カードの口座を作った人にはカードがここに並び、しかも負債の残高が符号なしで出ていた
+    //    （借りている 48,000 が「48,000 ある」と読める）。上のコメントの意図どおりに絞る。
+    const target = (a) => a.type === 'asset' && (walletIds.size ? walletIds.has(a.id) : isCashAccount(a));
     return accounts
       .filter(target)
       .map((a) => ({ id: a.id, name: a.name, type: a.type, amount: accountBalance(a.id, accounts, bal) }))

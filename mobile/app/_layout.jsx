@@ -14,8 +14,10 @@ import { useQuickActionRouting } from '../src/quickActions';
 import { initAds } from '../src/ads';
 import { useTheme, useThemeMode } from '../src/theme';
 import { ThemeProvider } from '../src/store/ThemeProvider';
-import { TourProvider, useTour } from '../src/store/TourProvider';
+import { TourProvider } from '../src/store/TourProvider';
 import Tour from '../src/components/Tour';
+import { OnboardingProvider } from '../src/store/OnboardingProvider';
+import Onboarding from '../src/components/Onboarding';
 
 // スプラッシュは既定だと最初の描画と同時に消える。起動が速い端末では一瞬すぎて
 // 何が出たのか分からないので、自動で消えるのを止めて最低表示時間を持たせる。
@@ -130,14 +132,8 @@ function Nav() {
   );
 }
 
-/** 初回だけツアーを出す。帳簿の読み込みを待ってから出す。 */
-function FirstRunTour() {
-  const { loading } = useData();
-  const { maybeStartFirstRun } = useTour();
-  useEffect(() => { if (!loading) maybeStartFirstRun(); }, [loading, maybeStartFirstRun]);
-  return null;
-}
-
+// 初回の案内はツアーからオンボーディングに替えた（src/components/Onboarding.jsx）。
+// ツアー自体は残す。「使い方」画面から見直せるし、useTourTarget は各画面が使っている。
 export default function RootLayout() {
   // 広告SDKは起動時に一度だけ初期化する（暗黙初期化だと初回表示が遅れる）
   useEffect(() => { initAds(); }, []);
@@ -153,13 +149,16 @@ export default function RootLayout() {
       <ThemeProvider>
         <AuthProvider>
         <DataProvider>
+          <OnboardingProvider>
           <TourProvider>
+            {/* オンボーディングは AppLock の内側に置く。外に出すとロック画面の上に出てしまう。 */}
             <AppLock>
               <Nav />
+              <Onboarding />
             </AppLock>
-            <FirstRunTour />
             <Tour />
           </TourProvider>
+          </OnboardingProvider>
           <KdfBridge />
           <ThemedStatusBar />
         </DataProvider>
