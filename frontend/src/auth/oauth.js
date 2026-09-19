@@ -1,6 +1,9 @@
 // Cognito Hosted UI を使った OAuth (認可コード) フロー。
 // メール/パスワード(SRP) は従来どおり amazon-cognito-identity-js を使い、
-// Google ログインのみこのリダイレクトフローを使う。
+// Google と Apple のログインはこのリダイレクトフローを使う。
+//
+// Apple は iOS アプリにあるので Web にも要る。Apple で作ったアカウントはパスワードを
+// 持たないので、Web に Apple の入口が無いと iOS で登録した人が Web に入れない。
 
 const DOMAIN = import.meta.env.VITE_COGNITO_DOMAIN;      // https://kurofukubo-auth-xxx.auth.<region>.amazoncognito.com
 const CLIENT_ID = import.meta.env.VITE_COGNITO_CLIENT_ID;
@@ -49,14 +52,21 @@ async function sha256Base64Url(str) {
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-export async function loginWithGoogle() {
+// Cognito 側のプロバイダ名。'SignInWithApple' は Cognito の予約名で変更できない
+// （mobile/src/auth/oauth.js の IDP と同じ）。
+const IDP = { google: 'Google', apple: 'SignInWithApple' };
+
+export const loginWithGoogle = () => loginWithIdp('google');
+export const loginWithApple = () => loginWithIdp('apple');
+
+async function loginWithIdp(which) {
   const state = randomString(16);
   const verifier = randomString(32);
   sessionStorage.setItem(STATE_KEY, state);
   sessionStorage.setItem(VERIFIER_KEY, verifier);
 
   const u = new URL(`${DOMAIN}/oauth2/authorize`);
-  u.searchParams.set('identity_provider', 'Google');
+  u.searchParams.set('identity_provider', IDP[which]);
   u.searchParams.set('client_id', CLIENT_ID);
   u.searchParams.set('response_type', 'code');
   u.searchParams.set('scope', 'email openid profile');

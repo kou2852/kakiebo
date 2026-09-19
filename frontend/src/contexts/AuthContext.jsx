@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 import { setTokenProvider, account as accountApi } from '../api/client';
 import { track, trackOnce } from '../utils/track';
 import {
-  OAUTH_ENABLED, loginWithGoogle, handleRedirectCallback,
+  OAUTH_ENABLED, loginWithGoogle, loginWithApple, handleRedirectCallback,
   hasOAuthSession, getOAuthIdToken, logoutRedirect, clearOAuth,
 } from '../auth/oauth';
 
@@ -247,7 +247,7 @@ export function AuthProvider({ children }) {
     user, loading, error, devMode, guestMode, tier, signupIntent,
     isAuthenticated: !!user,
     oauthEnabled: OAUTH_ENABLED,
-    signUp, confirmSignUp, resendCode, signIn, signOut, loginWithGoogle,
+    signUp, confirmSignUp, resendCode, signIn, signOut, loginWithGoogle, loginWithApple,
     forgotPassword, confirmForgotPassword, deleteAccount,
     loginAsGuest, exitGuest,
     clearError: () => setError(null),
