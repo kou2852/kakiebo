@@ -6,7 +6,9 @@
 // ⚠ ログインへ飛ぶ間はこの覆いを消す。expo-router のモーダル（/connect）はナビゲータの中に
 //   出るので、上に覆いが残っていると触れない。戻ってきたら再判定する（取り込み済みなら畳む）。
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Image, Keyboard, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import {
+  AccessibilityInfo, Alert, Animated, Easing, Image, Keyboard, Pressable, ScrollView, Text, TextInput, View,
+} from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +16,7 @@ import { useTheme } from '../theme';
 import { Button } from './ui';
 import Sparkline from './Sparkline';
 import { useOnboarding } from '../store/OnboardingProvider';
+import { useAuth } from '../store/AuthProvider';
 import { CUSTOM_EXPENSE_ID, KINDS, MONTHLY_PRESETS } from '../store/onboardingPlan';
 import { faBal } from '../utils/format';
 
@@ -47,6 +50,65 @@ function Title({ text, sub }) {
     <View style={{ gap: 8 }}>
       <Text style={{ color: t.tx, fontSize: 26, fontWeight: '800', letterSpacing: -0.3, lineHeight: 34 }}>{text}</Text>
       {sub ? <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 24 }}>{sub}</Text> : null}
+    </View>
+  );
+}
+
+/**
+ * 数字を0から数え上げる。純資産が「入れた数字から組み上がる」ことを見せるための動き。
+ * 端末で「視差効果を減らす」を選んでいる人には、動かさず最終値をそのまま出す。
+ */
+function useCountUp(target, { duration = 900, delay = 350 } = {}) {
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    let raf = 0;
+    let timer = 0;
+    AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (!alive) return;
+      if (reduce) { setShown(target); return; }
+      timer = setTimeout(() => {
+        const t0 = Date.now();
+        const tick = () => {
+          const p = Math.min(1, (Date.now() - t0) / duration);
+          setShown(Math.round(target * (1 - Math.pow(1 - p, 3))));
+          if (p < 1) raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+      }, delay);
+    });
+    return () => { alive = false; clearTimeout(timer); cancelAnimationFrame(raf); };
+  }, [target, duration, delay]);
+  return shown;
+}
+
+/**
+ * 中身を左から現していく（折れ線を「引く」動き）。
+ * 地と同じ色の覆いを右へずらして見せる。Sparkline は幅を実測して描くので、
+ * 中身の幅を縮めて見せる方法だと線の形が崩れる。
+ */
+function Reveal({ color, children, delay = 600, duration = 1100 }) {
+  const [w, setW] = useState(0);
+  const [x] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    if (!w) return undefined;
+    let alive = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (!alive) return;
+      if (reduce) { x.setValue(w); return; }
+      Animated.timing(x, {
+        toValue: w, delay, duration, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      }).start();
+    });
+    return () => { alive = false; };
+  }, [w, x, delay, duration]);
+  return (
+    <View onLayout={(e) => setW(e.nativeEvent.layout.width)} style={{ overflow: 'hidden' }}>
+      {children}
+      <Animated.View pointerEvents="none" style={{
+        position: 'absolute', top: 0, bottom: 0, left: 0, width: w || '100%',
+        backgroundColor: color, transform: [{ translateX: x }],
+      }} />
     </View>
   );
 }
@@ -98,6 +160,7 @@ const SAMPLE_TREND = [
 
 function Welcome() {
   const t = useTheme();
+  const shown = useCountUp(SAMPLE_TREND[SAMPLE_TREND.length - 1].value);
   return (
     <View style={{ gap: 26, marginTop: 16 }}>
       <View style={{ gap: 18 }}>
@@ -114,10 +177,12 @@ function Welcome() {
         </Text>
         <View style={[{ backgroundColor: t.hero, borderRadius: 16, padding: 15, gap: 2 }, t.shadow]}>
           <Text style={{ color: t.heroSub, fontSize: 13 }}>純資産（今日）</Text>
-          <Text style={{ color: t.heroTx, fontSize: 31, fontWeight: '800', letterSpacing: -0.5 }}>¥1,650,640</Text>
+          <Text style={{ color: t.heroTx, fontSize: 31, fontWeight: '800', letterSpacing: -0.5 }}>{faBal(shown)}</Text>
           <Text style={{ color: t.heroSub, fontSize: 13 }}>前月比 +¥21,020（+1.3%）</Text>
           <View style={{ marginTop: 8 }}>
-            <Sparkline data={SAMPLE_TREND} height={46} color={t.heroTx} labelColor={t.heroSub} />
+            <Reveal color={t.hero}>
+              <Sparkline data={SAMPLE_TREND} height={46} color={t.heroTx} labelColor={t.heroSub} />
+            </Reveal>
           </View>
         </View>
       </View>
@@ -309,28 +374,30 @@ function Monthly({ draft, setDraft }) {
         ))}
       </View>
 
-      {rest.length ? (
-        <View style={{ gap: 8 }}>
+      {/* ⚠ 候補を全部足しても「自分で入力」は消さない。候補に無いもの（習い事・駐車場など）を
+          足す手段が無くなる。見出しだけは候補が残っているときに出す。 */}
+      <View style={{ gap: 8 }}>
+        {rest.length ? (
           <Text style={{ color: t.tx3, fontSize: 13.5, fontWeight: '700', letterSpacing: 0.3, paddingHorizontal: 3 }}>
             ほかによくあるもの
           </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
-            {rest.map((p) => (
-              <Pressable key={p.key} onPress={() => add(p)} style={{
-                flexDirection: 'row', alignItems: 'center', gap: 5,
-                backgroundColor: t.bg1, borderWidth: 1, borderColor: t.bd2,
-                borderRadius: 999, paddingVertical: 10, paddingLeft: 11, paddingRight: 14,
-              }}>
-                <Ionicons name="add" size={15} color={t.ac} />
-                <Text style={{ color: t.tx, fontSize: 14.5, fontWeight: '600' }}>{p.name}</Text>
-              </Pressable>
-            ))}
-            <Pressable onPress={() => add(null)} style={{ paddingVertical: 10, paddingHorizontal: 4 }}>
-              <Text style={{ color: t.ac, fontSize: 14.5, fontWeight: '700' }}>自分で入力</Text>
+        ) : null}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>
+          {rest.map((p) => (
+            <Pressable key={p.key} onPress={() => add(p)} style={{
+              flexDirection: 'row', alignItems: 'center', gap: 5,
+              backgroundColor: t.bg1, borderWidth: 1, borderColor: t.bd2,
+              borderRadius: 999, paddingVertical: 10, paddingLeft: 11, paddingRight: 14,
+            }}>
+              <Ionicons name="add" size={15} color={t.ac} />
+              <Text style={{ color: t.tx, fontSize: 14.5, fontWeight: '600' }}>{p.name}</Text>
             </Pressable>
-          </View>
+          ))}
+          <Pressable onPress={() => add(null)} style={{ paddingVertical: 10, paddingHorizontal: 4 }}>
+            <Text style={{ color: t.ac, fontSize: 14.5, fontWeight: '700' }}>自分で入力</Text>
+          </Pressable>
         </View>
-      ) : null}
+      </View>
     </View>
   );
 }
@@ -338,13 +405,14 @@ function Monthly({ draft, setDraft }) {
 function Done({ summary }) {
   const t = useTheme();
   const rows = summary.rows.filter((r) => r.amount > 0);
+  const netWorth = useCountUp(summary.netWorth);
   return (
     <View style={{ gap: 22, marginTop: 16 }}>
       <Title text="準備ができました" sub="入れた残高から、いまの純資産を計算しました。" />
       <View style={[{ backgroundColor: summary.netWorth < 0 ? t.red : t.hero, borderRadius: 16, padding: 15, gap: 2 }, t.shadow]}>
         <Text style={{ color: t.heroSub, fontSize: 13 }}>純資産（今日）</Text>
         <Text style={{ color: t.heroTx, fontSize: 31, fontWeight: '800', letterSpacing: -0.5 }}
-          numberOfLines={1} adjustsFontSizeToFit>{faBal(summary.netWorth)}</Text>
+          numberOfLines={1} adjustsFontSizeToFit>{faBal(netWorth)}</Text>
         <Text style={{ color: t.heroSub, fontSize: 13 }}>
           資産 {faBal(summary.assets)} − 負債 {faBal(summary.liabilities)}
         </Text>
@@ -379,12 +447,13 @@ export default function Onboarding() {
   const router = useRouter();
   const path = usePathname();
   const o = useOnboarding();
+  const auth = useAuth();
   const scroller = useRef(null);
   // ログインへ飛んだかどうか。状態にすると効果の中で setState することになるので ref で持つ。
   // 覆いを消すかどうかは、いま開いている画面（path）から直接決める。
   const wentToLogin = useRef(false);
 
-  const { active, step, index, total, draft, setDraft, summary, saving, next, skip, finish, checkAfterLogin } = o || {};
+  const { active, step, index, total, draft, setDraft, summary, saving, next, back, skip, finish, checkAfterLogin } = o || {};
 
   // 画面が変わったら先頭から読ませる。前の画面の途中位置が残ると、見出しを見落とす。
   useEffect(() => { scroller.current?.scrollTo({ y: 0, animated: false }); }, [index]);
@@ -440,7 +509,16 @@ export default function Onboarding() {
       backgroundColor: t.bg0,
       paddingTop: inset.top, paddingBottom: Math.max(inset.bottom, 16) + kb,
     }}>
-      <View style={{ height: 44, paddingHorizontal: 20, justifyContent: 'center', alignItems: 'flex-end' }}>
+      <View style={{
+        height: 44, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        {/* 戻るは2画面目から。入れた内容は OnboardingProvider が持っているので、戻っても消えない。 */}
+        {index > 0 ? (
+          <Pressable onPress={back} hitSlop={12} accessibilityRole="button" accessibilityLabel="戻る"
+            style={{ paddingVertical: 8, marginLeft: -6 }}>
+            <Ionicons name="chevron-back" size={26} color={t.tx} />
+          </Pressable>
+        ) : <View />}
         {last ? null : (
           <Pressable onPress={onSkip} hitSlop={10} style={{ paddingVertical: 10 }}>
             <Text style={{ color: t.tx3, fontSize: 15, fontWeight: '600' }}>あとで</Text>
@@ -460,7 +538,12 @@ export default function Onboarding() {
           {/* 最初と最後だけ「はじめる」。最初は登録を始める合図、最後は帳簿を使い始める合図。 */}
           <Button label={last || step === 'welcome' ? 'はじめる' : '次へ'} onPress={last ? onFinish : next} disabled={saving} />
           {/* ログインはボタンの下。並べて大きく出すと、登録が要るように見える。 */}
-          {step === 'welcome' ? (
+          {/* ログイン済み（ログインしたが空のアカウントだった・新規登録した）ならログインは勧めない。 */}
+          {step === 'welcome' && auth?.signedIn ? (
+            <Text style={{ color: t.tx3, fontSize: 14, textAlign: 'center', paddingVertical: 4 }} numberOfLines={1}>
+              {auth.email}でログイン中
+            </Text>
+          ) : step === 'welcome' ? (
             <Pressable onPress={goLogin} style={{ paddingVertical: 4 }}>
               <Text style={{ color: t.ac, fontSize: 14.5, fontWeight: '600', textAlign: 'center' }}>
                 アカウントをお持ちの方はログイン

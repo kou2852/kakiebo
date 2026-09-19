@@ -1,7 +1,7 @@
 // 初回のオンボーディング。ツアーの自動起動の代わりに、最初に口座と残高を登録してもらう。
 //
 // ⚠ 出すかどうかを「印」だけで決めないこと。入れ直して即ログインした人は印を持たず、
-//   帳簿はサーバーから来る。印と hasContent() の両方を見ないと、既に帳簿がある人に
+//   帳簿はサーバーから来る。印と hasUserData() の両方を見ないと、既に帳簿がある人に
 //   「いまの残高を入れてください」と聞くことになり、口座と開始残高が二重になる。
 //
 // ⚠ 画面の入力はここにメモリで持つだけ。保存するのは finish() の一度きり。
@@ -11,11 +11,18 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useData } from './DataProvider';
-import { hasContent } from './merge';
-import { buildPlan, summarize } from './onboardingPlan';
+import { buildPlan, hasUserData, summarize } from './onboardingPlan';
 import { today, uid } from '../utils/format';
 
 const SEEN_KEY = 'onboarding.seen';
+
+/**
+ * 「もう見た」の記録を消す。端末の帳簿を消すときに一緒に呼ぶこと。
+ *
+ * ⚠ 帳簿だけ消して記録を残すと、空の端末なのにオンボーディングが出ず、
+ *   いきなり空のホームになる（設定の「端末のデータを消去」で実際に起きた）。
+ */
+export const forgetOnboarding = () => AsyncStorage.removeItem(SEEN_KEY).catch(() => {});
 
 /** 画面の並び。A-3 まで来たら終わり。 */
 export const STEPS = ['welcome', 'steps', 'pick', 'balance', 'monthly', 'done'];
@@ -64,10 +71,9 @@ export function OnboardingProvider({ children }) {
     decided.current = true;
     (async () => {
       let seen = null;
-      try { seen = await AsyncStorage.getItem(SEEN_KEY); } catch { seen = null; }
-      if (seen) return;
+      try { seen = await AsyncStorage.getItem(SEEN_KEY); } catch { seen = null; }      if (seen) return;
       // 既に帳簿がある（＝入れ直し＋ログインで取り込んだ等）。聞き直さない。
-      if (hasContent(dataset)) { await markSeen(); return; }
+      if (hasUserData(dataset)) { await markSeen(); return; }
       setActive(true);
     })();
   }, [loading, dataset, markSeen]);
@@ -78,7 +84,7 @@ export function OnboardingProvider({ children }) {
    * 取り込むものが無かった（新規アカウント）ならそのまま続ける。
    */
   const checkAfterLogin = useCallback(async () => {
-    if (!hasContent(dataset)) return false;
+    if (!hasUserData(dataset)) return false;
     await markSeen();
     setActive(false);
     return true;

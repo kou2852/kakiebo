@@ -5,9 +5,9 @@
 //   ・途中でやめた人の端末に何も残らないこと（意図が0件）
 //   ・積む順序が 科目 → 仕訳 → 口座 → 定期取引 から崩れないこと
 //     （崩れると参照先の無い仕訳ができるが、画面には出ないので気づけない）
-import { DEFAULT_ACCOUNTS } from '../db/defaults.js';
+import { DEFAULT_ACCOUNTS, emptyDataset } from '../db/defaults.js';
 import { EQUITY_ID } from '../utils/accountCode.js';
-import { buildPlan, nextMonthlyDate, summarize, yen } from './onboardingPlan.js';
+import { buildPlan, hasUserData, nextMonthlyDate, summarize, yen } from './onboardingPlan.js';
 
 let ng = 0;
 const ok = (cond, name) => {
@@ -204,6 +204,25 @@ console.log('\n参照の健全性');
   ok(refs.length > 0 && refs.every((id) => ids.has(id)), '仕訳・口座・定期取引が指す科目はすべて存在する');
   const idsOut = intents.map((i) => i.item.id);
   ok(new Set(idsOut).size === idsOut.length, '作る id が重複しない');
+}
+
+console.log('\nオンボーディングを出すかの判定（hasUserData）');
+{
+  const base = emptyDataset();
+  ok(!hasUserData(base), '初期状態の端末は「帳簿なし」');
+  ok(!hasUserData({ ...base, accounts: [...base.accounts, { id: 'x1', code: '5013', name: '趣味', type: 'expense' }] }),
+    '勘定科目が初期データと違っても「帳簿なし」（初期データのずれで飛ばさない）');
+  ok(!hasUserData({ ...base, presets: [] }), 'プリセットが無くても「帳簿なし」');
+  const seedFailed = { accounts: [], journals: [], tags: [], allocs: [], wallets: [], presets: [], budgets: [], recurring: [], rules: [] };
+  ok(!hasUserData(seedFailed), '初期データ投入に失敗した空のアカウントも「帳簿なし」');
+  ok(!hasUserData(null), '読めなかったときは「帳簿なし」');
+  ok(hasUserData({ ...base, journals: [{ id: 'j1' }] }), '仕訳が1件でもあれば「帳簿あり」');
+  ok(hasUserData({ ...base, wallets: [{ id: 'w1' }] }), '口座が1件でもあれば「帳簿あり」');
+  ok(hasUserData({ ...base, recurring: [{ id: 'r1' }] }), '定期取引があれば「帳簿あり」');
+  ok(hasUserData({ ...base, budgets: [{ accountId: 'e01', amount: 1 }] }), '予算があれば「帳簿あり」');
+  // オンボーディングを終えた直後の端末は「帳簿あり」になる（次の起動で出さない）
+  const after = buildPlan({ picks: ['cash'], balances: { cash: '100' }, monthly: [] }, base.accounts, TODAY, idGen());
+  ok(after.some((i) => i.c === 'wallets'), 'オンボーディングを終えると口座ができる＝次からは出ない');
 }
 
 console.log(ng ? `\n${ng} 件 失敗` : '\nすべて通過');

@@ -41,6 +41,23 @@ export const MONTHLY_PRESETS = [
 /** 自分で入力したものの費目。どれとも言えないので雑費に寄せる。 */
 export const CUSTOM_EXPENSE_ID = 'e12';
 
+/**
+ * 利用者が自分で入れたものがあるか。オンボーディングを出すかどうかはこれで決める。
+ *
+ * ⚠ 勘定科目とプリセットは見ない。これらは端末（db/defaults.js）とサーバー
+ *   （backend/src/handlers/postConfirm.js）がそれぞれ初期データとして持っていて、
+ *   中身が一致するかで判断すると次の2つで「帳簿がある」と誤判定し、オンボーディングを飛ばす。
+ *   ・2つの初期データを揃え忘れた（片方だけに科目を足した等）
+ *   ・サーバーの初期データ投入が失敗し、新しいアカウントが空で返ってきた
+ *
+ * ⚠ store/merge.js の hasContent と混同しないこと。あちらはログイン時に端末を上書きしてよいかの
+ *   判定で、既定科目の名前を変えただけの端末も「中身あり」として守る必要があるので厳しい。
+ */
+const USER_COLLECTIONS = ['journals', 'wallets', 'recurring', 'budgets', 'rules', 'tags', 'allocs'];
+export function hasUserData(ds) {
+  return USER_COLLECTIONS.some((c) => (ds?.[c] || []).length > 0);
+}
+
 /** 「¥12,000」「12000」どちらでも読む。空や数字以外は0。 */
 export function yen(v) {
   const n = parseFloat(String(v ?? '').replace(/[¥,，\s]/g, ''));

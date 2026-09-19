@@ -14,6 +14,7 @@ import { useTheme } from '../../src/theme';
 import { Button, Card, Screen } from '../../src/components/ui';
 import { useSyncRefresh } from '../../src/store/useSyncRefresh';
 import { resetAll } from '../../src/db';
+import { forgetOnboarding } from '../../src/store/OnboardingProvider';
 import { useTourTarget } from '../../src/store/TourProvider';
 
 function Row({ label, value }) {
@@ -46,6 +47,8 @@ export default function Sync() {
       // アカウントの鍵が端末に残る。
       await d.forgetDek();
       await resetAll();
+      // 端末は空になったので、次の起動はオンボーディングから始める。
+      await forgetOnboarding();
       // ⚠ 黙って再起動しない。以前は即 reloadAsync していたため結果が見えず、
       //   「アカウント自体は消えたのか」が利用者に分からなかった。
       Alert.alert('削除しました',

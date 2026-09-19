@@ -13,6 +13,7 @@ import { MenuList, Screen } from '../../src/components/ui';
 import Constants from 'expo-constants';
 import { BUILD_STAMP } from '../../src/buildStamp';
 import { resetAll } from '../../src/db';
+import { forgetOnboarding } from '../../src/store/OnboardingProvider';
 import { codeCollisions } from '../../src/store/merge';
 
 // 規約・ポリシーはアプリ内ブラウザで開く。
@@ -41,6 +42,8 @@ export default function Settings() {
   // 消えていないように見える。再起動を利用者にやらせない（sync.jsx の削除と同じ扱い）。
   const doReset = async () => {
     await resetAll();
+    // 初期状態に戻したのだから、次の起動はオンボーディングから始める。
+    await forgetOnboarding();
     try {
       await Updates.reloadAsync();
     } catch {
