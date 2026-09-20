@@ -35,16 +35,21 @@ import { useTheme } from '../theme';
 // スクリーンショットも出荷ビルドで撮る。広告が写り込むこと自体は問題ない。
 export const ADS_ENABLED = true;
 
-// 本番のユニットID（AdMob: kurofukubo iOS / アンカーバナー）。
-const PROD_UNIT_ID = 'ca-app-pub-1494837719359912/3915570524';
-
+// 置き場所ごとの本番ユニットID（AdMob: kurofukubo iOS）と大きさ。
+// 置き場所ごとに分けているのは、どちらがどれだけ稼いでいるかを AdMob のレポートで見分けるため。
+//
 // テスト広告は開発中だけ。ストア配布ビルドでは __DEV__ が偽になるので、
 // 常に本番ユニットを使う。ビルド時にも実行時にもこれを変える手段は無い。
 //
 // ⚠ 自分の端末で本番広告を踏まないための対策は、ビルドを分けることではなく
 // src/ads.js の TEST_DEVICES に自分の端末を登録すること。登録せずに自分で
 // タップすると無効なトラフィックと判定され、AdMob のアカウントが停止されうる。
-const UNIT_ID = !Ads ? '' : __DEV__ ? Ads.TestIds.ADAPTIVE_BANNER : PROD_UNIT_ID;
+export const PLACEMENTS = {
+  // タブバーの直上に固定する帯
+  anchored: { unit: 'ca-app-pub-1494837719359912/3915570524', size: 'ANCHORED_ADAPTIVE_BANNER', test: 'ADAPTIVE_BANNER' },
+  // ホームの一番下（中サイズの四角）
+  homeBottom: { unit: 'ca-app-pub-1494837719359912/9747424628', size: 'MEDIUM_RECTANGLE', test: 'BANNER' },
+};
 
 // ティア別の表示可否。Web 版 config/tiers.js の AD_CONFIG と同じ考え方。
 // 課金が未実装なので実ログインユーザーは全員 free 扱い。
@@ -56,7 +61,7 @@ export const AD_TIERS = { guest: true, free: true, pro: false, family: false };
 const RETRY_MS = 60 * 1000;
 const MAX_RETRY = 5;
 
-export default function AnchoredAd({ tier = 'free' }) {
+export default function AnchoredAd({ tier = 'free', placement = 'anchored' }) {
   const t = useTheme();
   // 読み込みに失敗したら枠ごと畳む。空白が残るとタブバーが浮いて見える。
   const [failed, setFailed] = useState(false);
@@ -70,19 +75,27 @@ export default function AnchoredAd({ tier = 'free' }) {
 
   if (!Ads || !ADS_ENABLED || !AD_TIERS[tier] || failed) return null;
   const { BannerAd, BannerAdSize } = Ads;
+  const p = PLACEMENTS[placement];
 
   return (
     <View style={{
       backgroundColor: t.bg1,
       alignItems: 'center',
-      borderTopWidth: 1,
+      // 固定の帯は画面と地続きなので区切り線を引く。
+      // ホームの一番下は前のカードとの余白で切れているので、線は引かない。
+      borderTopWidth: placement === 'anchored' ? 1 : 0,
       borderTopColor: t.bd,
+      // 一番下の枠は、下にある固定の帯と続いて見えないよう離す。
+      // 広告どうしがくっついて見えると誤タップを招く。
+      marginBottom: placement === 'anchored' ? 0 : 12,
+      borderRadius: placement === 'anchored' ? 0 : 12,
+      overflow: 'hidden',
     }}>
       <BannerAd
         // 取り直すたびに新しい要求として出し直す
         key={attempt}
-        unitId={UNIT_ID}
-        size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+        unitId={__DEV__ ? Ads.TestIds[p.test] : p.unit}
+        size={BannerAdSize[p.size]}
         // 非パーソナライズに固定する。IDFA を使わないので ATT の許可ダイアログが不要になり、
         // 「家計データを外部に出さない」という訴求と矛盾しない。単価は下がるが意図した選択。
         requestOptions={{ requestNonPersonalizedAdsOnly: true }}

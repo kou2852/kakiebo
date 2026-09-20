@@ -18,6 +18,8 @@ import {
 } from '../../src/utils/bookkeeping';
 import { dueRecurring, pendingCC } from '../../src/utils/autoGen';
 import { useTourTarget } from '../../src/store/TourProvider';
+import { useOnboarding } from '../../src/store/OnboardingProvider';
+import Ad from '../../src/components/Ad';
 
 export default function Dashboard() {
   // ツアーで指し示す位置。要素そのものではなく囲みの View に付ける
@@ -26,6 +28,7 @@ export default function Dashboard() {
   const periodRef = useTourTarget('period-bar');
   const t = useTheme();
   const router = useRouter();
+  const onboarding = useOnboarding();
   const { loading, accounts, journals, budgets, recurring, wallets } = useData();
 
   // 収支は「期間中」、純資産と口座残高は「期間末の時点」（2026-09-15 決定）。
@@ -249,6 +252,9 @@ export default function Dashboard() {
           ))}
         </Card>
       ) : null}
+
+      {/* 一番下の広告。オンボーディング中は覆いの下に隠れるので読み込まない（TabBar と同じ理由） */}
+      {onboarding?.active ? null : <Ad placement="homeBottom" />}
     </Screen>
   );
 }
