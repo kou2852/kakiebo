@@ -5,19 +5,30 @@
 //   嘘になる。公開の瞬間を人間の記憶に頼らず機械で判定する。
 //
 // 判定:
-//   iTunes Lookup API が resultCount=1 を返し、公開予定日時（releaseDate）を過ぎていて、
-//   かつ製品ページが 200 を返すこと。
-//   実測（2026-09-09、審査待ちの時点）では未公開は resultCount=0 / ページ 404。
-//   予約注文の受付中は resultCount=1 でも releaseDate が未来になる（2026-09-19 に確認）。
+//   ① Lookup API が resultCount=1 を返す（審査中・未登録なら0件）
+//   ② 製品ページが 200 を返し、アプリ名が載っている
+//   ③ 製品ページに「予約注文」の印が無い
+//
+//   ③ の印は `"expectedReleaseDate":"..."`。予約受付中のページにだけ値が入る。
+//   実測（2026-09-21）: 当アプリ（予約中）= "2026年9月25日 リリース予定" が入る。
+//   公開済みの Facebook(284882215)・Netflix(363590051) のページには値が無い。
+//
+// ⚠ Lookup の releaseDate を公開時刻として使ってはいけない（2026-09-21 に判明）。
+//   あれは日付だけの値で、時刻は米国太平洋時間の0時に揃えられている。
+//     当アプリ  2026-09-25T07:00:00Z（夏時間 UTC-7 の0時）
+//     Facebook 2019-02-05T08:00:00Z（冬時間 UTC-8 の0時）
+//   App Store Connect の設定（このアプリは「2026年9月25日 6:00 JST 以降に自動リリース」）とは
+//   別物で、10時間ずれる。以前はこの値で「公開済みか」を判定していたため、実際に公開された後も
+//   16:00 JST まで「未公開」と答えるところだった。
 //
 // 使い方:
 //   node scripts/check-ios-live.mjs          … 公開なら exit 0、未公開なら exit 1
-const APP_ID = '6806592989';
+//   IOS_APP_ID=284882215 node scripts/check-ios-live.mjs   … 判定そのものを検証するとき
+const APP_ID = process.env.IOS_APP_ID || '6806592989';
 const COUNTRY = 'jp';
 // ⚠ アプリ名入りのURLで確かめる。予約注文を公開した直後は、短い /app/id… だけ数分 404 だった（2026-09-14）。
-// ⚠ 予約注文を公開した直後（2026-09-14）は Lookup が resultCount=0 だったが、5日後には1件返すようになった。
-//    件数だけでは予約中と公開済みを見分けられない。公開予定日時（releaseDate）も必ず見る。
-const PAGE = `https://apps.apple.com/${COUNTRY}/app/kurofukubo-%E8%A4%87%E5%BC%8F%E7%B0%BF%E8%A8%98%E3%81%AE%E5%AE%B6%E8%A8%88%E7%B0%BF/id${APP_ID}`;
+const DEFAULT_PAGE = `https://apps.apple.com/${COUNTRY}/app/kurofukubo-%E8%A4%87%E5%BC%8F%E7%B0%BF%E8%A8%98%E3%81%AE%E5%AE%B6%E8%A8%88%E7%B0%BF/id${APP_ID}`;
+const PAGE = process.env.IOS_APP_ID ? `https://apps.apple.com/${COUNTRY}/app/id${APP_ID}` : DEFAULT_PAGE;
 
 // ⚠ process.exit() は使わない。Windows の Node では fetch の接続が残っているうちに呼ぶと
 //    「Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)」で落ち、終了コードが 127 になる
@@ -35,25 +46,24 @@ async function main() {
 
   if (data.resultCount !== 1) {
     return fail(`まだ公開されていません（resultCount=${data.resultCount}）。\n`
-      + '  予約注文の受付中もここで止まります。「公開しました」の告知は公開日を待ってから出してください。');
+      + '  「公開しました」の告知は公開日を待ってから出してください。');
   }
 
   const app = data.results[0];
 
-  // ⚠ 予約注文の受付中でも Lookup は1件返す（2026-09-19 に確認。9/14 は0件だった）。
-  //   件数だけで判定していたため、公開6日前に「公開を確認しました」と答えていた。
-  //   公開予定日時（releaseDate）が今より先なら、まだ公開されていない。
-  //   なお予約中の値は 2026-09-25T07:00:00Z（日本時間 16:00）。日本では0時に出る可能性もあるが、
-  //   その場合もこの判定は16時まで「未公開」と答える。早まって「公開しました」を出すよりは安全側。
-  const releaseAt = Date.parse(app.releaseDate || app.currentVersionReleaseDate || '');
-  if (!Number.isFinite(releaseAt)) return fail('Lookup に公開日時がありません。判定できないので止めます');
-  if (releaseAt > Date.now()) {
-    const jst = new Date(releaseAt + 9 * 3600 * 1000).toISOString().replace('T', ' ').slice(0, 16);
-    return fail(`まだ公開されていません（予約注文の受付中。公開予定 ${jst} 日本時間）。`);
-  }
-
   const page = await fetch(PAGE, { redirect: 'follow' }).catch(() => null);
   if (!page || page.status !== 200) return fail(`製品ページが開けません（status=${page ? page.status : 'なし'}）`);
+  const html = await page.text().catch(() => '');
+
+  // ページを読めたことの裏取り。読めていないのに「印が無い＝公開済み」と答えないため。
+  if (!app.trackName || !html.includes(app.trackName)) {
+    return fail('製品ページにアプリ名が見つかりません。ページの作りが変わった可能性があるので、判定せずに止めます');
+  }
+
+  const preorder = html.match(/"expectedReleaseDate"\s*:\s*"([^"]+)"/);
+  if (preorder) {
+    return fail(`まだ予約注文の受付中です（ページの表示: ${preorder[1]}）。`);
+  }
 
   console.log('✓ 公開を確認しました');
   console.log(`  名前     : ${app.trackName}`);
