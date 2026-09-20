@@ -1299,6 +1299,26 @@
       ]
     },
     {
+      "id": "demo0054",
+      "date": "2026-09-05",
+      "desc": "電気・ガス・水道",
+      "lines": [
+        {
+          "accountId": "e03",
+          "side": "dr",
+          "amount": 13330,
+          "taxRate": 0,
+          "tagId": "t2"
+        },
+        {
+          "accountId": "a02",
+          "side": "cr",
+          "amount": 13330,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
       "id": "demo0058",
       "date": "2026-09-02",
       "desc": "書籍",
@@ -1313,6 +1333,84 @@
           "accountId": "b03",
           "side": "cr",
           "amount": 1720,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0059",
+      "date": "2026-09-03",
+      "desc": "セブン-イレブン",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 1000,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "a01",
+          "side": "cr",
+          "amount": 1000,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0060",
+      "date": "2026-09-04",
+      "desc": "書籍",
+      "lines": [
+        {
+          "accountId": "e11",
+          "side": "dr",
+          "amount": 1310,
+          "taxRate": 0
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 1310,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0061",
+      "date": "2026-09-05",
+      "desc": "書籍",
+      "lines": [
+        {
+          "accountId": "e11",
+          "side": "dr",
+          "amount": 2570,
+          "taxRate": 0
+        },
+        {
+          "accountId": "b03",
+          "side": "cr",
+          "amount": 2570,
+          "taxRate": 0
+        }
+      ]
+    },
+    {
+      "id": "demo0062",
+      "date": "2026-09-06",
+      "desc": "セブン-イレブン",
+      "lines": [
+        {
+          "accountId": "e01",
+          "side": "dr",
+          "amount": 1090,
+          "taxRate": 0,
+          "tagId": "t1"
+        },
+        {
+          "accountId": "a01",
+          "side": "cr",
+          "amount": 1090,
           "taxRate": 0
         }
       ]

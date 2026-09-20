@@ -764,3 +764,44 @@ sam deploy --config-env prod --parameter-overrides "... ApplePrivateKey=$sec App
 
 **Hide My Email のアカウントには、こちらからメールを送れない。** 中継の転送は送信元ドメインを
 Apple に登録している場合のみ機能する。メール本文で本人に届ける前提の機能を足すときは、ここを見直すこと。
+
+
+## 1.0.1 に回したもの
+
+### Cognito Hosted UI のカスタムドメイン（`auth.kurofukubo.com`）
+
+**症状。** 「Appleで続ける」「Google で続ける」を押すと、iOS の
+`ASWebAuthenticationSession` が出す確認ダイアログに
+
+> "kurofukubo"がサインインするために**"amazoncognito.com"**を使用しようとしています
+
+と表示される。続くブラウザにも
+`kurofukubo-auth-prod.auth.ap-northeast-1.amazoncognito.com` が出る。
+Apple でサインインするつもりの利用者に見慣れないドメインを見せることになり、
+金銭を扱うアプリでは離脱要因になる。
+
+**審査上の問題ではない。** ガイドラインの論点ではなく、Auth0・Firebase・Cognito を
+使う多数のアプリで同じ表示になる。1.0 を止める理由にはならないと判断した（2026-09-07）。
+
+**1.0 で直さなかった理由。** ドメインを変えると次が連鎖し、ビルドし直しになる。
+
+| 変える先 | 作業 |
+|---|---|
+| Cognito | カスタムドメイン作成（本番変更）、Route53 に A レコード |
+| Apple Services ID | Domains と Return URLs を貼り直し |
+| Google Cloud Console | 承認済みリダイレクトURIを貼り直し |
+| `mobile/src/config.js` の `authDomain` | **アプリのコード変更＝再ビルド** |
+
+切り替えの瞬間、旧ドメインを焼き込んだ既存アプリが認証できなくなる。
+移行の段取り（両ドメイン併存の可否、強制アップデートの要否）を先に決めること。
+
+**下地は確認済み（2026-09-07）。**
+
+- Route53 ホストゾーン `kurofukubo.com` あり
+- ACM(us-east-1) の `app.kurofukubo.com` 証明書に **`*.kurofukubo.com` が含まれる**
+  → `auth.kurofukubo.com` を**新規発行なしで覆える**。証明書の待ち時間はゼロ
+  （Cognito のカスタムドメインは us-east-1 の証明書が必須）
+
+**緩和策（未実施）。** ドメインを変えずとも、外部ログインのボタン付近に
+「Apple / Google の認証画面が開きます（安全のため端末のブラウザで行われます）」
+と添えるだけで印象は変わる。`app/connect.jsx` のテキスト追加だけで済む。
