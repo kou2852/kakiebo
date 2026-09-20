@@ -33,8 +33,12 @@
 // ※ 送信はgtag.jsがページ離脱時に navigator.sendBeacon を使うため、遷移で欠落しない。
 (function () {
   if (!window.gtag) return; // 自己除外(kk_noanalytics)でGAを読んでいない場合は何もしない
-  // index.htmlの4つのCTAは同じclass・同じURLで区別がつかないので、文書順の番号で位置を表す
-  // （1=ナビ, 2=ヒーロー, 3=本文下, 4=追従バー）。ガイド記事はidもclassの差も無いため同様。
+  // index.htmlのCTAは同じclass・同じURLで区別がつかないので、文書順の番号で位置を表す。
+  // ただし番号は「その時点の文書順」なので、セクションを挿入すると意味がずれる。
+  //   〜2026-09-08: 1=ナビ, 2=ヒーロー, 3=本文下, 4=追従バー
+  //   2026-09-09〜: 1=ナビ, 2=ヒーロー, 3=iOSセクション, 4=本文下, 5=追従バー（iOS告知の追加でずれた）
+  // この日付をまたいで cta_location を比較しないこと。区別が要るときは cta_text を使う。
+  // ガイド記事は本文中CTAを utm_content の -mid で判別できる。
   function ctaList() {
     return [].filter.call(document.querySelectorAll('a[href]'), function (x) {
       return x.hostname === 'app.kurofukubo.com';
