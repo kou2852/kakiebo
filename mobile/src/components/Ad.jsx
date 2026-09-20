@@ -79,17 +79,16 @@ export default function AnchoredAd({ tier = 'free', placement = 'anchored' }) {
 
   return (
     <View style={{
-      backgroundColor: t.bg1,
+      // ホームの一番下はカードにせず、区切り線だけ引いて地の上に置く。
+      // 白い箱に入れると帳簿のカードと同じ見た目になり、アプリの一部と紛らわしい。
+      backgroundColor: placement === 'anchored' ? t.bg1 : 'transparent',
       alignItems: 'center',
-      // 固定の帯は画面と地続きなので区切り線を引く。
-      // ホームの一番下は前のカードとの余白で切れているので、線は引かない。
-      borderTopWidth: placement === 'anchored' ? 1 : 0,
+      borderTopWidth: 1,
       borderTopColor: t.bd,
       // 一番下の枠は、下にある固定の帯と続いて見えないよう離す。
       // 広告どうしがくっついて見えると誤タップを招く。
+      paddingTop: placement === 'anchored' ? 0 : 12,
       marginBottom: placement === 'anchored' ? 0 : 12,
-      borderRadius: placement === 'anchored' ? 0 : 12,
-      overflow: 'hidden',
     }}>
       <BannerAd
         // 取り直すたびに新しい要求として出し直す
