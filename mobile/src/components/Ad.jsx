@@ -83,11 +83,12 @@ export default function AnchoredAd({ tier = 'free', placement = 'anchored' }) {
       // 白い箱に入れると帳簿のカードと同じ見た目になり、アプリの一部と紛らわしい。
       backgroundColor: placement === 'anchored' ? t.bg1 : 'transparent',
       alignItems: 'center',
-      borderTopWidth: 1,
+      // ホームの一番下は線を少し太くして、帳簿の終わりだとはっきり分かるようにする。
+      borderTopWidth: placement === 'anchored' ? 1 : 1.5,
       borderTopColor: t.bd,
       // 一番下の枠は、下にある固定の帯と続いて見えないよう離す。
       // 広告どうしがくっついて見えると誤タップを招く。
-      paddingTop: placement === 'anchored' ? 0 : 12,
+      paddingTop: placement === 'anchored' ? 0 : 20,
       marginBottom: placement === 'anchored' ? 0 : 12,
     }}>
       <BannerAd

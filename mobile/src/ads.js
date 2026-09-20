@@ -14,7 +14,9 @@ try { Ads = require('react-native-google-mobile-ads'); } catch { Ads = null; }
 // 端末IDの調べ方: 本番IDでアプリを起動し、Xcode か端末ログに出る
 //   <Google> To get test ads on this device, set: GADMobileAds...testDeviceIdentifiers = @[ @"..." ]
 // の文字列をここに足す。
-const TEST_DEVICES = [];
+const TEST_DEVICES = [
+  '38cca2af0109f5c8f92f1cb8feda037b', // 開発者の iPhone（2026-09-20 取得）
+];
 
 let started = false;
 
