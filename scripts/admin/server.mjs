@@ -10,7 +10,7 @@
 
 import { createServer } from 'node:http';
 import { spawnSync } from 'node:child_process';
-import { readdirSync, readFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -26,39 +26,14 @@ const TABLE = 'kakeibo-prod'; // DynamoDB（ご意見は固定PK 'FEEDBACK' 配�
 const CLEANUP_LOG_GROUP = '/aws/lambda/kakeibo-saas-prod-CleanupUnconfirmedFunction-GvWvO3WXvqhh';
 const API_LOG_GROUP = '/aws/apigateway/kakeibo-saas-prod'; // API Gatewayのアクセスログ（保持90日）
 const CACHE_DIR = join(__dirname, '.cache-cflogs');
+const PF_CACHE_DIR = join(__dirname, '.cache-platforms'); // 端末別集計の日別キャッシュ
 
-// analyze-cflogs.mjs と同一の判定ルール
-// 既知の自分IPプレフィックス（変動あり）。IPv6は再接続で変わるため、増えたら追記する。
-// 判定は前方一致なので、除外漏れに気づいたら `curl https://api64.ipify.org` で現IPを確認して足す。
-const SELF_PREFIXES = ['240d:f:a2c:6300', '240d:1f:a2c:6300', '240f:6e:e188:'];
-const BOT = /bot|spider|crawl|checker|ruby|preview|slurp|fetch|facebookexternalhit|embedly|monitoring|headless|curl|wget|python-requests|python-httpx|okhttp|axios|node-fetch|libwww|winhttp|go-http-client|scan|nmap|nikto|sqlmap|masscan|censys|shodan|palo alto networks/i;
-const SUSPICIOUS_QUERY = /phpinfo|\.env(\W|$)|wp-admin|wp-login|eval\(|union(\s|%20)+select|\.\.\/|etc\/passwd/i;
-const dec = (s) => { try { return decodeURIComponent(s); } catch { return s; } };
-// 現行ブラウザは自動更新されるため、極端に古いバージョン文字列は偽装/スキャンツールの兆候
-const isOutdatedUa = (ua) => {
-  const chrome = ua.match(/Chrome\/(\d+)/);
-  if (chrome && Number(chrome[1]) < 110) return true;
-  const ios = ua.match(/CPU iPhone OS (\d+)_/);
-  if (ios && Number(ios[1]) < 15) return true;
-  return false;
-};
-
-// 集計と表示は日本時間で行う。CloudFront のログはUTCなので、日付だけを見ると
-// 朝9時より前の利用が前日に計上され、見ている感覚と1日ずれる。
-// 日付+時刻から +9時間して、本当のJST日に振り直す。
-const JST_OFFSET = 9 * 3600 * 1000;
-const jstDay = (date, time) => new Date(Date.parse(`${date}T${time}Z`) + JST_OFFSET).toISOString().slice(0, 10);
-const jstDayOfIso = (iso) => new Date(Date.parse(iso) + JST_OFFSET).toISOString().slice(0, 10);
-
-// 直近 days 日ぶんの日付文字列(YYYY-MM-DD、JST)を返す
-function lastDays(days) {
-  const out = [];
-  const now = Date.now() + JST_OFFSET;
-  for (let i = 0; i < days; i++) {
-    out.push(new Date(now - i * 86400000).toISOString().slice(0, 10));
-  }
-  return out;
-}
+// 判定ルール（ボット・自分IP・ファネル・状態の基準）は Discord 定時レポートと共有している。
+// 自分IPプレフィックス SELF_PREFIXES もそちらにある。
+import {
+  BOT, SUSPICIOUS_QUERY, dec, isOutdatedUa, jstDayOfIso, lastDays, parseLogs, classify, countEvents, funnelOf,
+  summarizeUsers, isWaitingInquiry, judgeChecks, judgeCsp, judgeSignals, signalsOf, signalQueries, cspStateOf,
+} from './report/src/metrics.mjs';
 
 // S3から直近days日ぶんのログを増分同期（ファイル名: app/<distId>.YYYY-MM-DD-HH.hash.gz）
 // ファイル名はUTC日なので、JSTの当日ぶんを取りこぼさないよう前後1日を余分に取る。
@@ -95,50 +70,7 @@ function getRegisteredUsers(days) {
     ], '登録ユーザー数の取得');
   } catch { return null; } // 認証切れ等でも他の数字は出す
   if (!Array.isArray(users)) return null;
-  // 連合ログインのプロバイダは Username の接頭辞で分かる（Cognito が付ける）。
-  // 'Google_xxx' / 'SignInWithApple_xxx' / それ以外はメール登録（Username は sub）。
-  //
-  // ⚠ 以前は EXTERNAL_PROVIDER を全部「Google」に寄せていた。合計は合うが、
-  //   Apple を入れた効果が測れない。最初の Apple 利用者が来る前に直しておく。
-  const provider = (username) => (username?.startsWith('Google_') ? 'google'
-    : username?.startsWith('SignInWithApple_') ? 'apple' : 'email');
-
-  const by = {};
-  for (const [s] of users) by[s] = (by[s] || 0) + 1;
-  const unconfirmed = by.UNCONFIRMED || 0;
-
-  const byProvider = { google: 0, apple: 0, email: 0 };
-  for (const [st, , un] of users) if (st !== 'UNCONFIRMED') byProvider[provider(un)]++;
-
-  // 期間内の新規登録。ログのビーコンではなく Cognito の作成日時を正とする。
-  // ビーコン(registered)は Google のログインも数えてしまうので獲得数には使えない。
-  const since = days ? Date.now() - days * 86400000 : null;
-  const inPeriod = since == null ? null
-    : users.filter(([s, created]) => s !== 'UNCONFIRMED' && new Date(created).getTime() >= since).length;
-
-  // 日別の新規登録。日付はJSTで切る（アクセスログ側もJSTに揃えてあるため）。
-  const dayMap = {};
-  for (const [s, created, un] of users) {
-    if (s === 'UNCONFIRMED') continue;
-    const t = new Date(created).getTime();
-    if (since != null && t < since) continue;
-    const day = jstDayOfIso(created);
-    const e = (dayMap[day] ||= { date: day, count: 0, google: 0, apple: 0, email: 0 });
-    e.count++;
-    e[provider(un)]++;
-  }
-  const byDay = Object.keys(dayMap).sort().map((k) => dayMap[k]);
-
-  // 本数は「全件 − 未確認」。RESET_REQUIRED 等の未知の状態が出ても本数側に入り取りこぼさない
-  return {
-    total: users.length - unconfirmed,
-    unconfirmed,
-    google: byProvider.google,         // Googleログイン。確認コードの概念がなく常に確認済み
-    apple: byProvider.apple,           // Sign in with Apple。同上
-    email: byProvider.email,           // メール登録で確認コードを通した人
-    inPeriod,                          // 期間内の新規登録（null = 期間指定なし）
-    byDay,                             // 期間内の新規登録の日別内訳（登録があった日のみ）
-  };
+  return summarizeUsers(users, days ? Date.now() - days * 86400000 : null);
 }
 
 // ── 「状態」タブ ──────────────────────────────────────────────
@@ -179,35 +111,87 @@ const medianOf = (a) => {
   return t.length % 2 ? t[m] : (t[m - 1] + t[m]) / 2;
 };
 
+// APIアクセスログは CloudWatch Logs Insights で取る。
+// 以前は filter-log-events をページごとに aws CLI を起動し直して読んでいたが、ログ全体が1MBでも
+// 45〜91ページに分かれ、14日で54秒・30日で121秒かかっていた（1ページあたり CLI起動0.6秒＋API）。
+// Insights はサーバー側で絞り込むので、同じ期間が2.5〜4.4秒で返る。
+const INSIGHTS_LIMIT = 10000;
+
+// Insights の @timestamp は "YYYY-MM-DD hh:mm:ss.SSS"(UTC)。そのまま Date.parse すると
+// ローカル時刻と解釈されてJSTが二重に足されるため、明示的にUTCとして読む。
+const insightsMs = (s) => Date.parse(String(s).replace(' ', 'T') + 'Z');
+const jstDayStartMs = (day) => Date.parse(`${day}T00:00:00+09:00`);
+
+/** 指定区間の認証済みリクエストを取る。取得上限に達したら区間を半分に割って取り直す */
+function queryApiLogs(startMs, endMs) {
+  const q = 'fields @timestamp, sub, ua, method, path'
+    + ' | filter ispresent(sub) and sub != "-" and method != "OPTIONS"'
+    + ` | limit ${INSIGHTS_LIMIT}`;
+  const started = awsJson(['logs', 'start-query', '--log-group-name', API_LOG_GROUP,
+    '--start-time', String(Math.floor(startMs / 1000)), '--end-time', String(Math.floor(endMs / 1000)),
+    '--query-string', q, '--limit', String(INSIGHTS_LIMIT)], 'APIアクセスログの取得');
+  let r;
+  for (let i = 0; ; i++) {
+    r = awsJson(['logs', 'get-query-results', '--query-id', started.queryId], 'APIアクセスログの取得');
+    if (r.status !== 'Running' && r.status !== 'Scheduled') break;
+    if (i > 60) throw new Error('APIアクセスログの取得が終わりません'); // 1回0.6秒程度なので実質40秒で打ち切り
+  }
+  if (r.status !== 'Complete') throw new Error(`APIアクセスログの取得に失敗しました（${r.status}）`);
+  // 値が無い項目は行ごと欠ける（ua は書式に追加する前の行に存在しない）
+  const rows = (r.results || []).map((fields) => Object.fromEntries(fields.map((f) => [f.field, f.value])));
+  if (rows.length >= INSIGHTS_LIMIT && endMs - startMs > 3600000) {
+    const mid = startMs + Math.floor((endMs - startMs) / 2);
+    return [...queryApiLogs(startMs, mid), ...queryApiLogs(mid, endMs)];
+  }
+  return rows;
+}
+
+// 過ぎたJST日ぶんの集計は変わらないので、日ごとに {sub: {端末: [リクエスト, 記帳]}} を保存して取り直さない。
+// 当日は確定しないため毎回問い合わせる。sub はこのファイルにも入るが、元のログにあるもの以上は持たない。
+const pfCachePath = (day) => join(PF_CACHE_DIR, `${day}.json`);
+const readPfCache = (day) => {
+  try { return JSON.parse(readFileSync(pfCachePath(day), 'utf8')); } catch { return null; }
+};
+
 function getPlatforms(days) {
-  const start = Date.now() - days * 86400000;
-  const rows = [];
-  let token = null;
-  try {
-    do {
-      const args = ['logs', 'filter-log-events', '--log-group-name', API_LOG_GROUP,
-        '--start-time', String(start), '--limit', '10000'];
-      if (token) args.push('--next-token', token);
-      const r = awsJson(args, 'APIアクセスログの取得');
-      for (const e of r.events || []) {
-        try { rows.push({ t: e.timestamp, ...JSON.parse(e.message) }); } catch { /* 書式外の行は捨てる */ }
-      }
-      token = r.nextToken || null;
-    } while (token && rows.length < 200000); // 暴走防止
-  } catch { return null; }
+  const wanted = lastDays(days).sort(); // 古い順のJST日。期間の区切りは画面の他の数字と揃える
+  const today = lastDays(1)[0];
+  const perDay = {};
+  const missing = [];
+  for (const d of wanted) {
+    const c = d === today ? null : readPfCache(d); // 当日は確定しないので毎回取り直す
+    if (c) perDay[d] = c; else missing.push(d);
+  }
+
+  if (missing.length) {
+    let rows;
+    try { rows = queryApiLogs(jstDayStartMs(missing[0]), Date.now()); } catch { return null; }
+    // 取り直した区間は、1件も無かった日も空で上書きする（「空の日」と「未取得」を区別するため）
+    const span = wanted.filter((d) => d >= missing[0]);
+    for (const d of span) perDay[d] = {};
+    for (const r of rows) {
+      const d = jstDayOfIso(new Date(insightsMs(r['@timestamp'])).toISOString());
+      if (!perDay[d]) continue; // 区間の端で期間外に落ちる行
+      const slot = ((perDay[d][r.sub] ||= {})[platformOf(r.ua)] ||= [0, 0]);
+      slot[0]++;
+      if (isWriteReq(r.method, r.path || '')) slot[1]++;
+    }
+    if (!existsSync(PF_CACHE_DIR)) mkdirSync(PF_CACHE_DIR, { recursive: true });
+    for (const d of span) { if (d !== today) writeFileSync(pfCachePath(d), JSON.stringify(perDay[d])); }
+  }
 
   const byPf = {};
-  for (const r of rows) {
-    // 認証が通っていない行とプリフライトは人の活動ではない。混ぜると実態より多く出る。
-    if (!r.sub || r.sub === '-' || r.method === 'OPTIONS') continue;
-    const k = platformOf(r.ua);
-    const e = (byPf[k] ||= { requests: 0, writes: 0, users: new Set(), days: new Map() });
-    e.requests++;
-    if (isWriteReq(r.method, r.path || '')) e.writes++;
-    e.users.add(r.sub);
-    const d = jstDayOfIso(new Date(r.t).toISOString());
-    if (!e.days.has(r.sub)) e.days.set(r.sub, new Set());
-    e.days.get(r.sub).add(d);
+  for (const d of wanted) {
+    for (const [sub, pfs] of Object.entries(perDay[d] || {})) {
+      for (const [pf, [req, wr]] of Object.entries(pfs)) {
+        const e = (byPf[pf] ||= { requests: 0, writes: 0, users: new Set(), days: new Map() });
+        e.requests += req;
+        e.writes += wr;
+        e.users.add(sub);
+        if (!e.days.has(sub)) e.days.set(sub, new Set());
+        e.days.get(sub).add(d);
+      }
+    }
   }
 
   const out = Object.entries(byPf).map(([platform, e]) => {
@@ -226,47 +210,24 @@ function getPlatforms(days) {
 }
 
 function getSignals() {
-  const q = (Id, Namespace, MetricName, Stat, Dimensions) => ({
-    Id, MetricStat: { Metric: { Namespace, MetricName, ...(Dimensions ? { Dimensions } : {}) }, Period: 86400, Stat },
-  });
-  const api = [{ Name: 'ApiName', Value: 'kakeibo-saas-prod' }];
   let r;
   try {
     r = awsJson(['cloudwatch', 'get-metric-data', '--region', 'ap-northeast-1',
       '--start-time', iso(Date.now() - 86400000), '--end-time', iso(Date.now()),
-      '--metric-data-queries', JSON.stringify([
-        q('count', 'AWS/ApiGateway', 'Count', 'Sum', api),
-        q('e5', 'AWS/ApiGateway', '5XXError', 'Sum', api),
-        q('e4', 'AWS/ApiGateway', '4XXError', 'Sum', api),
-        q('p99', 'AWS/ApiGateway', 'Latency', 'p99', api),
-        q('lerr', 'AWS/Lambda', 'Errors', 'Sum'),
-        q('linv', 'AWS/Lambda', 'Invocations', 'Sum'),
-        q('lthr', 'AWS/Lambda', 'Throttles', 'Sum'),
-        q('dthr', 'AWS/DynamoDB', 'ThrottledRequests', 'Sum', [{ Name: 'TableName', Value: TABLE }]),
-      ]),
+      '--metric-data-queries', JSON.stringify(signalQueries('kakeibo-saas-prod', TABLE)),
     ], '監視指標の取得');
   } catch { return null; }
   const v = {};
   for (const m of r.MetricDataResults || []) v[m.Id] = m.Values?.[0] ?? 0;
-  return {
-    requests: v.count, err5: v.e5, err4: v.e4, p99: v.p99,
-    lambdaErrors: v.lerr, lambdaInvocations: v.linv, lambdaThrottles: v.lthr,
-    ddbThrottles: v.dthr,
-    errorRate: v.count ? (v.e5 / v.count) * 100 : 0,
-  };
+  return signalsOf(v);
 }
 
 // 当月のAWS費用の表示は撤去した。Cost Explorer API は1リクエスト $0.01 の従量課金で、
 // この画面を開くだけで請求の最大費目になっていた（2026-08は21回で$0.21）。費用は
 // Billing コンソール（無料）か Budgets のアラートで見る。
 
-/** 前提チェック。ok / warn / bad と、判断に使った実測値を返す */
+/** 前提チェック。ok / warn / bad と、判断に使った実測値を返す（判定の基準は metrics.mjs の judgeChecks） */
 function getChecks() {
-  const out = [];
-  const add = (level, label, value, note) => out.push({ level, label, value, note });
-
-  // 1) メール送信の経路。SESがサンドボックスのまま SesIdentityArn を入れると
-  //    未検証アドレスへ確認コードが1通も届かなくなる（2026-08-02〜09 に実際に起きた）
   let pool = null; let ses = null;
   try {
     pool = awsJson(['cognito-idp', 'describe-user-pool', '--user-pool-id', USER_POOL_ID,
@@ -276,37 +237,22 @@ function getChecks() {
     ses = awsJson(['sesv2', 'get-account', '--region', 'ap-northeast-1',
       '--query', '{prod:ProductionAccessEnabled}'], 'SES状態の取得');
   } catch { /* noop */ }
-  const sending = pool?.EmailSendingAccount || '不明';
-  if (pool == null) add('warn', 'メール送信の経路', '取得できず');
-  else if (sending === 'DEVELOPER' && ses && ses.prod === false) {
-    add('bad', 'メール送信の経路', 'SES経由 × サンドボックス',
-      '未検証アドレスに確認コードが届きません。SesIdentityArn を空にしてください');
-  } else add('ok', 'メール送信の経路', sending === 'COGNITO_DEFAULT' ? 'Cognito標準送信' : sending);
 
-  // 2) 確認されないまま滞留しているサインアップ。放置すると本人が再登録できない
+  let unconfirmedCreated = null;
   try {
-    const us = awsJson(['cognito-idp', 'list-users', '--user-pool-id', USER_POOL_ID,
-      '--query', 'Users[?UserStatus==`UNCONFIRMED`].UserCreateDate'], '未確認ユーザーの取得');
-    const oldest = (us || []).reduce((m, d) => Math.max(m, (Date.now() - new Date(d).getTime()) / 86400000), 0);
-    if (!us?.length) add('ok', '未確認のまま滞留', 'なし');
-    else add(oldest >= 3 ? 'warn' : 'ok', '未確認のまま滞留',
-      `${us.length}件 / 最長 ${oldest.toFixed(1)}日`, oldest >= 3 ? '掃除ジョブが次回削除します' : null);
-  } catch { add('warn', '未確認のまま滞留', '取得できず'); }
+    unconfirmedCreated = awsJson(['cognito-idp', 'list-users', '--user-pool-id', USER_POOL_ID,
+      '--query', 'Users[?UserStatus==`UNCONFIRMED`].UserCreateDate'], '未確認ユーザーの取得') || [];
+  } catch { /* 取得できず */ }
 
-  // 3) 掃除ジョブが実際に動いているか（EventBridge の設定ではなく実行ログを見る）
+  let cleanupLastTs; // undefined = 取得できず / null = 直近3日で実行なし
   try {
-    const ev = awsJson(['logs', 'filter-log-events',
+    cleanupLastTs = awsJson(['logs', 'filter-log-events',
       '--log-group-name', CLEANUP_LOG_GROUP, '--filter-pattern', 'CLEANUP_UNCONFIRMED',
       '--start-time', String(Date.now() - 3 * 86400000), '--region', 'ap-northeast-1',
-      '--query', 'events[-1].timestamp'], '掃除ジョブの確認');
-    if (!ev) add('warn', '掃除ジョブの前回実行', '直近3日で実行なし', 'スケジュールを確認してください');
-    else {
-      const h = (Date.now() - Number(ev)) / 3600000;
-      add(h > 30 ? 'warn' : 'ok', '掃除ジョブの前回実行', `${h.toFixed(0)}時間前`);
-    }
-  } catch { add('warn', '掃除ジョブの前回実行', '取得できず'); }
+      '--query', 'events[-1].timestamp'], '掃除ジョブの確認') || null;
+  } catch { /* 取得できず */ }
 
-  return { checks: out, emailSending: sending, sesProduction: ses?.prod ?? null };
+  return judgeChecks({ pool, sesProduction: ses?.prod ?? null, unconfirmedCreated, cleanupLastTs }, Date.now());
 }
 
 /** 本番が実際に返しているヘッダーを見る。設定ではなく配信結果を確認する */
@@ -316,7 +262,7 @@ async function getLiveHeaders() {
     const csp = r.headers.get('content-security-policy');
     const ro = r.headers.get('content-security-policy-report-only');
     return {
-      csp: csp ? (ro ? 'both' : 'enforce') : (ro ? 'report-only' : 'none'),
+      csp: cspStateOf(csp, ro),
       hsts: !!r.headers.get('strict-transport-security'),
       bundle: null,
     };
@@ -369,7 +315,7 @@ function getInquiries() {
 
   out.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
   // 最後がユーザー発言＝こちらの返信待ち
-  const waiting = out.filter((t) => t.status !== 'closed' && t.messages.at(-1)?.from === 'user').length;
+  const waiting = out.filter((t) => isWaitingInquiry({ status: t.status, lastFrom: t.messages.at(-1)?.from })).length;
   return { total: out.length, waiting, items: out, generatedAt: new Date().toISOString().replace('T', ' ').slice(0, 19) };
 }
 
@@ -523,38 +469,15 @@ function buildJourneys(rows, isBot, isSelf) {
 function analyze(days) {
   const wanted = new Set(lastDays(days));
   const files = existsSync(CACHE_DIR) ? readdirSync(CACHE_DIR).filter((f) => f.endsWith('.gz')) : [];
-  const rows = [];
-  // self判定に使う selftest の送信元は、期間で絞る前に集める。期間内の行だけから集めると
-  // self の集合が期間ごとに変わり、同じ日の数字が期間の切替でずれる（7日と90日で違う値が出る）。
-  const selfIps = new Set();
-  for (const f of files) {
-    let txt;
-    try { txt = gunzipSync(readFileSync(join(CACHE_DIR, f))).toString('utf8'); } catch { continue; }
-    for (const line of txt.split('\n')) {
-      if (!line || line[0] === '#') continue;
-      const c = line.split('\t');
-      if (c.length < 12) continue;
-      if (/selftest/i.test(dec(c[11]))) selfIps.add(c[4]); // 期間外の行からも拾う
-      const date = jstDay(c[0], c[1]);                     // UTCログ → JST日
-      if (!wanted.has(date)) continue;                     // 期間外を除外
-      rows.push({ date, time: c[1], ip: c[4], uri: c[7], status: c[8], ref: c[9], ua: c[10], q: c[11] });
+  const texts = function* () {
+    for (const f of files) {
+      try { yield gunzipSync(readFileSync(join(CACHE_DIR, f))).toString('utf8'); } catch { /* 壊れたファイルは飛ばす */ }
     }
-  }
-
-  const isSelf = (ip) => SELF_PREFIXES.some((p) => ip.startsWith(p)) || selfIps.has(ip);
+  };
+  const { rows, selfIps } = parseLogs(texts(), wanted);
+  const { isBot, isSelf, isBurst, opens, humanOpens, botOpens, selfOpens } = classify(rows, selfIps);
 
   const dates = rows.map((r) => r.date).filter(Boolean).sort();
-  const opens = rows.filter((r) => r.uri === '/' || r.uri === '/index.html');
-
-  // バースト検知: 同一IP+UA+同一秒に3回以上のオープンは人間の閲覧挙動ではなく自動スキャン
-  const burstKey = (r) => r.ip + '|' + r.ua + '|' + r.date + '|' + r.time;
-  const burstCount = {};
-  for (const r of opens) { const k = burstKey(r); burstCount[k] = (burstCount[k] || 0) + 1; }
-  const isBot = (r) => BOT.test(dec(r.ua)) || SUSPICIOUS_QUERY.test(dec(r.q)) || burstCount[burstKey(r)] >= 3 || isOutdatedUa(dec(r.ua));
-
-  const humanOpens = opens.filter((r) => !isBot(r) && !isSelf(r.ip));
-  const botOpens = opens.filter((r) => isBot(r));
-  const selfOpens = opens.filter((r) => !isBot(r) && isSelf(r.ip));
   const humanIps = new Set(humanOpens.map((r) => r.ip));
 
   // 除外の理由別内訳。「人間0」のときに何で弾かれたのかを追えるようにする
@@ -564,7 +487,7 @@ function analyze(days) {
     const ua = dec(r.ua);
     if (BOT.test(ua)) return 'UAがボット';
     if (SUSPICIOUS_QUERY.test(dec(r.q))) return '不審なクエリ';
-    if (burstCount[burstKey(r)] >= 3) return '同一秒に3回以上';
+    if (isBurst(r)) return '同一秒に3回以上';
     if (isOutdatedUa(ua)) return '古すぎるUA';
     if (isSelf(r.ip)) return '自分IP';
     return null;
@@ -663,50 +586,10 @@ function analyze(days) {
   const botUa = Object.entries(botCnt).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([ua, count]) => ({ ua, count }));
 
   // 自前イベント計測(/_e/*、bot/self除外)
-  const evTotal = {}, evByDayMap = {};
-  for (const r of rows) {
-    const m = r.uri && r.uri.match(/^\/_e\/([a-z0-9_-]+)$/i);
-    if (!m || isBot(r) || isSelf(r.ip)) continue;
-    const name = m[1];
-    evTotal[name] = (evTotal[name] || 0) + 1;
-    ((evByDayMap[r.date] ||= {})[name] = (evByDayMap[r.date][name] || 0) + 1);
-  }
+  const { total: evTotal, byDay: evByDayMap } = countEvents(rows, isBot, isSelf);
   const gs = evTotal['guest_start'] || 0, ja = evTotal['journal_added'] || 0;
   const n = (k) => evTotal[k] || 0;
-
-  // 獲得ファネル。各段はブラウザごとに1回だけ発火するイベント＝「人数」として読める。
-  // 起動(app_first)を分母に、どこで落ちているかを見る。
-  // auth_view はここに入れない：?guest で来た人はログイン画面を通らないため、
-  // 「ログイン画面を見た」は「ゲスト開始」の上位集合にならず、前段比が意味を持たない。
-  const funnel = [
-    { key: 'app_first', label: '起動（新規訪問）', count: n('app_first') },
-    { key: 'guest_first', label: 'ゲスト開始', count: n('guest_first') },
-    { key: 'first_journal', label: '初回記帳', count: n('first_journal') },
-    // ログのビーコン。Google は「このブラウザで初めてログインした」時点で発火するため、
-    // 既存ユーザーの別端末ログインも数える＝獲得数ではない。実際の登録数は
-    // 上部KPI（Cognito由来）が正。同じ画面で「登録」が2つ並んで取り違えるのを避け、名前を分けた。
-    { key: 'registered', label: '初回ログイン(端末別)', count: n('registered') },
-  ];
-  const base = funnel[0].count;
-  for (const f of funnel) f.rate = base ? Number(((f.count / base) * 100).toFixed(1)) : null;
-
-  // 入口の内訳。ログイン画面に当たった人と、LPから ?guest で直行した人の比率。
-  const av = n('auth_view');
-  const entry = {
-    authView: av,
-    authRate: base ? Number(((av / base) * 100).toFixed(1)) : null,
-    direct: Math.max(0, base - av),
-    directRate: base ? Number((((base - av) / base) * 100).toFixed(1)) : null,
-  };
-
-  // 継続。分母は「ゲスト開始した人」。d1 ≥ d7 ≥ d30 の絞り込みになる。
-  const gf = n('guest_first');
-  const retention = [
-    { key: 'retain_d1', label: '翌日以降に再訪', count: n('retain_d1') },
-    { key: 'retain_d7', label: '7日以降に再訪', count: n('retain_d7') },
-    { key: 'retain_d30', label: '30日以降に再訪', count: n('retain_d30') },
-  ];
-  for (const r of retention) r.rate = gf ? Number(((r.count / gf) * 100).toFixed(1)) : null;
+  const { funnel, entry, retention } = funnelOf(evTotal);
 
   const events = {
     total: Object.entries(evTotal).sort((a, b) => b[1] - a[1]).map(([name, count]) => ({ name, count })),
@@ -1035,6 +918,7 @@ const PF_JA = {ios:'iPhoneアプリ', android:'Androidアプリ', web:'ブラウ
 // 深掘り=必要時（なぜそうなったか） / 問い合わせ=毎日（返信する）
 let tab = 'status';
 let statsCache = null; // 成長と深掘りは同じデータを使うので取り直さない
+let pfCache = {};      // 端末別は期間ごとに別取得（深掘りの絞り込みで何度も描き直すため）
 // 読み込みは数秒〜数十秒かかる。待っている間にタブを切り替えると、
 // 後から返ってきた古い応答が新しい画面を上書きしてしまう。世代番号で捨てる。
 let gen = 0;
@@ -1176,7 +1060,7 @@ function renderStatus(d){
     '<div class="chk">'+ico[lv]+'<span>'+esc(label)+(note?'<br><span class="chk-note">'+esc(note)+'</span>':'')+'</span>'
     + '<span class="chk-v">'+esc(String(val))+'</span></div>';
 
-  const c = d.checks||{}; const s = d.signals; const hd = d.headers;
+  const c = d.checks||{}; const s = d.signals;
   const worst = (c.checks||[]).reduce((m,x)=> x.level==='bad'?'bad':(x.level==='warn'&&m!=='bad'?'warn':m), 'ok');
 
   let h = '';
@@ -1189,22 +1073,13 @@ function renderStatus(d){
   h += '<div class="cols">';
   h += '<section><h3>前提チェック</h3><p class="hint">常に真であるべきこと。画面が正常に見えても、ここが崩れると静かに壊れる</p>';
   for (const x of (c.checks||[])) h += row(x.level, x.label, x.value, x.note);
-  h += row(hd ? (hd.csp==='enforce'?'ok':'bad') : 'warn', 'CSP が強制モード',
-        hd ? ({enforce:'enforce', 'report-only':'記録のみ', none:'なし', both:'両方'})[hd.csp] : '取得できず',
-        hd && hd.csp!=='enforce' ? '記録するだけで実際には防いでいません' : null);
+  const cs = d.judged.csp;
+  h += row(cs.level, cs.label, cs.value, cs.note);
   h += '</section>';
 
   h += '<section><h3>監視の4指標（24時間）</h3><p class="hint">遅延・流量・エラー・飽和。1つのシステムで4つしか測れないならこの4つ</p>';
   if(!s) h += '<p class="muted">取得できませんでした</p>';
-  else{
-    h += row(s.err5>0?'bad':'ok', 'エラー率（5xx）', s.errorRate.toFixed(2)+'%  ('+s.err5+'/'+s.requests+')');
-    h += row(s.p99>3000?'bad':(s.p99>1000?'warn':'ok'), '遅延 p99', Math.round(s.p99)+' ms',
-          s.p99>1000 ? '1秒超。Lambdaのコールドスタートの可能性' : null);
-    h += row('ok', '流量（API呼び出し）', s.requests+' 回');
-    h += row(s.lambdaErrors>0?'bad':'ok', 'Lambda エラー', s.lambdaErrors+' / '+s.lambdaInvocations+' 実行');
-    h += row((s.lambdaThrottles+s.ddbThrottles)>0?'bad':'ok', 'スロットル（飽和）',
-          'Lambda '+s.lambdaThrottles+' / DynamoDB '+s.ddbThrottles);
-  }
+  else for (const x of d.judged.signals) h += row(x.level, x.label, x.value, x.note);
   h += row(d.inquiriesWaiting>0?'warn':'ok', '返信待ちの問い合わせ', (d.inquiriesWaiting??'—')+' 件',
         d.inquiriesWaiting>0 ? '「問い合わせ」タブで返信してください' : null);
   h += '</section></div>';
@@ -1478,29 +1353,45 @@ function journeySection(d){
   return h;
 }
 
+function platformHtml(p){
+  if(!p) return '<p class="muted">APIアクセスログを取得できませんでした</p>';
+  if(!p.length) return '<p class="muted">この期間の記録がありません</p>';
+  let h = '<div class="wrap"><table><tr><th>端末</th><th class="num">利用者</th><th class="num">記帳</th>'
+     + '<th class="num">2日以上使った人</th><th class="num">利用日数の中央値</th><th class="num">リクエスト</th></tr>';
+  for(const r of p){
+    h += '<tr><td>'+esc(PF_JA[r.platform]||r.platform)+'</td>'
+       + '<td class="num">'+r.users+'</td><td class="num">'+r.writes+'</td>'
+       + '<td class="num">'+r.returned+'</td><td class="num">'+r.medianDays+'</td>'
+       + '<td class="num">'+r.requests+'</td></tr>';
+  }
+  h += '</table></div>';
+  if(p.some(r=>r.platform==='unknown')){
+    h += '<p class="hint">「不明」はアクセスログに User-Agent を記録する前の行です。iOSが0件という意味ではありません。</p>';
+  }
+  return h;
+}
+
+// 端末別だけは本体の描画を待たせずに後から入れる（取得に数秒かかるため）
+async function loadPlatforms(days){
+  const put = (html) => { const el = $('#pf'); if(el) el.innerHTML = html; };
+  if(pfCache[days] !== undefined) return put(platformHtml(pfCache[days]));
+  const g = gen;
+  try{
+    const r = await fetch('/api/platforms?days='+days);
+    const d = await r.json();
+    if(stale(g)) return;
+    if(!r.ok || d.error) return put('<div class="err">'+esc(d.error||'エラー')+'</div>');
+    pfCache[days] = d.platforms;
+    put(platformHtml(d.platforms));
+  }catch(e){ if(!stale(g)) put('<div class="err">'+esc(e.message)+'</div>'); }
+}
+
 function renderDeep(d){
   let h = journeySection(d);
 
   // 3.5 端末別（API Gatewayのアクセスログ）
   h += '<div class="band"><h2>端末別の利用</h2><span class="hint">APIアクセスログ（認証済みのみ／OPTIONS除外）</span></div>';
-  if(!d.platforms){
-    h += '<p class="muted">APIアクセスログを取得できませんでした</p>';
-  } else if(!d.platforms.length){
-    h += '<p class="muted">この期間の記録がありません</p>';
-  } else {
-    h += '<div class="wrap"><table><tr><th>端末</th><th class="num">利用者</th><th class="num">記帳</th>'
-       + '<th class="num">2日以上使った人</th><th class="num">利用日数の中央値</th><th class="num">リクエスト</th></tr>';
-    for(const r of d.platforms){
-      h += '<tr><td>'+esc(PF_JA[r.platform]||r.platform)+'</td>'
-         + '<td class="num">'+r.users+'</td><td class="num">'+r.writes+'</td>'
-         + '<td class="num">'+r.returned+'</td><td class="num">'+r.medianDays+'</td>'
-         + '<td class="num">'+r.requests+'</td></tr>';
-    }
-    h += '</table></div>';
-    if(d.platforms.some(r=>r.platform==='unknown')){
-      h += '<p class="hint">「不明」はアクセスログに User-Agent を記録する前の行です。iOSが0件という意味ではありません。</p>';
-    }
-  }
+  h += '<div id="pf"><p class="muted">APIアクセスログを取得中…</p></div>';
 
   // 4. 自前イベント（種類ごと）
   h += '<div class="band"><h2>自前イベント計測</h2><span class="hint">/_e/*（bot・self除外）／「人」= ブラウザごとに1回、「回」= 毎回</span></div>';
@@ -1654,10 +1545,11 @@ function renderDeep(d){
   });
   const clr = $('#j-clear');
   if(clr) clr.addEventListener('click', ()=>{ jFilter = null; renderDeep(d); });
+  loadPlatforms($('#days').value);
 }
 
 // 「更新」は明示的な取り直し。キャッシュを捨ててから読む
-$('#refresh').addEventListener('click', () => { statsCache = null; load(); });
+$('#refresh').addEventListener('click', () => { statsCache = null; pfCache = {}; load(); });
 $('#days').addEventListener('change', load); // 期間が変わればキャッシュのキーが外れる
 $('#tab-status').addEventListener('click', () => setTab('status'));
 $('#tab-access').addEventListener('click', () => setTab('access'));
@@ -1694,10 +1586,13 @@ const server = createServer((req, res) => {
     (async () => {
       try {
         const inq = (() => { try { return getInquiries(); } catch { return null; } })();
+        const signals = getSignals();
+        const headers = await getLiveHeaders();
         const data = {
           checks: getChecks(),
-          signals: getSignals(),
-          headers: await getLiveHeaders(),
+          signals,
+          headers,
+          judged: { csp: judgeCsp(headers), signals: judgeSignals(signals) },
           inquiriesWaiting: inq ? inq.waiting : null,
           generatedAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
         };
@@ -1738,12 +1633,24 @@ const server = createServer((req, res) => {
     });
     return;
   }
+  // 端末別の利用。アクセスタブでは使わないので /api/stats とは別にした
+  if (url.pathname === '/api/platforms') {
+    const days = Math.min(180, Math.max(1, Number(url.searchParams.get('days')) || 14));
+    try {
+      const data = { platforms: getPlatforms(days) };
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(data));
+    } catch (e) {
+      res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
   if (url.pathname === '/api/stats') {
     const days = Math.min(180, Math.max(1, Number(url.searchParams.get('days')) || 14));
     try {
       syncLogs(days);
       const data = analyze(days);
-      data.platforms = getPlatforms(days); // 失敗時は null。画面側で出し分ける
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(data));
     } catch (e) {

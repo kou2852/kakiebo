@@ -1,0 +1,157 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >-
+  kurofukubo 管理用 Discord 定時レポート（10:00 / 18:00 JST）。
+  アプリ本体（kakeibo-saas-prod）とは別スタック。本番リソースは読むだけで、何も書き換えない。
+
+# デプロイ（本番への干渉。毎回ユーザーの許可を取ってから）:
+#   cd scripts/admin/report
+#   sam deploy --stack-name kakeibo-admin-report-prod --profile kakeibo-prod --region ap-northeast-1 \
+#     --resolve-s3 --capabilities CAPABILITY_IAM --no-execute-changeset
+
+Parameters:
+  LogBucket:
+    Type: String
+    Default: kakeibo-cf-logs-117953360790
+  LogPrefix:
+    Type: String
+    Default: app/
+  DistributionId:
+    Type: String
+    Default: E32HZNCIT2MXUM
+  UserPoolId:
+    Type: String
+    Default: ap-northeast-1_ddBDF3HKK
+  TableName:
+    Type: String
+    Default: kakeibo-prod
+  CleanupLogGroup:
+    Type: String
+    Default: /aws/lambda/kakeibo-saas-prod-CleanupUnconfirmedFunction-GvWvO3WXvqhh
+  ApiName:
+    Type: String
+    Default: kakeibo-saas-prod
+  WebhookParam:
+    Type: String
+    Default: /kakeibo/prod/discord-webhook-url
+    Description: 定時レポートの Webhook URL を入れた SSM SecureString の名前（値はテンプレートに持たない）
+  WebhookParamInquiry:
+    Type: String
+    Default: /kakeibo/prod/discord-webhook-url-inquiry
+    Description: 問い合わせ通知用の Webhook URL（別チャンネル）
+  WebhookParamFeedback:
+    Type: String
+    Default: /kakeibo/prod/discord-webhook-url-feedback
+    Description: ご意見通知用の Webhook URL（別チャンネル）
+  CursorParam:
+    Type: String
+    Default: /kakeibo/prod/discord-watch-cursor
+    Description: 問い合わせ・ご意見をどこまで送ったかの記録。Lambda が読み書きする（初回は Lambda が作る）
+
+Resources:
+  ReportFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Discord 定時レポート
+      CodeUri: src/
+      Handler: handler.handler
+      Runtime: nodejs24.x
+      Architectures: [arm64]
+      MemorySize: 1024
+      Timeout: 180
+      # 失敗時は handler が失敗通知を送ってから例外を投げる。非同期呼び出しの自動再試行があると
+      # 同じ失敗通知（や、送信後の失敗ならレポート本体）が最大3通届くため、再試行しない。
+      EventInvokeConfig:
+        MaximumRetryAttempts: 0
+      Environment:
+        Variables:
+          LOG_BUCKET: !Ref LogBucket
+          LOG_PREFIX: !Ref LogPrefix
+          DISTRIBUTION_ID: !Ref DistributionId
+          USER_POOL_ID: !Ref UserPoolId
+          TABLE_NAME: !Ref TableName
+          CLEANUP_LOG_GROUP: !Ref CleanupLogGroup
+          API_NAME: !Ref ApiName
+          WEBHOOK_PARAM: !Ref WebhookParam
+          WEBHOOK_PARAM_INQUIRY: !Ref WebhookParamInquiry
+          WEBHOOK_PARAM_FEEDBACK: !Ref WebhookParamFeedback
+          CURSOR_PARAM: !Ref CursorParam
+      Events:
+        Morning:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: cron(0 10 * * ? *)
+            ScheduleExpressionTimezone: Asia/Tokyo
+            Input: '{"slot":"morning"}'
+            Description: 10:00 JST 前日の確定値
+        Evening:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: cron(0 18 * * ? *)
+            ScheduleExpressionTimezone: Asia/Tokyo
+            Input: '{"slot":"evening"}'
+            Description: 18:00 JST 当日の途中経過
+        # 問い合わせ・ご意見の新着。13:00 と 17:00 の2回。
+        # 新着が無い回は何も送らない。前回以降に届いた分は次の回でまとめて届く（カーソルで取りこぼさない）
+        Watch:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: cron(0 13,17 * * ? *)
+            ScheduleExpressionTimezone: Asia/Tokyo
+            Input: '{"slot":"watch"}'
+            Description: 13時と17時に、問い合わせ・ご意見の新着を送る
+      Policies:
+        - Statement:
+            # アクセスログ（app/ 以下のみ）
+            - Effect: Allow
+              Action: s3:ListBucket
+              Resource: !Sub arn:aws:s3:::${LogBucket}
+              Condition:
+                StringLike:
+                  s3:prefix: !Sub ${LogPrefix}*
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub arn:aws:s3:::${LogBucket}/${LogPrefix}*
+            # 登録ユーザー数とメール送信設定。属性は sub しか要求しない
+            - Effect: Allow
+              Action:
+                - cognito-idp:ListUsers
+                - cognito-idp:DescribeUserPool
+              Resource: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId}
+            - Effect: Allow
+              Action: ses:GetAccount
+              Resource: '*'
+            # 掃除ジョブが実際に動いたか
+            - Effect: Allow
+              Action: logs:FilterLogEvents
+              Resource:
+                - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${CleanupLogGroup}
+                - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${CleanupLogGroup}:*
+            - Effect: Allow
+              Action: cloudwatch:GetMetricData
+              Resource: '*'
+            # ご意見・問い合わせの本文と状態。家計簿データを読めないよう、取得できる項目を
+            # 下の一覧に限定し、項目を指定しない取得（全項目）を禁止する
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+                - dynamodb:Scan
+              Resource: !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}
+              Condition:
+                ForAllValues:StringEquals:
+                  dynamodb:Attributes: [PK, SK, status, messages, subject, body, timestamp, createdAt, updatedAt]
+                StringEquals:
+                  dynamodb:Select: SPECIFIC_ATTRIBUTES
+            # Webhook URL（この3件だけ）
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource:
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${WebhookParam}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${WebhookParamInquiry}
+                - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${WebhookParamFeedback}
+            # どこまで送ったかの記録。唯一の書き込み先
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+                - ssm:PutParameter
+              Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${CursorParam}

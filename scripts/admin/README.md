@@ -79,5 +79,41 @@ DynamoDB `kakeibo-prod` の固定PK `FEEDBACK` を直接クエリしている（
 
 - ログバケット: `kakeibo-cf-logs-117953360790` / プレフィックス `app/`
 - 取得したログは `scripts/admin/.cache-cflogs/` にキャッシュ（増分同期用）
+- 端末別の利用（深掘りタブ）は CloudWatch Logs Insights で取り、JST日ごとの集計を `scripts/admin/.cache-platforms/` に保存する。
+  過ぎた日は取り直さず、当日ぶんだけ毎回問い合わせる。本体の表示は待たせず、表ができ次第あとから差し込む
 - 環境変数: `PORT`（既定8787）, `AWS_PROFILE`（既定 kakeibo-prod）
 - 自分IP判定（self）は selftest クエリ送信IP + 既知プレフィックス。プレフィックスは変動するため `server.mjs` の `SELF_PREFIXES` を随時確認。
+
+## Discord 定時レポート（`report/`）
+
+ダッシュボードの数字を毎日 10:00 / 18:00(JST) に Discord へ送る Lambda。アプリ本体とは別スタック（`kakeibo-admin-report-prod`）。
+
+- 朝は前日の確定値＋獲得の流れ＋継続（直近30日）、夕方は当日の途中経過＋獲得の流れ。異常は毎回先頭に出す
+- 送るのは集計値だけ。ご意見・問い合わせの本文、IP、sub、参照元URL、UA は送らない
+- 集計ロジック（ボット・自分IP・ファネル・状態の判定基準）は `report/src/metrics.mjs` にあり、このダッシュボードも同じものを読み込んでいる。**`SELF_PREFIXES` の追記もそちらで行う**
+- Webhook URL は SSM SecureString `/kakeibo/prod/discord-webhook-url`（テンプレートやコードには持たない）
+
+```bash
+cd scripts/admin/report && npm install && npm test         # テスト
+node scripts/admin/report/run-local.mjs morning              # 送信せず文面だけ表示（AWSは読むだけ）
+node scripts/admin/report/run-local.mjs evening --at 2026-09-17T18:00:00+09:00
+node scripts/admin/report/run-local.mjs morning --send --test  # 【テスト】付きで Discord に送る
+```
+
+`--at` で時刻をずらしても、ログと登録者は実行した時点までを読む（本番は定刻に動くのでずれない）。
+デプロイ手順は `report/template.yaml` の先頭コメント。
+
+### 問い合わせ・ご意見の新着通知
+
+同じ Lambda が **13:00 と 17:00** に `{"slot":"watch"}` で動き、前回以降に届いた分だけを送る。**新着が無ければ何も送らない。** 前回以降に届いた分は次の回でまとめて届く（カーソルがあるので取りこぼさない）。
+
+- 宛先は別チャンネル：問い合わせ `/kakeibo/prod/discord-webhook-url-inquiry`、ご意見 `/kakeibo/prod/discord-webhook-url-feedback`
+- レポートと違い**本文を載せる**（1500文字で切って「続きはダッシュボード」）。問い合わせは件名・最新の発言・sub先頭8桁・状態
+- 問い合わせは新規と**利用者からの追記**の両方。運営の返信では通知しない
+- どこまで送ったかは SSM `/kakeibo/prod/discord-watch-cursor`（String）。**送信できた分だけ進める**ので、失敗回があっても次で送り直す。初回は記録を作るだけで過去分は流さない
+- 処理が止まったら、定時レポートの「新着通知の前回確認」が20時間超で注意（黄）になる（1日2回なので、朝のレポート時点では前日17:00が前回になる）
+
+```bash
+node scripts/admin/report/run-local.mjs watch                                # 新着の文面を表示（送信なし・カーソルも動かさない）
+node scripts/admin/report/run-local.mjs watch --since 2026-01-01T00:00:00Z   # 過去ぶんで文面を確認
+```
