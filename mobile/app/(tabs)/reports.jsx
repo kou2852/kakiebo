@@ -11,6 +11,8 @@ import {
   accountBalance, balanceSheet, balancesAsOf, calcBalances, computeCashFlow, filterByPeriod,
 } from '../../src/utils/bookkeeping';
 import { useTourTarget } from '../../src/store/TourProvider';
+import { useOnboarding } from '../../src/store/OnboardingProvider';
+import Ad from '../../src/components/Ad';
 
 const MODES = [
   { value: 'bs', label: '貸借対照表' },
@@ -22,6 +24,7 @@ const MODES = [
 export default function Reports() {
   const tabsRef = useTourTarget('report-tabs');
   const [mode, setMode] = useState('bs');
+  const onboarding = useOnboarding();
   const { accounts, journals } = useData();
 
   // BS は「期間末の時点」、PL と CF は「期間中の増減」。同じ期間指定から両方を出す。
@@ -62,6 +65,10 @@ export default function Reports() {
         : mode === 'pl' ? <PL r={r} />
         : mode === 'cf' ? <CF cf={r.cf} accounts={accounts} />
         : <CreditBody />}
+
+      {/* 一番下の広告。4つのどのタブでも同じ位置に出る。
+          オンボーディング中は覆いの下に隠れるので読み込まない（ホームと同じ理由） */}
+      {onboarding?.active ? null : <Ad placement="reportsBottom" />}
     </Screen>
   );
 }

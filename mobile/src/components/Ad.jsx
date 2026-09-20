@@ -49,6 +49,8 @@ export const PLACEMENTS = {
   anchored: { unit: 'ca-app-pub-1494837719359912/3915570524', size: 'ANCHORED_ADAPTIVE_BANNER', test: 'ADAPTIVE_BANNER' },
   // ホームの一番下（中サイズの四角）
   homeBottom: { unit: 'ca-app-pub-1494837719359912/9747424628', size: 'MEDIUM_RECTANGLE', test: 'BANNER' },
+  // レポートの一番下（中サイズの四角）。4つのタブのどれを見ていても同じ位置に出る
+  reportsBottom: { unit: 'ca-app-pub-1494837719359912/3790934097', size: 'MEDIUM_RECTANGLE', test: 'BANNER' },
 };
 
 // ティア別の表示可否。Web 版 config/tiers.js の AD_CONFIG と同じ考え方。
