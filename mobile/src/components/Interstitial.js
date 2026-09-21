@@ -9,7 +9,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ADS_ENABLED } from './Ad';
 import { useAuth } from '../store/AuthProvider';
+import { useData } from '../store/DataProvider';
 import { bump, isDue, shouldPreload } from '../utils/adPacing';
+import { maybeAskReview } from './ReviewAsk';
 
 let Ads = null;
 try { Ads = require('react-native-google-mobile-ads'); } catch { Ads = null; }
@@ -49,20 +51,27 @@ async function countEntry(guest) {
   } catch { /* 数えられなくても記帳は済んでいる */ }
 }
 
+// 出せたら true。呼び出し側は、この回に評価を聞くかどうかの判断に使う。
 async function showIfDue(guest) {
-  if (!guest || !ad?.loaded) return;
+  if (!guest || !ad?.loaded) return false;
   try {
-    if (!isDue(await readCount())) return;
+    if (!isDue(await readCount())) return false;
     await AsyncStorage.setItem(COUNT_KEY, '0');
     await ad.show();
-  } catch { /* 出せなければ出さない。記帳の操作は止めない */ }
+    return true;
+  } catch { return false; /* 出せなければ出さない。記帳の操作は止めない */ }
 }
 
-// 記帳を保存したら counted()、保存の確認を閉じたら closed() を呼ぶ
+// 記帳を保存したら counted()、保存の確認を閉じたら closed() を呼ぶ。
+// closed() では広告と評価のお願いを続けて扱う。両方を同じ瞬間に出さないため、
+// 呼び出し側で順番を気にしなくて済むようにここでまとめる。
 export function useEntryAd() {
   const guest = !useAuth()?.signedIn;
+  const { journals } = useData();
   return {
     counted: () => { countEntry(guest); },
-    closed: () => { showIfDue(guest); },
+    closed: () => {
+      showIfDue(guest).then((adShown) => maybeAskReview({ journals: journals?.length || 0, adShown }));
+    },
   };
 }
