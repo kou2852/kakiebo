@@ -165,3 +165,34 @@ export function buildPlan(draft, accounts, todayStr, newId) {
 
   return intents;
 }
+
+/** buildPlan が作った id の一覧。ログイン時に「これだけなら捨ててよい」を判断するために覚えておく。 */
+export function idsFromIntents(intents) {
+  return (intents || []).map((i) => i?.item?.id).filter(Boolean);
+}
+
+/**
+ * 指定した id のものを取り除いたデータセットを返す（引数は変更しない）。
+ *
+ * ⚠ 使うのは「既にアカウントに帳簿がある人がログインしたとき」だけ。渡すのは
+ *   オンボーディングが作った id に限る。ゲストとして記帳したものの id は入らないので、
+ *   その帳簿は必ず残る（store/merge.js の保証と同じ線を守る）。
+ */
+export function withoutIds(ds, ids) {
+  const drop = new Set(ids || []);
+  if (!drop.size) return ds;
+  const out = {};
+  for (const c of Object.keys(ds || {})) {
+    const cur = ds[c];
+    out[c] = Array.isArray(cur) ? cur.filter((x) => !drop.has(x?.id)) : cur;
+  }
+  return out;
+}
+
+/** 意図がオンボーディング由来か（未送信キューから取り除く判定）。 */
+export function isOnboardingIntent(intent, ids) {
+  const made = new Set(ids || []);
+  if (intent?.t === 'upsert') return made.has(intent?.item?.id);
+  if (intent?.t === 'remove') return made.has(intent?.id);
+  return false; // replace（予算・タグ配分）はオンボーディングでは積まれない
+}

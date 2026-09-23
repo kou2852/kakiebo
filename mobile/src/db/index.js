@@ -102,6 +102,20 @@ export async function clearAllPending() {
   await db.runAsync('DELETE FROM pending');
 }
 
+/**
+ * 指定した seq の操作だけ捨てる。
+ *
+ * ⚠ 捨ててよいと確かめたものだけを渡すこと。いまの用途はオンボーディングが作った分で、
+ *   既にアカウントに帳簿がある人がログインしたときに、その分だけを取り除く
+ *   （app/connect.jsx）。ゲストが記帳した分は seq が混ざらないので残る。
+ */
+export async function dropPending(seqs) {
+  if (!seqs?.length) return;
+  const db = await conn();
+  const holes = seqs.map(() => '?').join(',');
+  await db.runAsync(`DELETE FROM pending WHERE seq IN (${holes})`, seqs);
+}
+
 export async function resetAll() {
   const db = await conn();
   await db.execAsync('DELETE FROM dataset; DELETE FROM pending; DELETE FROM idmap;');

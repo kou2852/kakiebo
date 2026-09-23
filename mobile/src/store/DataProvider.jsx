@@ -8,6 +8,7 @@ import { clearPendingUpTo, listPending, loadIdMap, readLocal, rememberId, writeL
 import { applyIntent, upsert, remove, replace } from '../db/intents';
 import { emptyDataset } from '../db/defaults';
 import { syncNow } from './sync';
+import { readOnboardingIds } from './onboardingMark';
 import { clearDek, loadDek, saveDek } from '../crypto/dekStore';
 import { useAuth } from './AuthProvider';
 
@@ -168,6 +169,11 @@ export function DataProvider({ children }) {
 
   const [autoSync] = useState(() => async (force) => {
     if (!signedInRef.current || syncingRef.current) return;
+    // ⚠ オンボーディングの書き込みは、ログイン時の判定（connect.jsx の reconcile）が済むまで送らない。
+    //   ログインが成立した瞬間にここが走るので、既にアカウントを持っている人の帳簿へ
+    //   「現金・銀行口座・クレジットカード」が入っていた（2026-09-19）。
+    //   印は判定側で必ず消える（捨てる・送る・3択のいずれでも）。
+    if ((await readOnboardingIds()).length) return;
     // 失敗した直後に何度も叩かない。解錠待ちや通信断はすぐには直らない。
     if (!force && failedAt.current && Date.now() - failedAt.current < 60_000) return;
     if (!(await listPending()).length) return;

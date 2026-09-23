@@ -11,7 +11,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useData } from './DataProvider';
-import { buildPlan, hasUserData, summarize } from './onboardingPlan';
+import { buildPlan, hasUserData, idsFromIntents, summarize } from './onboardingPlan';
+import { CREATED_IDS_KEY, rememberOnboardingIds } from './onboardingMark';
 import { today, uid } from '../utils/format';
 
 const SEEN_KEY = 'onboarding.seen';
@@ -22,7 +23,7 @@ const SEEN_KEY = 'onboarding.seen';
  * ⚠ 帳簿だけ消して記録を残すと、空の端末なのにオンボーディングが出ず、
  *   いきなり空のホームになる（設定の「端末のデータを消去」で実際に起きた）。
  */
-export const forgetOnboarding = () => AsyncStorage.removeItem(SEEN_KEY).catch(() => {});
+export const forgetOnboarding = () => AsyncStorage.multiRemove([SEEN_KEY, CREATED_IDS_KEY]).catch(() => {});
 
 /** 画面の並び。A-3 まで来たら終わり。 */
 export const STEPS = ['welcome', 'steps', 'pick', 'balance', 'monthly', 'done'];
@@ -110,7 +111,11 @@ export function OnboardingProvider({ children }) {
     setSaving(true);
     try {
       const intents = buildPlan(draft, accounts, today(), uid);
-      if (intents.length) await commitAll(intents);
+      if (intents.length) {
+        // ⚠ 積む前に覚える。積んだ直後に自動同期が走りうるので、印が後だと間に合わない。
+        await rememberOnboardingIds(idsFromIntents(intents));
+        await commitAll(intents);
+      }
       await markSeen();
       setActive(false);
     } catch (e) {

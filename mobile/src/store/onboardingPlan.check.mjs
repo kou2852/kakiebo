@@ -7,7 +7,9 @@
 //     （崩れると参照先の無い仕訳ができるが、画面には出ないので気づけない）
 import { DEFAULT_ACCOUNTS, emptyDataset } from '../db/defaults.js';
 import { EQUITY_ID } from '../utils/accountCode.js';
-import { buildPlan, hasUserData, nextMonthlyDate, summarize, yen } from './onboardingPlan.js';
+import {
+  buildPlan, hasUserData, idsFromIntents, isOnboardingIntent, nextMonthlyDate, summarize, withoutIds, yen,
+} from './onboardingPlan.js';
 
 let ng = 0;
 const ok = (cond, name) => {
@@ -223,6 +225,36 @@ console.log('\nオンボーディングを出すかの判定（hasUserData）');
   // オンボーディングを終えた直後の端末は「帳簿あり」になる（次の起動で出さない）
   const after = buildPlan({ picks: ['cash'], balances: { cash: '100' }, monthly: [] }, base.accounts, TODAY, idGen());
   ok(after.some((i) => i.c === 'wallets'), 'オンボーディングを終えると口座ができる＝次からは出ない');
+}
+
+console.log('\nログイン時にオンボーディング分だけを取り除く（withoutIds / isOnboardingIntent）');
+{
+  const base = emptyDataset();
+  const plan = buildPlan({ picks: ['cash', 'bank', 'card'], balances: { cash: '5000' }, monthly: [] }, base.accounts, TODAY, idGen());
+  const ids = idsFromIntents(plan);
+  ok(ids.length === plan.length, '作った id を全部覚える');
+
+  // オンボーディングを終えた直後の端末（既定 ＋ 作られた口座と開始残高の仕訳）に、
+  // ゲストとしての記帳が1件混ざっている状態。
+  const madeWallets = plan.filter((i) => i.c === 'wallets').map((i) => i.item);
+  const madeJournals = plan.filter((i) => i.c === 'journals').map((i) => i.item);
+  const guest = { id: 'g1', date: TODAY, desc: 'ゲストの記帳', lines: [] };
+  const local = { ...base, wallets: madeWallets, journals: [...madeJournals, guest] };
+
+  const kept = withoutIds(local, ids);
+  ok(kept.wallets.length === 0, 'オンボーディングの口座は取り除かれる');
+  ok(kept.journals.length === 1 && kept.journals[0].id === 'g1', 'ゲストの記帳は必ず残る');
+  ok(kept.accounts.length === base.accounts.length, '既定の勘定科目は触らない');
+  ok(local.wallets.length === madeWallets.length, '元のデータセットを書き換えない');
+  ok(withoutIds(local, []) === local, '取り除く id が無ければそのまま返す');
+
+  const w = madeWallets[0];
+  ok(isOnboardingIntent({ t: 'upsert', c: 'wallets', item: w }, ids), '未送信キュー: オンボーディングの口座は取り除く');
+  ok(!isOnboardingIntent({ t: 'upsert', c: 'journals', item: guest }, ids), '未送信キュー: ゲストの記帳は残す');
+  ok(!isOnboardingIntent({ t: 'upsert', c: 'accounts', item: { id: 'a01', name: '財布' } }, ids), '未送信キュー: 既定科目を直した操作は残す');
+  ok(!isOnboardingIntent({ t: 'replace', c: 'budgets', items: [] }, ids), '未送信キュー: 予算の全置換は残す');
+  ok(isOnboardingIntent({ t: 'remove', c: 'wallets', id: w.id }, ids), '未送信キュー: 削除も id で見分ける');
+  ok(!isOnboardingIntent({ t: 'upsert', c: 'wallets', item: w }, []), '印が無ければ何も取り除かない');
 }
 
 console.log(ng ? `\n${ng} 件 失敗` : '\nすべて通過');

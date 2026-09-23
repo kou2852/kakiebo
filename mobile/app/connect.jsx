@@ -2,7 +2,7 @@
 //
 // アカウントが無くてもアプリは全機能が使える（帳簿は端末内で完結する）。
 // アカウントは端末を跨いで持ち歩くためのもので、登録を必須にはしない。
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Text, TouchableOpacity, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,8 +14,10 @@ import { Button, Card, Field, Input, Screen, Segmented } from '../src/components
 import { probe, pullEncrypted, pullPlain, unlockWith } from '../src/store/pull';
 import { COLLECTIONS, codeCollisions, diffSummary, hasContent, mergeDatasets } from '../src/store/merge';
 import { replace, upsert } from '../src/db/intents';
-import { clearAllPending, readLocal } from '../src/db';
+import { clearAllPending, dropPending, listPending, readLocal } from '../src/db';
 import { emptyDataset } from '../src/db/defaults';
+import { isOnboardingIntent, withoutIds } from '../src/store/onboardingPlan';
+import { forgetOnboardingIds, readOnboardingIds } from '../src/store/onboardingMark';
 import { authMessage } from '../src/auth/cognito';
 
 // 規約・ポリシーはアプリ内ブラウザで開く。
@@ -73,7 +75,9 @@ export default function Connect() {
   const router = useRouter();
   const auth = useAuth();
   const d = useData();
-  const { pendingCount, replaceAll, rememberDek } = d;
+  const { replaceAll, rememberDek } = d;
+  // オンボーディングで作った分を捨てたか。捨てたなら、取り込みの案内でその旨を伝える。
+  const droppedOnboarding = useRef(false);
 
   const [mode, setMode] = useState('signin');
   const [mail, setMail] = useState('');
@@ -117,6 +121,9 @@ export default function Connect() {
     try {
       await auth.confirmSignUp(awaiting, code.trim());
       await auth.signIn(awaiting, password);
+      // ⚠ この経路は reconcile を通らない。新しいアカウントなので端末の帳簿がそのまま正であり、
+      //   印を消さないと自動同期が止まったままになる（DataProvider の抑止）。
+      await forgetOnboardingIds();
       setPassword(''); setCode(''); setAwaiting(null);
       Alert.alert('登録しました',
         'この端末の帳簿はそのまま残ります。同期するとサーバーにも保存され、他の端末から見られるようになります。',
@@ -160,6 +167,38 @@ export default function Connect() {
   };
 
   /**
+   * オンボーディングで作っただけのものを、端末と未送信キューから取り除く。
+   *
+   * ⚠ 既にアカウントに帳簿がある人（serverHas）にだけ行う。その人にとっては
+   *   「現金・銀行口座・クレジットカード」は入力し直しただけの重複で、サーバーの帳簿が正。
+   *   これをしないと、ログイン成立と同時の自動同期や、3択のどちらを選んでも
+   *   相手の帳簿へ入る（2026-09-19 に運営者のアカウントで発生）。
+   * ⚠ 取り除くのはオンボーディングが作った id のものだけ。ゲストとして記帳した分は
+   *   id が違うので必ず残る。
+   *
+   * 印が残っている間、自動同期は未送信キューを送らない（DataProvider）。だからここで
+   * 判定が済んだら、どの分岐へ進む場合でも必ず印を消す。
+   */
+  const dropOnboarding = async (serverHas) => {
+    const row = await readLocal();
+    const raw = row?.dataset || emptyDataset();
+    const ids = await readOnboardingIds();
+    if (!ids.length) return raw;
+
+    if (!serverHas) { await forgetOnboardingIds(); return raw; } // 新規アカウント。そのまま送る
+
+    const seqs = (await listPending())
+      .filter((p) => isOnboardingIntent(p.intent, ids))
+      .map((p) => p.seq);
+    await dropPending(seqs);
+    const kept = withoutIds(raw, ids);
+    await replaceAll(kept, row?.rev || 0); // rev は据え置き。取り込みではないので進めない
+    await forgetOnboardingIds();
+    droppedOnboarding.current = true;
+    return kept;
+  };
+
+  /**
    * サーバーと端末の帳簿を突き合わせて繋ぐ。
    *
    * ⚠ 以前はここが無条件の取り込み（replaceAll）だった。新規アカウントでも
@@ -170,9 +209,9 @@ export default function Connect() {
    * 既定科目の名前を変えただけの端末を「空」と誤判定しないため。
    */
   const reconcile = async (server, dek) => {
-    const local = (await readLocal())?.dataset || emptyDataset();
-    const localHas = hasContent(local) || pendingCount > 0;
     const serverHas = hasContent(server);
+    const local = await dropOnboarding(serverHas);
+    const localHas = hasContent(local) || (await listPending()).length > 0;
 
     // どちらも初期状態。取り込むものも送るものも無いので、黙って終わる。
     if (!localHas && !serverHas) { router.back(); return; }
@@ -181,7 +220,10 @@ export default function Connect() {
     if (!localHas) {
       await replaceAll(server);
       Alert.alert('取り込みました',
-        `仕訳 ${server.journals.length.toLocaleString('ja-JP')} 件 / 勘定科目 ${server.accounts.length} 件`,
+        `仕訳 ${server.journals.length.toLocaleString('ja-JP')} 件 / 勘定科目 ${server.accounts.length} 件`
+        + (droppedOnboarding.current
+          ? '\n\nこのアカウントには既に帳簿があったので、最初の画面で入力した内容は使っていません。'
+          : ''),
         [{ text: 'OK', onPress: () => router.back() }]);
       return;
     }
