@@ -28,7 +28,7 @@ export default function ReconcileModal({ open, onClose }) {
 
   // 実査の対象は現金・預金を含む資産と負債。評価替えは投資性の資産だけ。
   const targets = useMemo(() => accounts
-    .filter((a) => (mode === 'valuation' ? isInvestmentAsset(a) : (a.type === 'asset' || a.type === 'liability')))
+    .filter((a) => !a.hidden && (mode === 'valuation' ? isInvestmentAsset(a) : (a.type === 'asset' || a.type === 'liability')))
     .sort((a, b) => (a.code || '').localeCompare(b.code || '')),
   [accounts, mode]);
 

@@ -21,9 +21,12 @@ export default function WalletModal({ open, onClose, editId }) {
 
   // 紐づけ可能な科目は資産・負債のうち、まだ口座になっていないものだけ（編集中の科目は残す）。
   // 全科目を出すと同じ科目に口座を二重登録できてしまう。
+  // 非表示の科目も外すが、編集中の口座が既に紐づけている科目は残す（外すと保存で紐づけが飛ぶ）。
   const walletAccounts = useMemo(() => {
     const taken = new Set(wallets.filter((w) => w.id !== editId).map((w) => w.accountId));
-    return accounts.filter((a) => (a.type === 'asset' || a.type === 'liability') && !taken.has(a.id));
+    const mine = editId ? wallets.find((w) => w.id === editId)?.accountId : null;
+    return accounts.filter((a) => (a.type === 'asset' || a.type === 'liability') && !taken.has(a.id)
+      && (!a.hidden || a.id === mine));
   }, [accounts, wallets, editId]);
 
   useEffect(() => {

@@ -92,7 +92,7 @@ export default function AccountsPage() {
   const [quickCcFrom, setQuickCcFrom] = useState('');
   // かんたん登録の4種（銀行・カード・現金・NISA）はどれも支払い・入金の起点になるので既定でON
   const [quickWallet, setQuickWallet] = useState(true);
-  const quickAssetAccounts = useMemo(() => accounts.filter((a) => a.type === 'asset'), [accounts]);
+  const quickAssetAccounts = useMemo(() => accounts.filter((a) => a.type === 'asset' && !a.hidden), [accounts]);
 
   const defaultQuickCcFrom = () => quickAssetAccounts.find((a) => a.name === '普通預金')?.id || quickAssetAccounts[0]?.id || '';
 
@@ -163,6 +163,10 @@ export default function AccountsPage() {
     });
   }, [accounts, tab, sortKey, sortDir]);
 
+  // 非表示の科目はテーブル下部に畳む。並びは上の filtered のソートをそのまま引き継ぐ。
+  const shownAccounts = useMemo(() => filtered.filter((a) => !a.hidden), [filtered]);
+  const hiddenAccounts = useMemo(() => filtered.filter((a) => a.hidden), [filtered]);
+
   const toggleSort = (key) => {
     if (sortKey === key) setSortDir((d) => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir('asc'); }
@@ -228,8 +232,52 @@ export default function AccountsPage() {
     [journals]
   );
 
+  // 使わない科目を入力候補から外す。削除と違って残高も過去の仕訳も残すので、システム科目でも切り替えられる。
+  const toggleHidden = async (a) => {
+    const next = a.hidden ? 0 : 1;
+    // 残高が残るのは BS 科目（資産・負債・純資産）だけ。費用・収益は PL なのでこの断りは出さない。
+    const onBS = a.type === 'asset' || a.type === 'liability' || a.type === 'equity';
+    const bal = onBS ? accountBalance(a.id, accounts, allBal) : 0;
+    try {
+      await updateAccount(a.id, { hidden: next });
+      if (next && bal !== 0) toast('残高が残っているため、BS には引き続き表示されます');
+      else toast(next ? '非表示にしました' : '表示に戻しました');
+    } catch { toast('変更に失敗しました'); }
+  };
+
   // クレカ返済の記帳は確認モーダル（CCSettleModal）で対象を選んで実行する。
   const [ccModalOpen, setCcModalOpen] = useState(false);
+  const [showHidden, setShowHidden] = useState(false);
+
+  const renderAccountRow = (a) => {
+    // 締め日・引落日・引落口座は3つ揃って初めて機能する。欠けていれば静かに無効なので警告する。
+    const ccDone = !!(a.ccClose && a.ccDay && a.ccFrom);
+    const ccAny = !!(a.ccClose || a.ccDay || a.ccFrom);
+    const ccMissing = [!a.ccClose && '締め日', !a.ccDay && '引落日', !a.ccFrom && '引落口座'].filter(Boolean);
+    const cc = `締${a.ccClose}日→${a.ccDelay || 1}ヶ月後${a.ccDay}日 / ${acctName(a.ccFrom)}`;
+    return (
+      <tr key={a.id} style={a.hidden ? { opacity: .55 } : undefined}>
+        <td className="mono text-m">{a.code || ''}</td>
+        <td>{a.name}</td>
+        <td><span className={`bdg ${BADGE_CLASSES[a.type]}`}>{ACCOUNT_TYPES[a.type]}</span></td>
+        <td className="text-m" style={{ fontSize: 11 }}>
+          {a.type !== 'liability' ? '' : ccDone ? cc
+            : (ccAny || usedAccountIds.has(a.id)) ? (
+              <button className="bdg bdg-l"
+                style={{ border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11 }}
+                onClick={() => { setAcctEditId(a.id); setAcctModalOpen(true); }}>
+                {ccAny ? `設定が未完了：${ccMissing.join('・')}` : '引き落とし未設定'}
+              </button>
+            ) : '—'}
+        </td>
+        <td style={{ whiteSpace: 'nowrap' }}>
+          <button className="btn btn-g btn-s" onClick={() => { setAcctEditId(a.id); setAcctModalOpen(true); }}>編集</button>
+          <button className="btn btn-g btn-s" style={{ marginLeft: 4 }} onClick={() => toggleHidden(a)}>{a.hidden ? '表示' : '非表示'}</button>
+          {!a.sys && <button className="btn btn-d btn-s" style={{ marginLeft: 4 }} onClick={() => handleDelete(a.id)}>削除</button>}
+        </td>
+      </tr>
+    );
+  };
 
   if (loading) return <p className="nd">読み込み中...</p>;
 
@@ -337,34 +385,17 @@ export default function AccountsPage() {
                 <th />
               </tr></thead>
               <tbody>
-                {filtered.map((a) => {
-                  // 締め日・引落日・引落口座は3つ揃って初めて機能する。欠けていれば静かに無効なので警告する。
-                  const ccDone = !!(a.ccClose && a.ccDay && a.ccFrom);
-                  const ccAny = !!(a.ccClose || a.ccDay || a.ccFrom);
-                  const ccMissing = [!a.ccClose && '締め日', !a.ccDay && '引落日', !a.ccFrom && '引落口座'].filter(Boolean);
-                  const cc = `締${a.ccClose}日→${a.ccDelay || 1}ヶ月後${a.ccDay}日 / ${acctName(a.ccFrom)}`;
-                  return (
-                    <tr key={a.id}>
-                      <td className="mono text-m">{a.code || ''}</td>
-                      <td>{a.name}</td>
-                      <td><span className={`bdg ${BADGE_CLASSES[a.type]}`}>{ACCOUNT_TYPES[a.type]}</span></td>
-                      <td className="text-m" style={{ fontSize: 11 }}>
-                        {a.type !== 'liability' ? '' : ccDone ? cc
-                          : (ccAny || usedAccountIds.has(a.id)) ? (
-                            <button className="bdg bdg-l"
-                              style={{ border: 0, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11 }}
-                              onClick={() => { setAcctEditId(a.id); setAcctModalOpen(true); }}>
-                              {ccAny ? `設定が未完了：${ccMissing.join('・')}` : '引き落とし未設定'}
-                            </button>
-                          ) : '—'}
-                      </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        <button className="btn btn-g btn-s" onClick={() => { setAcctEditId(a.id); setAcctModalOpen(true); }}>編集</button>
-                        {!a.sys && <button className="btn btn-d btn-s" style={{ marginLeft: 4 }} onClick={() => handleDelete(a.id)}>削除</button>}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {shownAccounts.map(renderAccountRow)}
+                {hiddenAccounts.length > 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ padding: '8px 0' }}>
+                      <button className="btn btn-g btn-s" onClick={() => setShowHidden((v) => !v)}>
+                        {showHidden ? '▾' : '▸'} 非表示の科目 {hiddenAccounts.length}件
+                      </button>
+                    </td>
+                  </tr>
+                )}
+                {showHidden && hiddenAccounts.map(renderAccountRow)}
               </tbody>
             </table>
           </div>

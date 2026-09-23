@@ -8,7 +8,7 @@ export default function BudgetModal({ open, onClose }) {
   const toast = useToast();
 
   const expenseAccts = useMemo(
-    () => accounts.filter((a) => a.type === 'expense').sort((a, b) => (a.code || '').localeCompare(b.code || '')),
+    () => accounts.filter((a) => a.type === 'expense' && !a.hidden).sort((a, b) => (a.code || '').localeCompare(b.code || '')),
     [accounts]
   );
 
@@ -25,9 +25,15 @@ export default function BudgetModal({ open, onClose }) {
   }, [open, budgets, expenseAccts]);
 
   const handleSave = async () => {
-    const newBudgets = Object.entries(values)
-      .filter(([, v]) => parseFloat(v) > 0)
-      .map(([accountId, v]) => ({ accountId, amount: parseFloat(v) }));
+    // 一覧に出していない科目（非表示にしたもの）の予算はそのまま残す。
+    // ここで拾わないと、非表示にした瞬間からその科目の予算が保存のたびに消える。
+    const listed = new Set(expenseAccts.map((a) => a.id));
+    const newBudgets = [
+      ...budgets.filter((b) => !listed.has(b.accountId)),
+      ...Object.entries(values)
+        .filter(([, v]) => parseFloat(v) > 0)
+        .map(([accountId, v]) => ({ accountId, amount: parseFloat(v) })),
+    ];
     // 実際に入力を変えた科目だけを控えておく。他端末が先に保存していたときは、
     // 最新の予算にこの科目だけを載せ直す（触っていない科目は相手の値を残す）。
     const changed = {};

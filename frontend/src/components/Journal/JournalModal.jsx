@@ -24,10 +24,13 @@ export default function JournalModal({ open, onClose, editId, preset = null, def
   const [saving, setSaving] = useState(false);
   const [pointAmt, setPointAmt] = useState('');
 
-  const sortedAccounts = useMemo(
-    () => [...accounts].sort((a, b) => (a.code || '').localeCompare(b.code || '')),
-    [accounts]
-  );
+  // 非表示の科目は候補から外す。ただし編集中の行が既に使っている科目は残す
+  // （外すとその行の科目が空に落ちて、保存した瞬間に飛ぶ）。
+  const sortedAccounts = useMemo(() => {
+    const inUse = new Set(lines.map((l) => l.accountId));
+    return accounts.filter((a) => !a.hidden || inUse.has(a.id))
+      .sort((a, b) => (a.code || '').localeCompare(b.code || ''));
+  }, [accounts, lines]);
 
   // ポイント利用分を計上する収益科目（雑収入を優先）
   const pointAccount = useMemo(

@@ -35,7 +35,8 @@ export default function JournalPage() {
   const [tagFilter, setTagFilter] = useState('');
   const [cheatOpen, setCheatOpen] = useState(false);
 
-  const sortedAccounts = useMemo(() => [...accounts].sort((a, b) => (a.code || '').localeCompare(b.code || '')), [accounts]);
+  // 一括変更の付け替え先。非表示の科目は選べないようにする（表示名の解決は accounts をそのまま使う）
+  const sortedAccounts = useMemo(() => accounts.filter((a) => !a.hidden).sort((a, b) => (a.code || '').localeCompare(b.code || '')), [accounts]);
 
   const walletName = (id) => wallets.find((w) => w.id === id)?.name || '';
   const openNew = () => { setEditId(null); setPresetData(null); setModalOpen(true); };

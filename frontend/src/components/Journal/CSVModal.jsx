@@ -33,8 +33,9 @@ export default function CSVModal({ open, onClose }) {
 
   const step = rows.length > 0 ? 2 : 1;
 
+  // 手で選ぶプルダウン用。非表示の科目は出さない（csv.js の自動一致は非表示も対象のまま）
   const sortedAccounts = useMemo(
-    () => [...accounts].sort((a, b) => (a.code || '').localeCompare(b.code || '')),
+    () => accounts.filter((a) => !a.hidden).sort((a, b) => (a.code || '').localeCompare(b.code || '')),
     [accounts]
   );
 

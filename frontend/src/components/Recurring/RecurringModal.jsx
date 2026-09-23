@@ -16,10 +16,12 @@ export default function RecurringModal({ open, onClose, editId }) {
   const [desc, setDesc] = useState('');
   const [lines, setLines] = useState([emptyLine(), emptyLine()]);
 
-  const sortedAccounts = useMemo(
-    () => [...accounts].sort((a, b) => (a.code || '').localeCompare(b.code || '')),
-    [accounts]
-  );
+  // 非表示の科目は候補から外す。ただし編集中の行が既に使っている科目は残す
+  const sortedAccounts = useMemo(() => {
+    const inUse = new Set(lines.map((l) => l.accountId));
+    return accounts.filter((a) => !a.hidden || inUse.has(a.id))
+      .sort((a, b) => (a.code || '').localeCompare(b.code || ''));
+  }, [accounts, lines]);
 
   useEffect(() => {
     if (!open) return;

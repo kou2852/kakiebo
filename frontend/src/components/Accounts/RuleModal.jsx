@@ -13,9 +13,11 @@ export default function RuleModal({ open, onClose, editId }) {
   const [crAccountId, setCrAccountId] = useState('');
   const [tagId, setTagId] = useState('');
 
+  // 非表示の科目は候補から外す。ただし編集中のルールが既に指している科目は残す
   const sortedAccounts = useMemo(
-    () => [...accounts].sort((a, b) => (a.code || '').localeCompare(b.code || '')),
-    [accounts]
+    () => accounts.filter((a) => !a.hidden || a.id === drAccountId || a.id === crAccountId)
+      .sort((a, b) => (a.code || '').localeCompare(b.code || '')),
+    [accounts, drAccountId, crAccountId]
   );
 
   useEffect(() => {

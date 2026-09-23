@@ -98,8 +98,8 @@ export default function QuickEntry() {
   // ── 構造化フォーム（借方/貸方） ──
   const [date, setDate] = useState(today());
   const [desc, setDesc] = useState('');
-  const [drId, setDrId] = useState(() => accounts.find((a) => a.type === 'expense')?.id || '');
-  const [crId, setCrId] = useState(() => accounts.find((a) => a.type === 'asset')?.id || '');
+  const [drId, setDrId] = useState(() => accounts.find((a) => a.type === 'expense' && !a.hidden)?.id || '');
+  const [crId, setCrId] = useState(() => accounts.find((a) => a.type === 'asset' && !a.hidden)?.id || '');
   const [amount, setAmount] = useState('');
   const [tagId, setTagId] = useState('');
 
@@ -135,18 +135,19 @@ export default function QuickEntry() {
     return () => window.removeEventListener('kk:tour-mode', h);
   }, []);
 
-  const expenseAccts = useMemo(() => accounts.filter((a) => a.type === 'expense'), [accounts]);
-  const incomeAccts = useMemo(() => accounts.filter((a) => a.type === 'income'), [accounts]);
-  const assetAccts = useMemo(() => accounts.filter((a) => a.type === 'asset'), [accounts]);
-  const payAccts = useMemo(() => accounts.filter((a) => a.type === 'asset' || a.type === 'liability'), [accounts]);
+  // 非表示にした科目はこれから入力する候補から外す（過去の仕訳の表示・集計には効かせない）
+  const expenseAccts = useMemo(() => accounts.filter((a) => a.type === 'expense' && !a.hidden), [accounts]);
+  const incomeAccts = useMemo(() => accounts.filter((a) => a.type === 'income' && !a.hidden), [accounts]);
+  const assetAccts = useMemo(() => accounts.filter((a) => a.type === 'asset' && !a.hidden), [accounts]);
+  const payAccts = useMemo(() => accounts.filter((a) => (a.type === 'asset' || a.type === 'liability') && !a.hidden), [accounts]);
 
   const [kind, setKind] = useState('out'); // out=支出 / in=収入 / transfer=振替
   const [sDate, setSDate] = useState(today());
   const [sAmt, setSAmt] = useState('');
   const [sDesc, setSDesc] = useState('');
-  const [sCat, setSCat] = useState(() => accounts.find((a) => a.type === 'expense')?.id || '');
-  const [sPay, setSPay] = useState(() => accounts.find((a) => a.type === 'asset' || a.type === 'liability')?.id || '');
-  const [sTo, setSTo] = useState(() => accounts.find((a) => a.type === 'asset')?.id || '');
+  const [sCat, setSCat] = useState(() => accounts.find((a) => a.type === 'expense' && !a.hidden)?.id || '');
+  const [sPay, setSPay] = useState(() => accounts.find((a) => (a.type === 'asset' || a.type === 'liability') && !a.hidden)?.id || '');
+  const [sTo, setSTo] = useState(() => accounts.find((a) => a.type === 'asset' && !a.hidden)?.id || '');
 
   const firstId = (list) => list[0]?.id || '';
   const changeKind = (k) => {
@@ -192,7 +193,7 @@ export default function QuickEntry() {
     <select className="fc" value={value} onChange={(e) => onChange(e.target.value)} style={{ fontSize: 13.5 }}>
       <option value="">選択…</option>
       {TYPE_ORDER.map((t) => {
-        const opts = accounts.filter((a) => a.type === t);
+        const opts = accounts.filter((a) => a.type === t && !a.hidden);
         if (!opts.length) return null;
         return <optgroup key={t} label={TYPE_LABEL[t]}>{opts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</optgroup>;
       })}

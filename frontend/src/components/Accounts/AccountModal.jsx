@@ -38,7 +38,11 @@ export default function AccountModal({ open, onClose, editId, defaultType, prefi
   const nameRef = useRef(null);
   const balanceRef = useRef(null);
 
-  const assetAccounts = useMemo(() => accounts.filter((a) => a.type === 'asset'), [accounts]);
+  // 引落口座の候補。非表示は外すが、編集中のカードが既に指している口座は残す（外すと保存で引落設定が飛ぶ）。
+  const assetAccounts = useMemo(() => {
+    const keep = accounts.find((a) => a.id === editId)?.ccFrom;
+    return accounts.filter((a) => a.type === 'asset' && (!a.hidden || a.id === keep));
+  }, [accounts, editId]);
 
   // ── 残高合わせ（既存科目の帳簿残高を、実際の残高に合わせる）──
   // 「開始残高」と違って差額だけを記帳するので、同じ数字で何度実行しても増えない。
@@ -50,7 +54,7 @@ export default function AccountModal({ open, onClose, editId, defaultType, prefi
   );
   // 差額の相手科目。投資性の資産は評価損益（含み損益）、それ以外は元入金を既定にする。
   const counterOptions = useMemo(
-    () => accounts.filter((a) => a.type === 'equity' || a.type === 'income' || a.type === 'expense')
+    () => accounts.filter((a) => !a.hidden && (a.type === 'equity' || a.type === 'income' || a.type === 'expense'))
       .sort((a, b) => (a.code || '').localeCompare(b.code || '')),
     [accounts]
   );
@@ -64,8 +68,8 @@ export default function AccountModal({ open, onClose, editId, defaultType, prefi
       if (plAccount) return plAccount.id;
       return CREATE_PL;
     }
-    return accounts.some((a) => a.id === EQUITY_ID) ? EQUITY_ID : (counterOptions[0]?.id || '');
-  }, [editing, accounts, counterOptions, plAccount]);
+    return counterOptions.some((a) => a.id === EQUITY_ID) ? EQUITY_ID : (counterOptions[0]?.id || '');
+  }, [editing, counterOptions, plAccount]);
 
   const adjustDiff = Math.round(parseFloat(String(actualBalance).replace(/[¥,，]/g, '')) || 0) - bookBalance;
   // 締め日はフォームの値で見る。既定の「クレジットカード」科目は引き落とし設定を持たないので、

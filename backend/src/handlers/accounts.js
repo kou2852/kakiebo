@@ -5,7 +5,7 @@ import { getUserId, parseBody, pathParam, ok, created, noContent, badRequest, un
 const SK = (id) => `ACCOUNT#${id}`;
 const VALID_TYPES = ['asset', 'liability', 'equity', 'income', 'expense'];
 // クライアントが更新できるフィールドのホワイトリスト（sys 等の特権フィールドは含めない）
-const EDITABLE_FIELDS = ['name', 'type', 'code', 'note', 'ccClose', 'ccDay', 'ccDelay', 'ccFrom'];
+const EDITABLE_FIELDS = ['name', 'type', 'code', 'note', 'ccClose', 'ccDay', 'ccDelay', 'ccFrom', 'hidden'];
 
 /** 文字列フィールドの長さ検証。問題なければ null、あればエラーメッセージ */
 function validateLengths(b) {
@@ -47,6 +47,7 @@ export async function handler(event) {
       code: body.code || '',
       note: body.note || '',
       sys: body.sys || 0,
+      hidden: body.hidden ? 1 : 0,
       // CC設定 (負債科目のみ)
       ...(body.type === 'liability' && {
         ccClose: body.ccClose || 0,
@@ -72,7 +73,8 @@ export async function handler(event) {
 
     // ホワイトリストのフィールドのみ更新。sys 等の特権フィールドは既存値を維持
     const patch = {};
-    for (const k of EDITABLE_FIELDS) if (body[k] !== undefined) patch[k] = body[k];
+    // hidden は数値 0/1 に正規化する（フロントから true/false が来ても保存が揺れないように）
+    for (const k of EDITABLE_FIELDS) if (body[k] !== undefined) patch[k] = k === 'hidden' ? (body[k] ? 1 : 0) : body[k];
 
     const updated = await putItem(userId, SK(id), {
       ...existing,
