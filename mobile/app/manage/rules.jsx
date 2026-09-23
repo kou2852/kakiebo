@@ -8,6 +8,7 @@ import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, ChipRow, Empty, Field, Input, Screen, sep } from '../../src/components/ui';
 import { uid } from '../../src/utils/format';
+import { selectable } from '../../src/utils/hiddenAccounts';
 
 export default function Rules() {
   const t = useTheme();
@@ -15,9 +16,10 @@ export default function Rules() {
   const [editing, setEditing] = useState(null);
 
   const name = (id) => accounts.find((a) => a.id === id)?.name || '?';
-  const drOpts = accounts.filter((a) => a.type === 'expense' || a.type === 'asset')
+  const pickable = selectable(accounts, [editing?.drAccountId, editing?.crAccountId]);
+  const drOpts = pickable.filter((a) => a.type === 'expense' || a.type === 'asset')
     .map((a) => ({ value: a.id, label: a.name }));
-  const crOpts = accounts.filter((a) => a.type === 'asset' || a.type === 'liability' || a.type === 'income')
+  const crOpts = pickable.filter((a) => a.type === 'asset' || a.type === 'liability' || a.type === 'income')
     .map((a) => ({ value: a.id, label: a.name }));
 
   // 既存の仕訳から、まだルールが無い摘要をよく使う順に出す。ゼロから考えるより速い。
@@ -35,8 +37,8 @@ export default function Rules() {
 
   const startNew = (keyword = '') => setEditing({
     keyword,
-    drAccountId: accounts.find((a) => a.type === 'expense')?.id || '',
-    crAccountId: accounts.find((a) => a.type === 'asset')?.id || '',
+    drAccountId: accounts.find((a) => a.type === 'expense' && !a.hidden)?.id || '',
+    crAccountId: accounts.find((a) => a.type === 'asset' && !a.hidden)?.id || '',
   });
 
   const commit = () => {

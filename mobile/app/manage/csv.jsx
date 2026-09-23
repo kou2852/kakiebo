@@ -17,6 +17,7 @@ import { fa, uid } from '../../src/utils/format';
 import { CC, detectCsvFormat, normD, normalizeForeignCsv, pAm, parseCT, resolveAccount, rowsToCSV } from '../../src/utils/csv';
 import { applyMapping, guessByContent, guessMapping, loadMapping, looksHeaderless, rawRows, saveMapping } from '../../src/utils/csvMapping';
 import { useTourTarget } from '../../src/store/TourProvider';
+import { selectable } from '../../src/utils/hiddenAccounts';
 
 const SIGNS = [
   { value: 'positive', label: '支出が正の数' },
@@ -36,8 +37,10 @@ export default function Csv() {
   const [expenseId, setExpenseId] = useState('');
   const [payId, setPayId] = useState('');
 
-  const expenseOpts = accounts.filter((a) => a.type === 'expense').map((a) => ({ value: a.id, label: a.name }));
-  const payOpts = accounts.filter((a) => a.type === 'asset' || a.type === 'liability').map((a) => ({ value: a.id, label: a.name }));
+  const expenseOpts = selectable(accounts, [expenseId])
+    .filter((a) => a.type === 'expense').map((a) => ({ value: a.id, label: a.name }));
+  const payOpts = selectable(accounts, [payId])
+    .filter((a) => a.type === 'asset' || a.type === 'liability').map((a) => ({ value: a.id, label: a.name }));
   const expense = expenseId || expenseOpts[0]?.value;
   const pay = payId || payOpts[0]?.value;
 

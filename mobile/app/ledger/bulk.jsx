@@ -8,6 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, ChipRow, Field, Input, Screen } from '../../src/components/ui';
+import { selectable } from '../../src/utils/hiddenAccounts';
 
 export default function BulkEdit() {
   const t = useTheme();
@@ -22,7 +23,7 @@ export default function BulkEdit() {
   const [cr, setCr] = useState('');
 
   const opts = [{ value: '', label: '変更しない' },
-    ...accounts.map((a) => ({ value: a.id, label: a.name }))];
+    ...selectable(accounts).map((a) => ({ value: a.id, label: a.name }))];
 
   const apply = () => {
     if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {

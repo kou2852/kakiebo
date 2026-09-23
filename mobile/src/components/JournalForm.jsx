@@ -8,6 +8,7 @@ import { useTheme } from '../theme';
 import { Button, Card, ChipRow, Field, Input } from './ui';
 import AccountPicker from './AccountPicker';
 import { today, uid } from '../utils/format';
+import { selectable } from '../utils/hiddenAccounts';
 
 const TYPES = [
   { value: 'out', label: '支出', dr: ['expense'], cr: ['asset', 'liability'] },
@@ -44,8 +45,9 @@ export default function JournalForm({ initial, onSubmit, submitLabel = '保存',
   const set = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
 
   const spec = TYPES.find((x) => x.value === f.type);
-  const drOpts = useMemo(() => pick(accounts, spec.dr), [accounts, spec.dr]);
-  const crOpts = useMemo(() => pick(accounts, spec.cr), [accounts, spec.cr]);
+  // 非表示の科目は候補から外す。いま選ばれている科目（編集中の仕訳・当てたプリセット）は残す。
+  const drOpts = useMemo(() => pick(selectable(accounts, [f.drId]), spec.dr), [accounts, spec.dr, f.drId]);
+  const crOpts = useMemo(() => pick(selectable(accounts, [f.crId]), spec.cr), [accounts, spec.cr, f.crId]);
 
   // 型を変えると選べる科目が変わる。選択が範囲外なら先頭に戻す。
   const dr = drOpts.some((o) => o.id === f.drId) ? f.drId : drOpts[0]?.id;

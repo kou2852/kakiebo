@@ -13,6 +13,7 @@ import { useTheme } from '../theme';
 import { Button, Card, ChipRow, Field, Input } from './ui';
 import AccountPicker from './AccountPicker';
 import { fa, fas, today, uid } from '../utils/format';
+import { selectable } from '../utils/hiddenAccounts';
 
 const newLine = (side) => ({ key: uid(), accountId: '', side, amount: '' });
 
@@ -74,7 +75,7 @@ export default function SplitForm({ initial, onSubmit, submitLabel = '保存', o
       <Card title={label}>
         {rows.map((l) => (
           <View key={l.key} style={{ gap: 6, paddingBottom: 8, borderBottomWidth: rows.length > 1 ? 1 : 0, borderBottomColor: t.bd }}>
-            <AccountPicker label="科目" accounts={accounts} value={l.accountId}
+            <AccountPicker label="科目" accounts={selectable(accounts, [l.accountId])} value={l.accountId}
               onChange={(v) => setLine(l.key, { accountId: v })} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Input

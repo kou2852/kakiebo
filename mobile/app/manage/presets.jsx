@@ -5,6 +5,7 @@ import { useTheme } from '../../src/theme';
 import { Button, Card, ChipRow, Empty, Field, Input, Screen, sep } from '../../src/components/ui';
 import { fa, uid } from '../../src/utils/format';
 import { useTourTarget } from '../../src/store/TourProvider';
+import { selectable } from '../../src/utils/hiddenAccounts';
 
 // 入力画面で1タップで呼び出す科目の組み合わせ。金額と日付は都度入力なので持たない。
 const TYPES = [
@@ -20,12 +21,13 @@ export default function Presets() {
 
   const name = (id) => accounts.find((a) => a.id === id)?.name || '?';
   const spec = editing ? TYPES.find((x) => x.value === editing.type) : null;
-  const opts = (types) => accounts.filter((a) => types.includes(a.type)).map((a) => ({ value: a.id, label: a.name }));
+  const opts = (types) => selectable(accounts, [editing?.drId, editing?.crId])
+    .filter((a) => types.includes(a.type)).map((a) => ({ value: a.id, label: a.name }));
 
   const startNew = () => setEditing({
     name: '', desc: '', type: 'out', amount: '',
-    drId: accounts.find((a) => a.type === 'expense')?.id || '',
-    crId: accounts.find((a) => a.type === 'asset')?.id || '',
+    drId: accounts.find((a) => a.type === 'expense' && !a.hidden)?.id || '',
+    crId: accounts.find((a) => a.type === 'asset' && !a.hidden)?.id || '',
   });
 
   const startEdit = (p) => setEditing({

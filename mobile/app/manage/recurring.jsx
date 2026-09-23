@@ -6,6 +6,7 @@ import { Button, Card, ChipRow, Empty, Field, Input, Screen, sep } from '../../s
 import { fa, today, uid } from '../../src/utils/format';
 import { dueRecurring, generateRecurring } from '../../src/utils/autoGen';
 import { useTourTarget } from '../../src/store/TourProvider';
+import { selectable } from '../../src/utils/hiddenAccounts';
 
 const FREQ = [
   { value: 'monthly', label: '毎月' },
@@ -25,7 +26,8 @@ export default function Recurring() {
 
   const due = useMemo(() => dueRecurring(recurring, journals), [recurring, journals]);
   const name = (id) => accounts.find((a) => a.id === id)?.name || '?';
-  const opts = (types) => accounts.filter((a) => types.includes(a.type)).map((a) => ({ value: a.id, label: a.name }));
+  const opts = (types) => selectable(accounts, [editing?.drId, editing?.crId])
+    .filter((a) => types.includes(a.type)).map((a) => ({ value: a.id, label: a.name }));
 
   // 期日が来た分をまとめて記帳する。Web 版の autoGen をそのまま使う。
   const generate = async () => {
@@ -40,8 +42,8 @@ export default function Recurring() {
 
   const startNew = () => setEditing({
     name: '', desc: '', type: 'out', frequency: 'monthly', nextDate: today(), amount: '',
-    drId: accounts.find((a) => a.type === 'expense')?.id || '',
-    crId: accounts.find((a) => a.type === 'asset')?.id || '',
+    drId: accounts.find((a) => a.type === 'expense' && !a.hidden)?.id || '',
+    crId: accounts.find((a) => a.type === 'asset' && !a.hidden)?.id || '',
   });
 
   const startEdit = (r) => {

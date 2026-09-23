@@ -10,6 +10,7 @@ import { lastClosingDate } from '../../src/utils/creditCard';
 import { accountBalance, calcBalances } from '../../src/utils/bookkeeping';
 import { nextCode } from '../../src/utils/accountCode';
 import { useTourTarget } from '../../src/store/TourProvider';
+import { isHidden, selectable } from '../../src/utils/hiddenAccounts';
 
 const TYPE_OPTS = Object.entries(ACCOUNT_TYPES).map(([value, label]) => ({ value, label }));
 
@@ -19,6 +20,7 @@ export default function Accounts() {
   const t = useTheme();
   const { accounts, journals, commitAll, del } = useData();
   const [editing, setEditing] = useState(null); // { id?, name, code, type }
+  const [showHidden, setShowHidden] = useState(false);
 
   const balances = useMemo(() => calcBalances(journals, accounts), [journals, accounts]);
   const used = useMemo(() => {
@@ -39,8 +41,22 @@ export default function Accounts() {
   // 口座（支払い手段）を作れるのも資産と負債だけ。wallets.jsx と同じ条件。
   const showWallet = (e) => !e.id && (e.type === 'asset' || e.type === 'liability');
 
-  // 引落口座に選べるのは資産科目（現金・預金など）。
-  const settleOpts = accounts.filter((a) => a.type === 'asset').map((a) => ({ value: a.id, label: a.name }));
+  // 引落口座に選べるのは資産科目（現金・預金など）。非表示は外すが、いま選ばれている口座は残す。
+  const settleOpts = selectable(accounts, [editing?.ccFrom])
+    .filter((a) => a.type === 'asset').map((a) => ({ value: a.id, label: a.name }));
+
+  // 残高があるのは BS の科目だけ。費用・収益は期間の集計なので「残高が残る」とは言わない。
+  const hasBalance = (a) => ['asset', 'liability', 'equity'].includes(a.type)
+    && accountBalance(a.id, accounts, balances) !== 0;
+
+  // 非表示にしても止めはしない。残高があれば BS には出続けることだけ伝える（ウェブ版と同じ）。
+  const toggleHidden = (v) => {
+    setEditing((e) => ({ ...e, hidden: v ? 1 : 0 }));
+    const cur = accounts.find((a) => a.id === editing?.id);
+    if (v && cur && hasBalance(cur)) {
+      Alert.alert('残高が残っています', '非表示にしても、残高があるうちは貸借対照表とダッシュボードに表示されます。');
+    }
+  };
 
   const commit = () => {
     const name = editing.name.trim();
@@ -58,7 +74,15 @@ export default function Accounts() {
     // ⚠ save を続けて呼ばない。commit は書き込みの完了を待たないので、
     //   まとめて commitAll で積む（直列化した上で、積み終わりを待てる）。
     const id = editing.id || uid();
-    const intents = [upsert('accounts', { id, name, code, type: editing.type, ...cc })];
+    // ⚠ 元の科目の項目を引き継ぐ。以前は id・名前・コード・区分（とカード設定）だけで作り直していたため、
+    //   保存のたびに既定科目の印（sys）・メモ（note）・非表示（hidden）が消えていた。
+    //   暗号化アカウントは同期で帳簿を丸ごと書き戻すので、ウェブで付けた非表示がそのまま外れる。
+    //   カード設定は下の cc で作り直す（外した設定を残さないため、元の値は引き継がない）。
+    // eslint-disable-next-line no-unused-vars
+    const { ccClose, ccDay, ccDelay, ccFrom, ...prev } = accounts.find((a) => a.id === editing.id) || {};
+    const intents = [upsert('accounts', {
+      ...prev, id, name, code, type: editing.type, hidden: editing.hidden ? 1 : 0, ...cc,
+    })];
 
     // 開始残高。資産は (借)新科目/(貸)元入金、負債（既にある借金）は (借)元入金/(貸)新科目。
     // ⚠ 相手科目が無いと貸借が合わない。元入金は既定科目なので通常あるが、
@@ -171,11 +195,34 @@ export default function Accounts() {
             </Field>
           </Card>
         ) : null}
+        {editing.id ? (
+          <Card title="入力の候補">
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <Text style={{ color: t.tx, fontSize: 15, flex: 1 }}>この科目を非表示にする</Text>
+              <Switch value={isHidden(editing)} trackColor={{ true: t.ac }} onValueChange={toggleHidden} />
+            </View>
+            <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
+              記帳や設定で科目を選ぶときの候補に出なくなります。過去の仕訳・残高・レポートはそのまま残ります。既定の科目も隠せます。
+            </Text>
+          </Card>
+        ) : null}
         <Button label="保存" onPress={commit} disabled={!editing.name.trim()} />
         <Button label="キャンセル" variant="ghost" onPress={() => setEditing(null)} />
       </Screen>
     );
   }
+
+  const hiddenRows = accounts.filter(isHidden).sort((a, b) => (a.code > b.code ? 1 : -1));
+  const row = (a) => (
+    <TouchableOpacity key={a.id} onPress={() => setEditing({ ...a })} onLongPress={() => remove(a)}
+      style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 9 }, sep(t)]}>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: isHidden(a) ? t.tx3 : t.tx, fontSize: 15 }}>{a.name}</Text>
+        <Text style={{ color: t.tx3, fontSize: 13 }}>{a.code}{a.sys ? ' · 既定' : ''}{isHidden(a) ? ' · 非表示' : ''}</Text>
+      </View>
+      <Text style={{ color: t.tx2, fontSize: 15 }}>{faBal(accountBalance(a.id, accounts, balances))}</Text>
+    </TouchableOpacity>
+  );
 
   return (
     <Screen>
@@ -185,26 +232,28 @@ export default function Accounts() {
       {/* 一覧は種別ごとに分かれているので、囲みは最初の塊だけに付ける。
           ツアーは「科目は自由に足せる」と伝えるのが目的で、全部を囲む必要はない。 */}
       {TYPE_OPTS.map(({ value, label }, typeIndex) => {
-        const rows = accounts.filter((a) => a.type === value).sort((a, b) => (a.code > b.code ? 1 : -1));
+        const rows = accounts.filter((a) => a.type === value && !isHidden(a)).sort((a, b) => (a.code > b.code ? 1 : -1));
         if (!rows.length) return null;
         return (
           <View key={value} ref={typeIndex === 0 ? listRef : undefined} collapsable={false}>
           <Card title={label}>
-            {rows.map((a) => (
-              <TouchableOpacity key={a.id} onPress={() => setEditing({ ...a })} onLongPress={() => remove(a)}
-                style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 9 }, sep(t)]}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: t.tx, fontSize: 15 }}>{a.name}</Text>
-                  <Text style={{ color: t.tx3, fontSize: 13 }}>{a.code}{a.sys ? ' · 既定' : ''}</Text>
-                </View>
-                <Text style={{ color: t.tx2, fontSize: 15 }}>{faBal(accountBalance(a.id, accounts, balances))}</Text>
-              </TouchableOpacity>
-            ))}
+            {rows.map(row)}
           </Card>
           </View>
         );
       })}
-      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>タップで編集・長押しで削除</Text>
+      {/* 非表示の科目は最後に畳む。件数を出し、開くとコード順に一覧できる（ウェブ版と同じ）。 */}
+      {hiddenRows.length ? (
+        <Card>
+          <TouchableOpacity onPress={() => setShowHidden((v) => !v)} accessibilityRole="button"
+            style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
+            <Text style={{ color: t.tx2, fontSize: 15, fontWeight: '600' }}>非表示の科目（{hiddenRows.length}件）</Text>
+            <Text style={{ color: t.tx3, fontSize: 15 }}>{showHidden ? '閉じる' : '開く'}</Text>
+          </TouchableOpacity>
+          {showHidden ? hiddenRows.map(row) : null}
+        </Card>
+      ) : null}
+      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>タップで編集（非表示の切り替えも編集から）・長押しで削除</Text>
     </Screen>
   );
 }

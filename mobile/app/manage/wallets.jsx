@@ -4,6 +4,7 @@ import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, ChipRow, Empty, Field, Input, Screen, sep } from '../../src/components/ui';
 import { uid } from '../../src/utils/format';
+import { selectable } from '../../src/utils/hiddenAccounts';
 
 export default function Wallets() {
   const t = useTheme();
@@ -11,7 +12,7 @@ export default function Wallets() {
   const [editing, setEditing] = useState(null);
 
   // 口座は「資産または負債の科目」に紐づく支払い手段の別名。
-  const opts = accounts
+  const opts = selectable(accounts, [editing?.accountId])
     .filter((a) => a.type === 'asset' || a.type === 'liability')
     .map((a) => ({ value: a.id, label: a.name }));
 

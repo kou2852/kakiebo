@@ -13,6 +13,7 @@ import { useTheme } from '../../src/theme';
 import { Button, Card, ChipRow, Empty, Input, Screen } from '../../src/components/ui';
 import { fa, faBal, fas, today, uid } from '../../src/utils/format';
 import { accountBalance, calcBalances, isInvestmentAsset } from '../../src/utils/bookkeeping';
+import { selectable } from '../../src/utils/hiddenAccounts';
 
 const MODES = [
   { value: 'cash', label: '実査（残高照合）' },
@@ -31,7 +32,7 @@ export default function Reconcile() {
   const balances = useMemo(() => calcBalances(journals, accounts), [journals, accounts]);
 
   // 実査の対象は現金・預金を含む資産と負債。評価替えは投資性の資産だけ。
-  const targets = useMemo(() => accounts.filter((a) => (
+  const targets = useMemo(() => selectable(accounts).filter((a) => (
     mode === 'valuation' ? isInvestmentAsset(a) : (a.type === 'asset' || a.type === 'liability')
   )), [accounts, mode]);
 

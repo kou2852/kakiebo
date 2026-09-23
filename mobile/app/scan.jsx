@@ -120,8 +120,8 @@ export default function Scan() {
               date: result.date || today(),
               desc: result.store || '',
               amount: result.amount ? String(result.amount) : '',
-              drId: rule?.drAccountId || accounts.find((a) => a.type === 'expense')?.id || '',
-              crId: rule?.crAccountId || accounts.find((a) => a.type === 'asset')?.id || '',
+              drId: rule?.drAccountId || accounts.find((a) => a.type === 'expense' && !a.hidden)?.id || '',
+              crId: rule?.crAccountId || accounts.find((a) => a.type === 'asset' && !a.hidden)?.id || '',
               tagId: '',
             }}
             submitLabel="記帳する"
