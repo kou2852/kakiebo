@@ -19,7 +19,8 @@ export default function Wallets() {
   const commit = () => {
     const name = editing.name.trim();
     if (!name || !editing.accountId) return;
-    save('wallets', { id: editing.id || uid(), name, accountId: editing.accountId });
+    // 元の口座の項目を引き継ぐ。ウェブで設定したデフォルトタグ（名前・色）を保存で消さないため。
+    save('wallets', { ...wallets.find((w) => w.id === editing.id), id: editing.id || uid(), name, accountId: editing.accountId });
     setEditing(null);
   };
 

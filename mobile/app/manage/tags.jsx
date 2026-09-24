@@ -28,7 +28,8 @@ export default function Tags() {
   const commit = () => {
     const name = editing.name.trim();
     if (!name) return;
-    save('tags', { id: editing.id || uid(), name, color: editing.color });
+    // 元のタグの項目を引き継ぐ。ウェブで入れた備考（note）を保存で消さないため。
+    save('tags', { ...tags.find((g) => g.id === editing.id), id: editing.id || uid(), name, color: editing.color });
     setEditing(null);
   };
 

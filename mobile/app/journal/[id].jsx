@@ -27,7 +27,8 @@ export default function EditJournal() {
     { text: '削除', style: 'destructive', onPress: () => { del('journals', journal.id); router.back(); } },
   ]);
 
-  const commit = (j) => { save('journals', { ...j, id: journal.id }); router.back(); };
+  // 元の仕訳の項目を引き継ぐ。入力欄に無い項目（ウェブ版で付けたもの）を保存で消さないため。
+  const commit = (j) => { save('journals', { ...journal, ...j, id: journal.id }); router.back(); };
 
   return (
     <Screen>

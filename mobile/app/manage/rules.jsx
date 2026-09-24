@@ -44,7 +44,9 @@ export default function Rules() {
   const commit = () => {
     const k = editing.keyword.trim();
     if (!k || !editing.drAccountId || !editing.crAccountId) return;
+    // 元のルールの項目を引き継ぐ。ウェブで設定したタグ（tagId）を保存で消さないため。
     save('rules', {
+      ...rules.find((r) => r.id === editing.id),
       id: editing.id || uid(),
       keyword: k,
       drAccountId: editing.drAccountId,

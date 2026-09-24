@@ -6,6 +6,7 @@ import { Button, Card, ChipRow, Empty, Field, Input, Screen, sep } from '../../s
 import { fa, uid } from '../../src/utils/format';
 import { useTourTarget } from '../../src/store/TourProvider';
 import { selectable } from '../../src/utils/hiddenAccounts';
+import { carryLine } from '../../src/utils/journalTags';
 
 // 入力画面で1タップで呼び出す科目の組み合わせ。金額と日付は都度入力なので持たない。
 const TYPES = [
@@ -42,14 +43,19 @@ export default function Presets() {
     if (!n || !editing.drId || !editing.crId) return;
     // 金額まで決めておくと、ホーム画面から開いた時点で入力が終わっている状態になる。
     const fixed = Number(String(editing.amount || '').replace(/[^0-9]/g, '')) || 0;
+    // ⚠ 元のプリセットの項目を引き継ぐ。以前は行を作り直していたため、ウェブで付けたタグ
+    //   （複数タグの配分 splits）が保存のたびに消えていた。
+    const prev = presets.find((p) => p.id === editing.id);
+    const prevLine = (side) => prev?.lines?.find((l) => l.side === side);
     save('presets', {
+      ...prev,
       id: editing.id || uid(),
       // walletId は Web 版の項目。モバイルからは設定しないので既存値を壊さないよう空で持つ。
       walletId: presets.find((p) => p.id === editing.id)?.walletId || '',
       type: editing.type, name: n, desc: editing.desc.trim(),
       lines: [
-        { accountId: editing.drId, side: 'dr', amount: fixed, tagId: '' },
-        { accountId: editing.crId, side: 'cr', amount: fixed, tagId: '' },
+        carryLine(prevLine('dr'), { accountId: editing.drId, side: 'dr', amount: fixed }),
+        carryLine(prevLine('cr'), { accountId: editing.crId, side: 'cr', amount: fixed }),
       ],
     });
     setEditing(null);

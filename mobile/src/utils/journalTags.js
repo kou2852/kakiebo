@@ -55,3 +55,24 @@ export function presetLineSplits(line) {
   // 旧形式は行の全額に1つのタグ。金額未設定なら比率1（＝全額）として扱う。
   return line?.tagId ? [{ tagId: line.tagId, amount: line.amount || 1 }] : [];
 }
+
+/**
+ * 編集前の行から、アプリの入力欄に無い項目を引き継ぐ（複数タグの配分 splits・税率など）。
+ *
+ * ⚠ アプリの入力欄は「科目・金額・タグ1つ」しか持たない。行をその場で作り直すと、ウェブで付けた
+ *   複数タグの配分が保存のたびに消える（2026-09-24 に確認）。next には入力欄で決めた項目だけを渡す。
+ *
+ * 金額を変えたときは、配分を同じ比率で付け直す（一部だけタグを付けていた場合もその比率のまま）。
+ * 金額が0（プリセットの都度入力）のときは比率として持っているので、そのまま残す。
+ */
+export function carryLine(prev, next) {
+  if (!prev) return next;
+  const out = { ...prev, ...next };
+  if (prev.splits?.length) {
+    const from = Number(prev.amount) || 0;
+    const to = Number(next.amount) || 0;
+    out.splits = from === to || !(to > 0) ? prev.splits : scalePresetSplits(prev.splits, from, to);
+    if (!out.splits.length) delete out.splits;
+  }
+  return out;
+}

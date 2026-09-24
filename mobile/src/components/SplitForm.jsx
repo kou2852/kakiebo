@@ -14,12 +14,14 @@ import { Button, Card, ChipRow, Field, Input } from './ui';
 import AccountPicker from './AccountPicker';
 import { fa, fas, today, uid } from '../utils/format';
 import { selectable } from '../utils/hiddenAccounts';
+import { carryLine } from '../utils/journalTags';
 
 const newLine = (side) => ({ key: uid(), accountId: '', side, amount: '' });
 
 /** 既存の仕訳を編集用の形へ。行の並びは借方→貸方に揃える。 */
 export function toSplitForm(journal) {
-  const conv = (l) => ({ key: uid(), accountId: l.accountId, side: l.side, amount: String(l.amount), tagId: l.tagId || '' });
+  // orig は保存時に、入力欄に無い項目（複数タグの配分など）を引き継ぐための元の行
+  const conv = (l) => ({ key: uid(), accountId: l.accountId, side: l.side, amount: String(l.amount), tagId: l.tagId || '', orig: l });
   return {
     date: journal.date,
     desc: journal.desc || '',
@@ -62,10 +64,13 @@ export default function SplitForm({ initial, onSubmit, submitLabel = '保存', o
     id: initial?.id || uid(),
     date: f.date,
     desc: f.desc.trim(),
-    lines: filled.map((l) => ({
-      accountId: l.accountId, side: l.side, amount: num(l.amount), taxRate: 0,
-      ...(l.tagId ? { tagId: l.tagId } : {}),
-    })),
+    lines: filled.map((l) => {
+      const out = carryLine(l.orig, { accountId: l.accountId, side: l.side, amount: num(l.amount) });
+      if (out.taxRate === undefined) out.taxRate = 0;
+      // 配分の無い行はタグ欄が正。外したら外す。
+      if (!out.splits?.length) { if (l.tagId) out.tagId = l.tagId; else delete out.tagId; }
+      return out;
+    }),
   });
 
   // JSX ではなく関数として呼ぶ（コンポーネント化するとレンダーごとに作り直され、入力欄のフォーカスが飛ぶ）
@@ -95,7 +100,9 @@ export default function SplitForm({ initial, onSubmit, submitLabel = '保存', o
                 </TouchableOpacity>
               ) : null}
             </View>
-            {tags.length ? (
+            {l.orig?.splits?.length ? (
+              <Text style={{ color: t.tx3, fontSize: 13 }}>複数のタグ（ウェブ版で編集できます。保存しても消えません）</Text>
+            ) : tags.length ? (
               <ChipRow
                 options={[{ value: '', label: 'タグなし' }, ...tags.map((g) => ({ value: g.id, label: g.name }))]}
                 value={l.tagId || ''} onChange={(v) => setLine(l.key, { tagId: v })}

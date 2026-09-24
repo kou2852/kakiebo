@@ -9,6 +9,7 @@ import { Button, Card, ChipRow, Field, Input } from './ui';
 import AccountPicker from './AccountPicker';
 import { today, uid } from '../utils/format';
 import { selectable } from '../utils/hiddenAccounts';
+import { carryLine } from '../utils/journalTags';
 
 const TYPES = [
   { value: 'out', label: '支出', dr: ['expense'], cr: ['asset', 'liability'] },
@@ -32,6 +33,7 @@ export function toForm(journal, accounts) {
     type, date: journal.date, desc: journal.desc || '',
     amount: String(dr[0].amount), drId: dr[0].accountId, crId: cr[0].accountId,
     tagId: dr[0].tagId || cr[0].tagId || '',
+    orig: journal.lines, // 保存時に、入力欄に無い項目（複数タグの配分など）を引き継ぐ
   };
 }
 
@@ -74,14 +76,22 @@ export default function JournalForm({ initial, onSubmit, submitLabel = '保存',
     }));
   };
 
+  // ウェブで付けた複数タグの配分がある仕訳。アプリでは配分を編集できないので、タグ欄を出さずに引き継ぐ。
+  const multiTagged = (f.orig || []).some((l) => l.splits?.length);
+
+  const line = (side, accountId) => {
+    const out = carryLine((f.orig || []).find((l) => l.side === side), { accountId, side, amount: n });
+    if (out.taxRate === undefined) out.taxRate = 0;
+    // 配分の無い行はタグ欄が正。外したら外す。
+    if (!out.splits?.length) { if (f.tagId) out.tagId = f.tagId; else delete out.tagId; }
+    return out;
+  };
+
   const submit = () => onSubmit({
     id: initial?.id || uid(),
     date: f.date,
     desc: f.desc.trim(),
-    lines: [
-      { accountId: dr, side: 'dr', amount: n, taxRate: 0, ...(f.tagId ? { tagId: f.tagId } : {}) },
-      { accountId: cr, side: 'cr', amount: n, taxRate: 0, ...(f.tagId ? { tagId: f.tagId } : {}) },
-    ],
+    lines: [line('dr', dr), line('cr', cr)],
   });
 
   return (
@@ -119,7 +129,13 @@ export default function JournalForm({ initial, onSubmit, submitLabel = '保存',
         />
       </Card>
 
-      {tags.length ? (
+      {multiTagged ? (
+        <Card title="タグ">
+          <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
+            この仕訳には複数のタグが付いています。タグの配分はウェブ版で編集できます。ここで保存しても配分は消えません。
+          </Text>
+        </Card>
+      ) : tags.length ? (
         <Card title="タグ">
           <ChipRow
             options={[{ value: '', label: 'なし' }, ...tags.map((g) => ({ value: g.id, label: g.name }))]}

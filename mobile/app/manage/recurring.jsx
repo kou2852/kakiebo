@@ -7,6 +7,7 @@ import { fa, today, uid } from '../../src/utils/format';
 import { dueRecurring, generateRecurring } from '../../src/utils/autoGen';
 import { useTourTarget } from '../../src/store/TourProvider';
 import { selectable } from '../../src/utils/hiddenAccounts';
+import { carryLine } from '../../src/utils/journalTags';
 
 const FREQ = [
   { value: 'monthly', label: '毎月' },
@@ -62,7 +63,12 @@ export default function Recurring() {
     const n = Number(String(editing.amount).replace(/[^0-9]/g, ''));
     const nm = editing.name.trim();
     if (!nm || !n || !editing.drId || !editing.crId) return;
+    // ⚠ 元の定期取引の項目を引き継ぐ。以前は行を作り直していたため、ウェブで付けたタグが
+    //   保存のたびに消えていた（生成される仕訳にもタグが付かなくなる）。
+    const prev = recurring.find((r) => r.id === editing.id);
+    const prevLine = (side) => prev?.lines?.find((l) => l.side === side);
     save('recurring', {
+      ...prev,
       id: editing.id || uid(),
       name: nm, desc: editing.desc.trim(),
       frequency: editing.frequency,
@@ -70,8 +76,8 @@ export default function Recurring() {
       day: Number(editing.nextDate.slice(8, 10)),
       nextDate: editing.nextDate,
       lines: [
-        { accountId: editing.drId, side: 'dr', amount: n, tagId: '' },
-        { accountId: editing.crId, side: 'cr', amount: n, tagId: '' },
+        carryLine(prevLine('dr'), { accountId: editing.drId, side: 'dr', amount: n }),
+        carryLine(prevLine('cr'), { accountId: editing.crId, side: 'cr', amount: n }),
       ],
     });
     setEditing(null);
