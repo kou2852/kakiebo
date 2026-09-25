@@ -14,8 +14,11 @@ try { Ads = require('react-native-google-mobile-ads'); } catch { Ads = null; }
 // 端末IDの調べ方: 本番IDでアプリを起動し、Xcode か端末ログに出る
 //   <Google> To get test ads on this device, set: GADMobileAds...testDeviceIdentifiers = @[ @"..." ]
 // の文字列をここに足す。
+// ⚠ 同じ iPhone でも、TestFlight から入れたときと App Store から入れたときで ID が変わる
+//   （入れ直しでも変わる）。2026-09-25 に App Store 版だけテスト広告にならず判明した。
 const TEST_DEVICES = [
-  '38cca2af0109f5c8f92f1cb8feda037b', // 開発者の iPhone（2026-09-20 取得）
+  '38cca2af0109f5c8f92f1cb8feda037b', // 開発者の iPhone・TestFlight 版（2026-09-20 取得）
+  '1e023bf96be8d515e074c63b22e5824c', // 開発者の iPhone・App Store 版（2026-09-25 取得）
 ];
 
 let started = false;
