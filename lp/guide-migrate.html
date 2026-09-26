@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1494837719359912" crossorigin="anonymous"></script>
+<title>他の家計簿アプリからデータを移行する手順（マネーフォワード ME・Zaim・複式家計簿・CSV） | kurofukubo</title>
+<meta name="description" content="マネーフォワード ME・Zaim・Android の「複式家計簿」などで書き出したCSV・JSONから、科目と仕訳をまとめて kurofukubo に移す手順です。書き出し方、列と科目のマッピング、借方と貸方が合わない仕訳の直し方まで、実際の画面で説明します。">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://kurofukubo.com/guide-migrate.html">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f4f7f9;--bg2:#ffffff;--bd:#e6ebec;--tx:#14201f;--tx2:#5d6b6a;--tx3:#93a09e;--ac:#0d9488;--ac2:#0f766e}
+body{font-family:'Manrope','Noto Sans JP',sans-serif;background:var(--bg);color:var(--tx);font-size:15px;line-height:1.9;-webkit-font-smoothing:antialiased}
+a{color:var(--ac);text-decoration:none}a:hover{color:var(--ac2)}
+.wrap{max-width:760px;margin:0 auto;padding:0 24px}
+nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,.88);backdrop-filter:blur(12px);border-bottom:1px solid var(--bd)}
+.nav-inner{max-width:1080px;margin:0 auto;padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:56px}
+.nav-logo{font-family:'Manrope','Noto Sans JP',sans-serif;font-size:18px;font-weight:700;color:var(--ac)}
+.nav-r a{color:var(--tx2);font-size:13px;margin-left:18px}.nav-r a:hover{color:var(--ac)}.nav-r .cta{color:var(--ac)}
+.doc{padding:48px 0 80px}
+.doc h1{font-family:'Manrope','Noto Sans JP',sans-serif;font-size:28px;margin-bottom:8px;line-height:1.5}
+.doc .lead{color:var(--tx2);margin-bottom:28px}
+.doc h2{font-size:19px;font-weight:700;margin:34px 0 12px;color:var(--ac);scroll-margin-top:72px}
+.doc h3{font-size:15px;font-weight:700;margin:20px 0 6px;color:var(--tx);scroll-margin-top:72px}
+.doc p{color:var(--tx2);margin-bottom:12px}
+.doc ul,.doc ol{color:var(--tx2);margin:0 0 12px 1.4em}.doc li{margin-bottom:6px}
+.callout{background:var(--bg2);border:1px solid var(--bd);border-left:3px solid var(--ac);border-radius:6px;padding:14px 18px;font-size:14px;color:var(--tx2);margin:18px 0}
+.callout.warn{border-left-color:#d08a2c}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+th,td{border:1px solid var(--bd);padding:8px 12px;text-align:left;color:var(--tx2);vertical-align:top}
+th{color:var(--tx);background:var(--bg2)}
+.cta-box{background:var(--bg2);border:1px solid var(--bd);border-radius:8px;padding:22px;text-align:center;margin:36px 0 0}
+.cta-box a{display:inline-block;background:var(--ac);color:#ffffff;font-weight:700;padding:10px 24px;border-radius:6px;margin-top:8px}
+.cta-box a:hover{background:var(--ac2)}
+.more{margin-top:28px;font-size:14px;color:var(--tx3)}
+footer{border-top:1px solid var(--bd);padding:32px 0;font-size:13px;color:var(--tx3);text-align:center}
+.fig{margin:20px 0}.fig img{width:100%;height:auto;border:1px solid var(--bd);border-radius:10px;display:block}.fig figcaption{font-size:12.5px;color:var(--tx3);margin-top:6px;text-align:center}
+.toc{background:var(--bg2);border:1px solid var(--bd);border-radius:8px;padding:14px 18px 6px;margin:0 0 24px;font-size:14px}
+.toc p{margin-bottom:4px;color:var(--tx);font-weight:700}
+.steps{list-style:none;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0 18px !important;padding:0}
+.steps li{background:var(--bg2);border:1px solid var(--bd);border-radius:8px;padding:10px 12px;font-size:13.5px;line-height:1.7;margin:0}
+.steps b{display:block;color:var(--ac);font-size:12px}
+.steps strong{display:block;color:var(--tx);font-size:14.5px;margin-bottom:2px}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;background:var(--bg2);border:1px solid var(--bd);border-radius:4px;padding:0 4px}
+@media (max-width:640px){.steps{grid-template-columns:repeat(2,1fr)}table{font-size:13px}th,td{padding:6px 8px}}
+</style>
+<meta property="og:type" content="article">
+<meta property="og:title" content="他の家計簿アプリからデータを移行する手順（マネーフォワード ME・Zaim・複式家計簿・CSV） | kurofukubo">
+<meta property="og:description" content="マネーフォワード ME・Zaim・Android の「複式家計簿」などで書き出したCSV・JSONから、科目と仕訳をまとめて kurofukubo に移す手順です。書き出し方、列と科目のマッピング、借方と貸方が合わない仕訳の直し方まで、実際の画面で説明します。">
+<meta property="og:url" content="https://kurofukubo.com/guide-migrate.html">
+<meta property="og:image" content="https://kurofukubo.com/ogp.png">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"他の家計簿アプリからデータを移行する手順（マネーフォワード ME・Zaim・複式家計簿・CSV）","description":"マネーフォワード ME・Zaim・Android の「複式家計簿」などで書き出したCSV・JSONから、科目と仕訳をまとめて kurofukubo に移す手順です。書き出し方、列と科目のマッピング、借方と貸方が合わない仕訳の直し方まで、実際の画面で説明します。","image":"https://kurofukubo.com/img/migrate-columns-auto.webp","url":"https://kurofukubo.com/guide-migrate.html","inLanguage":"ja","publisher":{"@type":"Organization","name":"kurofukubo","logo":{"@type":"ImageObject","url":"https://kurofukubo.com/icon-512.png"}},"author":{"@type":"Person","name":"ぱくぱく","url":"https://kurofukubo.com/about.html"},"datePublished":"2026-09-25","dateModified":"2026-09-25","mainEntityOfPage":{"@type":"WebPage","@id":"https://kurofukubo.com/guide-migrate.html"}}</script>
+  <script defer src="/analytics.js"></script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"ホーム","item":"https://kurofukubo.com/"},{"@type":"ListItem","position":2,"name":"ガイド","item":"https://kurofukubo.com/guides.html"},{"@type":"ListItem","position":3,"name":"他の家計簿アプリからデータを移行する手順","item":"https://kurofukubo.com/guide-migrate.html"}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"移行のときに、家計のデータが運営者に送られますか？","acceptedAnswer":{"@type":"Answer","text":"送られません。ファイルの読み取りと変換は、お使いの端末（ブラウザ）の中だけで行います。元のファイルをサーバーへ送ることはありません。取り込んだ仕訳は、手で記帳したものと同じように保存されます。"}},{"@type":"Question","name":"同じファイルを2回取り込んでしまったら？","acceptedAnswer":{"@type":"Answer","text":"日付と、科目・借方か貸方か・金額の組み合わせがすべて同じ仕訳がすでにあれば「取込済みと同じ」として外します。二重には入りません。本当に同じ取引が2回あるときは、「取込済みと同じ仕訳も取り込む」にチェックを入れてください。"}},{"@type":"Question","name":"登録しないで（ゲストのまま）移行できますか？","acceptedAnswer":{"@type":"Answer","text":"できません。移行では科目をまとめて作るため、ゲストの上限（追加の科目5件まで）を超えてしまいます。無料のアカウント登録をしてから、設定の「他のアプリから移行」を使ってください。"}},{"@type":"Question","name":"マネーフォワード ME や Zaim を無料プランで使っていても移行できますか？","acceptedAnswer":{"@type":"Answer","text":"マネーフォワード ME も Zaim も、CSVの書き出しは有料プランの機能です（各社の公式ヘルプによる）。書き出したCSVがあれば、kurofukubo 側は無料で取り込めます。"}}]}</script>
+</head>
+<body>
+<nav><div class="nav-inner"><a href="/" class="nav-logo"><img src="/favicon.svg" alt="" width="22" height="22" style="border-radius:6px;vertical-align:middle;margin-right:8px">kurofukubo</a><div class="nav-r"><a href="/guides.html">ガイド</a><a href="https://app.kurofukubo.com/?utm_source=guide&utm_medium=article&utm_content=guide-migrate" class="cta">無料で始める</a></div></div></nav>
+
+<section class="doc">
+  <div class="wrap">
+    <nav class="bc" aria-label="パンくず" style="font-size:12.5px;color:var(--tx3);margin-bottom:14px"><a href="/">ホーム</a> › <a href="/guides.html">ガイド</a> › <span style="color:var(--tx2)">他の家計簿アプリからデータを移行する手順</span></nav>
+    <h1>他の家計簿アプリからデータを移行する手順</h1>
+    <p class="byline" style="font-size:12.5px;color:var(--tx3);margin:6px 0 4px">公開: 2026/09/25 ・ 執筆: <a href="/about.html" style="color:var(--tx3);text-decoration:underline">ぱくぱく（kurofukubo 開発者）</a></p>
+    <p class="lead">いま使っている家計簿アプリで書き出したCSV（またはJSON）があれば、これまでの科目と仕訳をまとめて kurofukubo に移せます。マネーフォワード ME・Zaim・Android の「複式家計簿」は読み取り方が決まっているので、ほぼファイルを選ぶだけです。それ以外のアプリや自作の表も、どの列が日付・金額・科目なのかを選べば取り込めます。この記事では、書き出し方から取り込みが終わるまでを、実際の画面で順に説明します。</p>
+
+    <div class="toc">
+      <p>目次</p>
+      <ol>
+        <li><a href="#overview">できること・できないこと</a></li>
+        <li><a href="#flow">全体の流れ</a></li>
+        <li><a href="#export">アプリ別の書き出し方</a></li>
+        <li><a href="#file">ファイルを選ぶ</a></li>
+        <li><a href="#columns">列のマッピング</a></li>
+        <li><a href="#accounts">科目のマッピング</a></li>
+        <li><a href="#review">仕訳明細（取り込む前の確認と直し）</a></li>
+        <li><a href="#trouble">うまくいかないとき</a></li>
+        <li><a href="#after">取り込んだあとにやること</a></li>
+      </ol>
+    </div>
+
+    <h2 id="overview">できること・できないこと</h2>
+    <ul>
+      <li><strong>科目と仕訳をまとめて取り込めます。</strong>元のアプリの科目（補助科目を含む）は、kurofukubo の科目に割り当てるか、新しい科目として作ります。</li>
+      <li><strong>ファイルは端末の中だけで読み取ります。</strong>元のファイルをサーバーへ送ることはありません。</li>
+      <li><strong>日本円以外の取引と、予算・定期取引などは移しません。</strong>移すのは、取引（仕訳）と、それに使われている科目です。</li>
+      <li><strong>アカウント登録（無料）が必要です。</strong>ゲストのままでは使えません（ゲストは追加の科目が5件までのため）。</li>
+      <li><strong>パソコンでの操作をおすすめします。</strong>スマホでも使えますが、表が横にスクロールします。</li>
+    </ul>
+
+    <h2 id="flow">全体の流れ</h2>
+    <p>移行は、設定の<strong>「他のアプリから移行」</strong>から始めます（仕訳入力の「CSV取込」にある「他アプリからのデータの移行はこちら」からも開けます）。画面は次の順に進みます。</p>
+    <ol class="steps">
+      <li><b>1</b><strong>ファイルを選ぶ</strong>元のアプリで書き出したCSVかJSON</li>
+      <li><b>2</b><strong>マッピング</strong>どの列が何か、元の科目をどの科目に入れるか</li>
+      <li><b>3</b><strong>仕訳明細</strong>取り込む仕訳を1行ずつ確認して、直す</li>
+      <li><b>4</b><strong>取込</strong>科目を作り、仕訳を記帳する</li>
+    </ol>
+    <p>マネーフォワード ME・Zaim・複式家計簿のファイルなら、2のマッピングは最初から入っているので、中身を確かめて進むだけです。それ以外のファイルは、2で列を選びます。</p>
+
+    <h2 id="export">アプリ別の書き出し方</h2>
+    <p>まず、いまのアプリからデータを書き出します。書き出したファイルは、Excel などで開いて保存し直さず、そのまま使うのが確実です。</p>
+    <h3>Android の「複式家計簿」</h3>
+    <p>アプリのデータのエクスポート（書き出し）で、<strong>仕訳のファイル</strong>と<strong>科目のファイル（kamoku.csv）</strong>を書き出します。仕訳は「仕訳1」（借方と貸方が別の行）と「仕訳3」（1行に借方と貸方）のどちらの形でも取り込めます。科目のファイルは無くても取り込めますが、一緒に選ぶと補助科目の名前と「非表示」を引き継げます。</p>
+    <h3>マネーフォワード ME</h3>
+    <p>CSVのダウンロードは<strong>プレミアム会員だけ</strong>の機能です。Web版では家計簿の「収入・支出詳細」から1か月ずつCSVでダウンロードできます（アプリでは「入出金」画面のダウンロードから1年分）。1か月ずつのファイルは、1つずつ取り込んでください。</p>
+    <h3>Zaim</h3>
+    <p>CSVのダウンロードは<strong>プレミアムの機能</strong>です（初回は無料で試せます）。パソコンで Web 版にログインし、右上の「設定」→「ファイル入出力」→「Zaim の記録データをダウンロード」から、範囲を選んでダウンロードします。</p>
+    <h3>その他のアプリ・自作の表</h3>
+    <p>CSVかJSONで書き出せれば取り込めます。日付・金額・科目（費目やカテゴリ）が列になっていれば十分です。Excel で作った表なら、「CSV UTF-8（コンマ区切り）」で保存してください。</p>
+
+    <h2 id="file">ファイルを選ぶ</h2>
+    <p>「クリックまたはドラッグ＆ドロップ」の枠に、書き出したファイルを入れます。選ぶと、そのままマッピングの画面に進みます。</p>
+    <figure class="fig"><img src="/img/migrate-file.webp" alt="他のアプリから移行の最初の画面。CSVかJSONを選ぶ枠がある" loading="lazy" width="1040" height="402"><figcaption>最初の画面。ファイルを選ぶとマッピングに進みます（アプリ実画面）</figcaption></figure>
+    <ul>
+      <li><strong>複式家計簿：</strong>仕訳のファイルと kamoku.csv を一緒に選べます。あとからマッピングの画面の「科目のファイル」で選ぶこともできます。</li>
+      <li><strong>見出しの無いファイル：</strong>1行目がデータになっているファイル（弥生会計の仕訳など）は、マッピングの画面の「1行目は見出し（列名）」のチェックを外します。列は「列1」「列2」…と表示されます。</li>
+      <li><strong>JSON：</strong>取引が並んでいる配列を「取引の配列」から選びます。いちばん件数の多い配列が最初に選ばれています。入れ子の項目は「親.項目名」のように点でつないだ列名で並びます。1つの取引の中に明細が並ぶ形（取引の中の配列）を選んだときは、「親の番号」の列を「仕訳No」にすると、元の取引ごとに1つの仕訳にまとまります。</li>
+      <li><strong>文字コード：</strong>Shift-JIS と UTF-8 は自動で見分けます。</li>
+    </ul>
+
+    <h2 id="columns">列のマッピング</h2>
+    <p>マッピングの画面の上半分です。<strong>左に元のファイルの列</strong>（かっこの中は最初の行の値）、<strong>右に kurofukubo の項目</strong>が並びます。列ごとに、何として読むかを右で選びます。使わない列は「使わない」のままで構いません。</p>
+    <figure class="fig"><img src="/img/migrate-columns-auto.webp" alt="複式家計簿の仕訳を選んだときの列のマッピング。仕訳日が日付、貸借が貸借の列として自動で入っている" loading="lazy" width="1040" height="900"><figcaption>複式家計簿のファイルは、マッピングが最初から入っています（アプリ実画面）</figcaption></figure>
+    <h3>元データの形を選ぶ</h3>
+    <p>最初に、ファイルがどの形かを選びます。形によって、右で選べる項目が変わります。</p>
+    <table>
+      <tr><th>元データの形</th><th>こんなファイル</th></tr>
+      <tr><td>単式（家計簿アプリに多い）</td><td>1行が1つの取引。日付・金額・費目（カテゴリ）・口座が並んでいる。マネーフォワード ME・Zaim・自作の表の多く</td></tr>
+      <tr><td>1行＝1明細</td><td>1つの取引が、借方の行と貸方の行に分かれている。「貸借」の列がある。複式家計簿の「仕訳1」など</td></tr>
+      <tr><td>1行に借方と貸方</td><td>1行に借方の科目と貸方の科目が並んでいる。会計ソフトの仕訳日記帳、複式家計簿の「仕訳3」など</td></tr>
+    </table>
+    <h3>収入か支出か、借方か貸方かの決まり方</h3>
+    <p>どの項目に列を選んだかで自動で決まり、表の下に文で表示されます。</p>
+    <ul>
+      <li><strong>単式：</strong>「入金額」「出金額」の列を選べば、金額が入っている側で収入か支出かを決めます。「出金元の口座」「入金先の口座」を選べば、出金元だけなら支出、入金先だけなら収入、両方あれば振替です。「収支区分」の列を選べば、その値（「支出」「収入」など）ごとに意味を割り当てます。どれも無ければ、金額の符号（マイナスが支出）で決めます。</li>
+      <li><strong>1行＝1明細：</strong>「貸借」の列を選ぶと、その列の行のすぐ下で、値（「借」「貸」など）を借方・貸方に割り当てられます。</li>
+      <li><strong>1行に借方と貸方：</strong>借方はお金の行き先（使った費目や、入金した口座）、貸方はお金の出どころ（収入や、出金した口座）です。「出金元」「入金先」のような列なら、入金先を借方科目、出金元を貸方科目にします。貸方金額の列を選ばなければ、借方金額と同じとして読みます。</li>
+    </ul>
+    <p>同じ項目に2つ以上の列を選ぶと、値の入っている最初の列を使います（Zaim の「支出」「収入」「振替」の3列をすべて「金額」にする、など）。</p>
+    <h3>取り込まない行</h3>
+    <p>条件に当てはまる行は、取り込まずに読み飛ばします。複式家計簿では「削除の印が付いた行」と「日本円以外の行」、マネーフォワード ME では「計算対象外の行」が、最初から条件に入っています。金額が0の行も読み飛ばします。読み飛ばした行の数と行番号は、下の「科目のマッピング」に出ます。</p>
+    <h3>見本で確かめる</h3>
+    <p>列の下の「見本」に、先頭の5件を仕訳にした結果が出ます。列を変えるとその場で変わるので、日付・借方・貸方・金額が思ったとおりになっているかを見ながら選べます。</p>
+
+    <h3 id="columns-examples">列の選び方の例</h3>
+    <p><strong>例1：自作の家計簿（Excel の表）</strong>。列が「日付・費目・収入・支出・メモ」で、口座の列が無い表です。</p>
+    <table>
+      <tr><th>元のファイルの列</th><th>くろふくぼの項目</th></tr>
+      <tr><td>日付</td><td>日付</td></tr>
+      <tr><td>費目</td><td>カテゴリ</td></tr>
+      <tr><td>収入</td><td>入金額</td></tr>
+      <tr><td>支出</td><td>出金額</td></tr>
+      <tr><td>メモ</td><td>摘要（メモ）</td></tr>
+    </table>
+    <p>元データの形は「単式」のまま。口座の列が無いので、「口座の列が無いときは、すべてこの口座にする」に「現金」のように入れます。</p>
+    <figure class="fig"><img src="/img/migrate-columns-manual.webp" alt="自作の表の列のマッピング。収入を入金額、支出を出金額に選び、口座に現金と入れた画面と、下の見本" loading="lazy" width="1040" height="900"><figcaption>列を選ぶと、下の見本がその場で仕訳になります（アプリ実画面）</figcaption></figure>
+    <p><strong>例2：弥生会計の仕訳日記帳（見出しなし）</strong>。「1行目は見出し（列名）」のチェックを外し、元データの形を「1行に借方と貸方」にします。</p>
+    <table>
+      <tr><th>元のファイルの列</th><th>くろふくぼの項目</th></tr>
+      <tr><td>列2（伝票No）</td><td>仕訳No</td></tr>
+      <tr><td>列4（取引日付）</td><td>日付</td></tr>
+      <tr><td>列5・列6（借方勘定科目・補助科目）</td><td>借方科目・借方補助科目</td></tr>
+      <tr><td>列9（借方金額）</td><td>借方金額</td></tr>
+      <tr><td>列11・列12（貸方勘定科目・補助科目）</td><td>貸方科目・貸方補助科目</td></tr>
+      <tr><td>列15（貸方金額）</td><td>貸方金額</td></tr>
+      <tr><td>列17（摘要）</td><td>摘要（メモ）</td></tr>
+    </table>
+
+    <h2 id="accounts">科目のマッピング</h2>
+    <p>マッピングの画面の下半分です。<strong>左に元のファイルの科目</strong>、<strong>右に kurofukubo のどの科目に入れるか</strong>が並びます。</p>
+    <figure class="fig"><img src="/img/migrate-accounts.webp" alt="科目のマッピング。元の科目ごとに、既存の科目か新しく作る科目か、名前と区分が並ぶ" loading="lazy" width="1040" height="900"><figcaption>名前が同じ科目は既存の科目に、それ以外は新しく作る科目になっています（アプリ実画面）</figcaption></figure>
+    <ul>
+      <li><strong>新しく作る：</strong>名前と区分（資産・負債・純資産・収益・費用）を確かめます。名前は変えられます。</li>
+      <li><strong>既存の科目にまとめる：</strong>プルダウンで kurofukubo の科目を選ぶと、その科目に入ります。名前が同じ科目は、最初から既存の科目が選ばれています。</li>
+      <li><strong>補助科目は別の科目になります。</strong>「普通預金／ゆうちょ銀行」は「普通預金（ゆうちょ銀行）」という科目になります。1つにまとめたいときは、同じ既存の科目を選んでください。</li>
+      <li><strong>区分は推定です。</strong>科目コードがあればその先頭の数字（1 資産・2 負債・3 純資産・4 収益・5 費用）から、単式なら口座は資産、カテゴリは費用か収益にしています。違っていたら直してください。区分が空の科目があると次へ進めません。空の科目が多いときは「区分が空の科目をまとめて」で一度に選べます。</li>
+      <li><strong>クレジットカードは「負債」に直します。</strong>マネーフォワード ME・Zaim などの単式のファイルでは、カードも口座として「資産」と推定されます。カードの科目は区分を「負債」に直してください。</li>
+    </ul>
+    <p>確かめたら、下の「次へ（仕訳明細）」を押します。</p>
+
+    <h2 id="review">仕訳明細（取り込む前の確認と直し）</h2>
+    <p>取り込む仕訳が、1行ずつ並びます。取り込めるものは緑で「取り込めます」、直す必要があるものは赤く表示されます。<strong>赤い仕訳は、直すまで取り込みません</strong>（ほかの仕訳は取り込めます）。</p>
+    <figure class="fig"><img src="/img/migrate-review-add.webp" alt="仕訳明細。借方1000・貸方900で合わない仕訳に、＋で貸方100の行を足したところ" loading="lazy" width="1040" height="696"><figcaption>借方 1,000・貸方 900 の仕訳に「＋」で行を足すと、足りない貸方に差額の 100 が入ります。あとは科目を選ぶだけです（アプリ実画面）</figcaption></figure>
+    <h3>赤い仕訳の直し方</h3>
+    <p>いちばん多いのは「借方と貸方の金額が合いません」です。1つの仕訳は、借方の合計と貸方の合計が同じになるまで、続きの行をまとめて作ります。合わないまま日付が変わったり、ファイルが終わったりすると、赤くなります。</p>
+    <ul>
+      <li><strong>足りない側を足す：</strong>行の右の「＋」を押すと、足りない側（借方か貸方）に差額が入った行が足されます。科目を選べば合います。</li>
+      <li><strong>金額を直す：</strong>元のアプリで確かめて、金額の欄を直します。</li>
+      <li><strong>要らない行を消す：</strong>「消す」で行を消します。行を全部消した仕訳は取り込みません。</li>
+    </ul>
+    <p>日付・借方か貸方か・科目・金額は、どの行でも直せます。科目は「ファイルの科目（科目のマッピングのとおり）」と「くろふくぼの科目」から選べます。直す仕訳が多いときは、上の「直す仕訳へ」を押すと、赤い仕訳へ順に移ります。</p>
+    <h3>並び順</h3>
+    <p>「ファイルの順」「日付の順」「科目の順」から選べます。科目の順にすると、同じ科目の行が仕訳をまたいで続けて並ぶので、たとえば「普通預金」の行だけを通して見られます（「#番号」が同じ行が1つの仕訳です）。</p>
+    <h3>取り込む</h3>
+    <p>「取込実行」を押すと、新しく作る科目を作ってから、仕訳を記帳します。終わるまで画面を閉じないでください。</p>
+    <figure class="fig"><img src="/img/migrate-done.webp" alt="取り込みが終わった画面。仕訳4件を取り込み、新しく作った科目2件と表示" loading="lazy" width="1040" height="236"><figcaption>取り込みが終わった画面（アプリ実画面）</figcaption></figure>
+    <p>マッピングの画面に戻って列を変えると、仕訳明細で直した内容は作り直しになります。列を決めてから直すのがおすすめです。</p>
+
+    <h2 id="trouble">うまくいかないとき</h2>
+    <ul>
+      <li><strong>「次へ」が押せない：</strong>画面の下に理由が出ます。「列のマッピングへ」などのボタンで、その場所へ移れます。多いのは、必ず選ぶ項目（日付・金額・科目など）が足りないときと、区分が空の科目があるときです。</li>
+      <li><strong>仕訳にできる行が無い：</strong>元データの形の選び間違いが多いです。表のファイルを「1行＝1明細」にしていないか、見出しの無いファイルで「1行目は見出し」にチェックが入ったままになっていないかを確かめてください。</li>
+      <li><strong>日付が読めない：</strong>「2025/1/15」「2025-01-15」「2025-01-15T09:00」などは読めます。日付の列を選び間違えていないか、見本で確かめてください。</li>
+      <li><strong>番号が「2.02502E+13」のようになっている：</strong>書き出したファイルを Excel で開いて保存し直すと、長い番号がこうなります。この場合も、借方と貸方の合計で仕訳をまとめるので取り込めます。</li>
+      <li><strong>文字化けする：</strong>Shift-JIS と UTF-8 は自動で見分けます。それでも化けるときは、書き出したままのファイルを使ってください。</li>
+      <li><strong>二重に取り込みそう：</strong>日付と、科目・借方か貸方か・金額の組み合わせがすべて同じ仕訳がすでにあれば、「取込済みと同じ」として外します。</li>
+    </ul>
+
+    <h2 id="after">取り込んだあとにやること</h2>
+    <ol>
+      <li><strong>残高を合わせる。</strong>設定の「残高を照合する」で、通帳や財布の実際の残高と帳簿の差を調整します。移行した期間より前の残高（開始残高）がファイルに無いと、口座の残高がマイナスになることがあります。</li>
+      <li><strong>純資産と貸借対照表を見る。</strong>移した仕訳から、純資産・貸借対照表・損益計算書がすぐに出ます。見方は<a href="/guide-net-worth.html">家計純資産とは</a>で説明しています。</li>
+      <li><strong>これからの記帳にタグを付ける。</strong>タグを付けて記帳すると、同じ普通預金の中の「生活費」「旅行の積立」「税金の取り置き」などを分けて見られます。移した仕訳にはタグが付いていないので、移した時点の残高は「未配分」として表示されます。</li>
+    </ol>
+
+    <div class="callout">
+      移行は、アカウント登録（無料）のあと、設定の「他のアプリから移行」から使えます。ファイルは端末の中だけで読み取り、元のファイルを送ることはありません。
+      <p style="margin:10px 0 0"><a href="https://app.kurofukubo.com/?utm_source=guide&utm_medium=article&utm_content=guide-migrate-mid">無料で登録して移行する →</a></p>
+    </div>
+
+    <h2 id="faq">よくある質問</h2>
+    <h3>移行のときに、家計のデータが運営者に送られますか？</h3>
+    <p>送られません。ファイルの読み取りと変換は、お使いの端末（ブラウザ）の中だけで行います。元のファイルをサーバーへ送ることはありません。取り込んだ仕訳は、手で記帳したものと同じように保存されます。</p>
+    <h3>同じファイルを2回取り込んでしまったら？</h3>
+    <p>日付と、科目・借方か貸方か・金額の組み合わせがすべて同じ仕訳がすでにあれば「取込済みと同じ」として外します。二重には入りません。本当に同じ取引が2回あるときは、「取込済みと同じ仕訳も取り込む」にチェックを入れてください。</p>
+    <h3>登録しないで（ゲストのまま）移行できますか？</h3>
+    <p>できません。移行では科目をまとめて作るため、ゲストの上限（追加の科目5件まで）を超えてしまいます。無料のアカウント登録をしてから、設定の「他のアプリから移行」を使ってください。</p>
+    <h3>マネーフォワード ME や Zaim を無料プランで使っていても移行できますか？</h3>
+    <p>マネーフォワード ME も Zaim も、CSVの書き出しは有料プランの機能です（各社の公式ヘルプによる）。書き出したCSVがあれば、kurofukubo 側は無料で取り込めます。</p>
+
+    <div class="cta-box">
+      <p>いまの家計簿のデータを持ったまま、純資産と貸借対照表が見える家計簿へ。登録は1分・クレジットカード不要・連携なし。</p>
+      <a href="https://app.kurofukubo.com/?utm_source=guide&utm_medium=article&utm_content=guide-migrate">無料で始める</a>
+    </div>
+
+    <p class="more">出典（書き出し方）：<a href="https://support.me.moneyforward.com/hc/ja/articles/900004382483" rel="noopener">入出金履歴はダウンロードできますか（マネーフォワード ME サポートサイト）</a> ／ <a href="https://content.zaim.net/manuals/show/37" rel="noopener">CSVのダウンロード（Zaim ご利用ガイド）</a></p>
+    <p class="more">関連記事：<a href="/guide-moneyforward.html">マネーフォワードの乗り換え先は？</a> ／ <a href="/guide-csv.html">銀行・カードのCSVを取り込む手順</a> ／ <a href="/guide-start.html">はじめての使い方ガイド</a> ／ <a href="/guide-privacy.html">取り込んだデータは誰が見られる？</a> ／ <a href="/guides.html">ガイド一覧へ</a></p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">&copy; 2026 kurofukubo ・ <a href="/">トップ</a> ・ <a href="/contact.html">お問い合わせ</a> ・ <a href="/guides.html">ガイド</a> ・ <a href="/terms.html">利用規約</a> ・ <a href="/privacy.html">プライバシーポリシー</a></div>
+</footer>
+</body>
+</html>

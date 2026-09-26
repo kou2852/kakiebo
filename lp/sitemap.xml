@@ -80,7 +80,7 @@
   </url>
   <url>
     <loc>https://kurofukubo.com/guide-csv.html</loc>
-    <lastmod>2026-09-09</lastmod>
+    <lastmod>2026-09-25</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
@@ -110,7 +110,13 @@
   </url>
   <url>
     <loc>https://kurofukubo.com/guide-moneyforward.html</loc>
-    <lastmod>2026-09-09</lastmod>
+    <lastmod>2026-09-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://kurofukubo.com/guide-migrate.html</loc>
+    <lastmod>2026-09-25</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>

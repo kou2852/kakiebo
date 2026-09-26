@@ -38,6 +38,7 @@
 - [共働き夫婦の家計管理](https://kurofukubo.com/guide-dual-income.html): 財布は分ける？ペアローンとの付き合い方
 - [生活防衛資金は何ヶ月分必要？](https://kurofukubo.com/guide-emergency-fund.html): 世帯別の目安と貯め方
 - [マネーフォワードの乗り換え先は？](https://kurofukubo.com/guide-moneyforward.html): 無料・連携なしの家計簿への移行手順
+- [他の家計簿アプリからデータを移行する手順](https://kurofukubo.com/guide-migrate.html): マネーフォワード ME・Zaim・複式家計簿などのCSV・JSONから科目と仕訳を移す手順
 - [家計簿のデータは誰が見られる？](https://kurofukubo.com/guide-privacy.html): 連携なし・ゼロ知識(E2E)暗号化の考え方
 
 ## サイト情報
