@@ -34,9 +34,8 @@ const IOS_UPDATE = IOS_APP.live && IOS_APP.date ? [{
 // アプリ内「更新情報（What's New）」。先頭が最新。id は既読管理（kk_update_seen）に使用。
 export const APP_UPDATES = [
   // ⚠ ベルの赤ドットは App.jsx が APP_UPDATES[0].id だけを見て判定する。先頭に置いた記事しか
-  //    未読にならない。この記事を先頭に置いているあいだは、IOS_UPDATE の id が変わっても
-  //    赤ドットが点かない。**IOS_APP.live を true にするときは、この記事を IOS_UPDATE の下へ移すこと。**
-  //    忘れるとiOS公開の告知が誰にも通知されない。
+  //    未読にならない。iPhoneアプリの公開（2026-09-25）の告知を先頭に置く。
+  ...IOS_UPDATE,
   {
     id: '2026-09-21',
     date: '2026-09-21',
@@ -48,7 +47,6 @@ export const APP_UPDATES = [
       '非表示にした科目は一覧の下に「非表示の科目 ○件」としてまとまります。開いて「表示」を押せば、いつでも元に戻せます',
     ],
   },
-  ...IOS_UPDATE,
   {
     id: '2026-08-13',
     date: '2026-08-13',
