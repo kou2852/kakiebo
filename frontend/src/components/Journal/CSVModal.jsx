@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo, useCallback } from 'react';
 import { useData } from '../../contexts/DataContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../Common/Toast';
 import { CC, parseCT, normD, pAm, resolveAccount, readCsvFile, detectCsvFormat, normalizeForeignCsv } from '../../utils/csv';
 import Modal from '../Common/Modal';
@@ -14,8 +15,9 @@ function matchRule(rules, desc) {
   return null;
 }
 
-export default function CSVModal({ open, onClose }) {
+export default function CSVModal({ open, onClose, onMigrate }) {
   const { accounts, journals, rules, addJournal } = useData();
+  const { guestMode } = useAuth();
   const toast = useToast();
   const fileRef = useRef(null);
 
@@ -191,8 +193,15 @@ export default function CSVModal({ open, onClose }) {
       {step === 1 ? (
         <div>
           <div className="info-b mb-10">
-            <div>マネーフォワード / Zaim のCSVは<strong>自動で判定して取り込みます</strong>（費目・口座は次の画面で科目に割り当て）。</div>
+            {/* Zaim の実際の書き出しは csv.js の読み方と列が合わず0件になるので、ここでは挙げない（Zaim からは「他のアプリから移行」） */}
+            <div>マネーフォワードのCSVは<strong>自動で判定して取り込みます</strong>（費目・口座は次の画面で科目に割り当て）。</div>
             <div style={{ marginTop: 4 }}>独自フォーマットのカラム: <code>日付,借方科目,借方金額,貸方科目,貸方金額,摘要</code></div>
+          </div>
+          {/* ここは既存の科目に仕訳を足すだけ。科目ごと持ってくる移行は別画面なので、迷って来た人を案内する */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 12, color: 'var(--tx2)', marginBottom: 10 }}>
+            他のアプリから科目ごとまとめて移すときは
+            <button className="btn btn-g btn-s" disabled={guestMode} onClick={() => { handleClose(); onMigrate(); }}>他アプリからのデータの移行はこちら</button>
+            {guestMode && <span style={{ color: 'var(--tx3)' }}>アカウント登録すると使えます</span>}
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, marginBottom: 10, cursor: 'pointer' }}>
             <input type="checkbox" checked={hasHeader} onChange={(e) => setHasHeader(e.target.checked)} />

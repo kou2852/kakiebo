@@ -8,6 +8,7 @@ import { track } from '../../utils/track';
 import EncryptionPanel from './EncryptionPanel';
 import EncryptedImportModal from './EncryptedImportModal';
 import ReconcileModal from './ReconcileModal';
+import MigrateModal from './MigrateModal';
 
 export default function SettingsPage() {
   const { exportAll, importAll } = useData();
@@ -22,6 +23,7 @@ export default function SettingsPage() {
   const [deleting, setDeleting] = useState(false);
   const [encBackup, setEncBackup] = useState(null); // 取り込み待ちの暗号化バックアップ
   const [reconciling, setReconciling] = useState(false);
+  const [migrating, setMigrating] = useState(false);
 
   // ⚠ 前後の空白は取り除いてから比べる。日本語入力では変換の確定で全角の空白が入りやすく、
   //   「削除 」と入れた人が、ボタンが押せない理由も分からないまま止まっていた。
@@ -143,6 +145,12 @@ export default function SettingsPage() {
         <button className="btn btn-p" disabled={busy} onClick={() => fileRef.current?.click()}>
           {busy ? '取り込み中...' : 'JSONファイルを選択'}
         </button>
+        <p style={{ color: 'var(--tx3)', fontSize: 12, margin: '16px 0 12px' }}>
+          他の家計簿アプリで書き出した CSV・JSON から、科目と仕訳をまとめて取り込みます（Android の「複式家計簿」・マネーフォワード ME・Zaim は自動で読み取ります）。
+        </p>
+        {/* ゲストは科目5件の上限があり、移行は必ず超える */}
+        <button className="btn btn-g" disabled={guestMode} onClick={() => setMigrating(true)}>他のアプリから移行</button>
+        {guestMode && <span style={{ color: 'var(--tx3)', fontSize: 12, marginLeft: 10 }}>アカウント登録すると使えます</span>}
       </div>
 
       <div data-tour="e2e"><EncryptionPanel /></div>
@@ -189,6 +197,7 @@ export default function SettingsPage() {
       )}
 
       <ReconcileModal open={reconciling} onClose={() => setReconciling(false)} />
+      <MigrateModal open={migrating} onClose={() => setMigrating(false)} />
 
       <EncryptedImportModal open={!!encBackup} backup={encBackup}
         onClose={() => setEncBackup(null)}

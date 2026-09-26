@@ -92,11 +92,13 @@ th.sortable.desc .sa::after { content: '▼'; }
 /* ── ボタン ── */
 .btn { display: inline-flex; align-items: center; gap: 5px; padding: 8px 15px; border-radius: 8px; font-size: 13px; font-family: inherit; cursor: pointer; transition: .12s; border: none; font-weight: 600; }
 .btn-p { background: var(--ac); color: var(--ac-tx); }
-.btn-p:hover { background: var(--ac2); }
+.btn-p:hover:not(:disabled) { background: var(--ac2); }
 .btn-g { background: transparent; color: var(--tx2); border: 1.5px solid var(--bd2); }
-.btn-g:hover { background: var(--bg4); color: var(--tx); border-color: var(--tx3); }
+.btn-g:hover:not(:disabled) { background: var(--bg4); color: var(--tx); border-color: var(--tx3); }
 .btn-d { background: transparent; color: var(--red); border: 1.5px solid var(--bd2); }
-.btn-d:hover { background: rgba(208,96,96,.1); border-color: var(--red); }
+.btn-d:hover:not(:disabled) { background: rgba(208,96,96,.1); border-color: var(--red); }
+/* 押せないボタンは押せない見た目にする（無いと、押しても何も起きないボタンが押せそうに見える） */
+.btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn-s { padding: 4px 10px; font-size: 12px; }
 .journal-fab { display: none; }
 

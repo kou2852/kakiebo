@@ -6,6 +6,7 @@ import { filterByPeriod, getPeriodRange } from '../../utils/bookkeeping';
 import PeriodBar from '../Dashboard/PeriodBar';
 import JournalModal from './JournalModal';
 import CSVModal from './CSVModal';
+import MigrateModal from '../Settings/MigrateModal';
 import QuickEntry from './QuickEntry';
 import CheatSheetModal from './CheatSheetModal';
 import EmptyState from '../Common/EmptyState';
@@ -25,6 +26,7 @@ export default function JournalPage() {
   const [editId, setEditId] = useState(null);
   const [presetData, setPresetData] = useState(null);
   const [csvOpen, setCsvOpen] = useState(false);
+  const [migrating, setMigrating] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkDate, setBulkDate] = useState('');
@@ -312,7 +314,8 @@ export default function JournalPage() {
       </div>
 
       <JournalModal open={modalOpen} onClose={closeModal} editId={editId} preset={presetData} />
-      <CSVModal open={csvOpen} onClose={() => setCsvOpen(false)} />
+      <CSVModal open={csvOpen} onClose={() => setCsvOpen(false)} onMigrate={() => setMigrating(true)} />
+      <MigrateModal open={migrating} onClose={() => setMigrating(false)} />
       <CheatSheetModal open={cheatOpen} onClose={() => setCheatOpen(false)} />
 
       <Modal
