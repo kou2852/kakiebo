@@ -12,9 +12,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.kurofukubo.app",
       "entitlements": {
-        "com.apple.developer.applesignin": [
-          "Default"
-        ]
+        "com.apple.developer.applesignin": ["Default"]
       },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
