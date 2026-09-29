@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "kurofukubo",
+    "NSFaceIDUsageDescription": "保存した暗号化キーを取り出して家計簿を解錠します。",
+    "NSPhotoLibraryUsageDescription": "レシートや利用控えの画像を読み取って記帳するために使います。画像は端末内で処理し、外部に送信しません。",
+    "NSCameraUsageDescription": "レシートや利用控えを撮影して記帳するために使います。画像は端末内で処理し、外部に送信しません。"
+  }
+}
