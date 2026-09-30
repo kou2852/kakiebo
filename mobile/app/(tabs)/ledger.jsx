@@ -7,6 +7,7 @@ import { useTheme } from '../../src/theme';
 import { Button, Empty, Segmented, sep } from '../../src/components/ui';
 import PeriodBar, { usePeriod } from '../../src/components/PeriodBar';
 import BottomSheet from '../../src/components/BottomSheet';
+import SwipeRow from '../../src/components/SwipeRow';
 import { fa, ymd } from '../../src/utils/format';
 import { filterByPeriod } from '../../src/utils/bookkeeping';
 
@@ -128,7 +129,13 @@ export default function Ledger() {
     const crs = item.lines.filter((l) => l.side === 'cr');
     const total = drs.reduce((s, l) => s + l.amount, 0);
     const selectable = picking && !inModal;
+    const go = (path) => { setDayOpen(null); router.push(path); };
     return (
+      // 左へスライドで「編集」「コピー」。まとめて選んでいる間は選択の邪魔になるので出さない。
+      <SwipeRow disabled={selectable} actions={[
+        { label: '編集', color: t.acb, textColor: t.ac, onPress: () => go(`/journal/${item.id}`) },
+        { label: 'コピー', onPress: () => go(`/journal/${item.id}?copy=1`) },
+      ]}>
       <TouchableOpacity
         onPress={() => {
           if (selectable) return toggle(item.id);
@@ -164,6 +171,7 @@ export default function Ledger() {
           </Text>
         </View>
       </TouchableOpacity>
+      </SwipeRow>
     );
   };
 
@@ -204,7 +212,7 @@ export default function Ledger() {
           ListFooterComponent={
             rows.length ? (
               <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center', padding: 16 }}>
-                タップで編集・長押しで削除
+                タップで編集・左へスライドでコピー・長押しで削除
               </Text>
             ) : null
           }

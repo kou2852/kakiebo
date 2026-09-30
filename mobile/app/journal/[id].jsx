@@ -11,7 +11,7 @@ import { today } from '../../src/utils/format';
 export default function EditJournal() {
   const t = useTheme();
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const { id, copy } = useLocalSearchParams();
   const { journals, accounts, save, del } = useData();
 
   const journal = journals.find((j) => j.id === id);
@@ -19,7 +19,8 @@ export default function EditJournal() {
   const simple = journal ? toForm(journal, accounts) : null;
   const [mode, setMode] = useState(null);
   // コピー: 同じ中身で新しい仕訳を作る。日付だけ今日にする（ウェブ版の「コピー」と同じ）。
-  const [copying, setCopying] = useState(false);
+  // 仕訳帳で行を左へスライドして「コピー」を押すと ?copy=1 で直接この状態から開く
+  const [copying, setCopying] = useState(copy === '1');
 
   if (!journal) return <Screen><Card><Text style={{ color: t.tx2 }}>この仕訳は見つかりません</Text></Card></Screen>;
 
