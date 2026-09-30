@@ -86,9 +86,10 @@ export function AuthProvider({ children }) {
     // 実セッションがあれば後続処理が優先しフラグは解除される。
     if (new URLSearchParams(window.location.search).get('guest') !== null) {
       localStorage.setItem(GUEST_KEY, '1');
-      window.history.replaceState({}, '', window.location.pathname);
+      // 計測はクエリを消す前に送る。ビーコンの Referer に UTM を残し、流入元別に数えるため。
       track('guest_start');
       trackOnce('guest_first');
+      window.history.replaceState({}, '', window.location.pathname);
     }
 
     (async () => {
