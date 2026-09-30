@@ -1,10 +1,10 @@
 import Modal from './Modal';
-import { APP_UPDATES } from '../../config/updates';
+import { WEB_UPDATES } from '../../config/updates';
 import { track } from '../../utils/track';
 
 // アプリ内の更新情報。直近5回分の更新を履歴として一覧表示する。
 export default function WhatsNewModal({ open, onClose }) {
-  const updates = APP_UPDATES.slice(0, 5);
+  const updates = WEB_UPDATES.slice(0, 5);
   if (!updates.length) return null;
   return (
     <Modal open={open} onClose={onClose} title="🆕 更新情報"

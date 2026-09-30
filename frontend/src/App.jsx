@@ -29,7 +29,7 @@ import WhatsNewModal from './components/Common/WhatsNewModal';
 import IosPromoModal from './components/Common/IosPromoModal';
 import FeedbackModal from './components/Common/FeedbackModal';
 import { AD_CONFIG } from './config/tiers';
-import { APP_UPDATES } from './config/updates';
+import { WEB_UPDATES } from './config/updates';
 import { track } from './utils/track';
 
 const FEEDBACK_ASKED_KEY = 'kk_feedback_asked';
@@ -93,7 +93,7 @@ function AppShell({ devMode, guestMode, tier }) {
   }, [devMode, journals.length, loading]);
 
   // 更新情報は自動表示せず、ヘッダーのベルから開く。未読は赤ドットで示す。
-  const latestUpdate = APP_UPDATES[0]?.id;
+  const latestUpdate = WEB_UPDATES[0]?.id;
   const [updateSeen, setUpdateSeen] = useState(() => localStorage.getItem('kk_update_seen'));
   const hasUnreadUpdate = !!latestUpdate && updateSeen !== latestUpdate;
   const closeWhatsNew = () => { localStorage.setItem('kk_update_seen', latestUpdate || ''); setUpdateSeen(latestUpdate); setWhatsNewOpen(false); };
