@@ -28,7 +28,7 @@
 {"@context":"https://schema.org","@type":"SoftwareApplication","name":"kurofukubo","alternateName":"黒福簿","url":"https://kurofukubo.com/","sameAs":["https://x.com/pakupaku_x_x_x"],"applicationCategory":"FinanceApplication","operatingSystem":"Web","offers":{"@type":"Offer","price":"0","priceCurrency":"JPY"},"description":"現金・証券・NISA/iDeCo・ローンまで含めた純資産を一画面で把握できる資産・家計管理アプリ。運営者にも中身が見えないE2E暗号化に対応。貸借対照表・損益計算書も自動作成。","author":{"@type":"Person","name":"ぱくぱく","url":"https://kurofukubo.com/about.html"}}
 </script>
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"簿記の知識がなくても使えますか？","acceptedAnswer":{"@type":"Answer","text":"はい。クイック入力に「食費 1200 現金」のように書くだけで、裏側で正しい複式簿記の仕訳が自動生成されます。借方・貸方を意識するのは、使いたくなってからで十分です。"}},{"@type":"Question","name":"無料で利用できますか？","acceptedAnswer":{"@type":"Answer","text":"現在はベータ版として、全機能を無料で提供しています。クレジットカードの登録も不要です。"}},{"@type":"Question","name":"スマートフォンでも利用できますか？","acceptedAnswer":{"@type":"Answer","text":"はい。ブラウザで動くWebサービスなので、スマートフォンからも利用できます。iPhoneアプリもApp Storeで配信しています。同じアカウントで同じ帳簿が見られます。"}},{"@type":"Question","name":"一般的な家計簿との違いは何ですか？","acceptedAnswer":{"@type":"Answer","text":"支出の記録だけでなく「どこから払ったか」まで記録するため、口座残高・資産・負債・収支がひとつにつながります。貸借対照表や損益計算書も自動で作られます。"}},{"@type":"Question","name":"銀行やクレジットカードとの自動連携はありますか？","acceptedAnswer":{"@type":"Answer","text":"自動連携はありません。金融機関の認証情報をお預かりしない安全設計のためです。明細はCSV取込または手入力で記帳します。"}},{"@type":"Question","name":"データは安全に管理されますか？","acceptedAnswer":{"@type":"Answer","text":"ゲスト利用時はデータが端末内にのみ保存されます。アカウント作成後は暗号化してクラウドに保存され、E2E暗号化を有効にすると運営者にも中身が読めません。"}}]}
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"簿記の知識がなくても使えますか？","acceptedAnswer":{"@type":"Answer","text":"はい。金額と使い道、どこから払ったかを選ぶだけで、裏側で正しい複式簿記の仕訳が自動生成されます。借方・貸方を意識するのは、使いたくなってからで十分です。"}},{"@type":"Question","name":"無料で利用できますか？","acceptedAnswer":{"@type":"Answer","text":"現在はベータ版として、全機能を無料で提供しています。クレジットカードの登録も不要です。"}},{"@type":"Question","name":"スマートフォンでも利用できますか？","acceptedAnswer":{"@type":"Answer","text":"はい。ブラウザで動くWebサービスなので、スマートフォンからも利用できます。iPhoneアプリもApp Storeで配信しています。同じアカウントで同じ帳簿が見られます。"}},{"@type":"Question","name":"一般的な家計簿との違いは何ですか？","acceptedAnswer":{"@type":"Answer","text":"支出の記録だけでなく「どこから払ったか」まで記録するため、口座残高・資産・負債・収支がひとつにつながります。貸借対照表や損益計算書も自動で作られます。"}},{"@type":"Question","name":"銀行やクレジットカードとの自動連携はありますか？","acceptedAnswer":{"@type":"Answer","text":"自動連携はありません。金融機関の認証情報をお預かりしない安全設計のためです。明細はCSV取込または手入力で記帳します。"}},{"@type":"Question","name":"データは安全に管理されますか？","acceptedAnswer":{"@type":"Answer","text":"ゲスト利用時はデータが端末内にのみ保存されます。アカウント作成後は暗号化してクラウドに保存され、E2E暗号化を有効にすると運営者にも中身が読めません。"}}]}
 </script>
 <script defer src="/analytics.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -90,6 +90,7 @@ header{position:sticky;top:0;z-index:30;background:rgba(253,252,249,.92);backdro
 .hero-sub strong{color:var(--tx);font-weight:700}
 .hero-actions{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:34px;flex-wrap:wrap}
 .hero-actions .btn-g{font-size:16px;padding:17px 44px}
+.hero-badge{display:inline-flex}
 .hero-facts{display:flex;justify-content:center;gap:22px;flex-wrap:wrap;margin-top:20px}
 .hero-facts span{font-size:12.5px;color:var(--tx2);display:inline-flex;align-items:center;gap:6px}
 .hero-facts span::before{content:'✓';color:var(--ac);font-weight:700}
@@ -251,6 +252,7 @@ footer{background:#1a2622;padding:40px 0}
   <div class="wrap nav">
     <a class="logo" href="/">黒福簿 <small>kurofukubo</small></a>
     <nav class="nav-links">
+      <a href="#ios">iPhoneアプリ</a>
       <a href="#diff">特徴</a>
       <a href="#input">入力方法</a>
       <a href="#start">はじめ方</a>
@@ -265,15 +267,15 @@ footer{background:#1a2622;padding:40px 0}
   <div class="wrap">
     <div class="hero-head">
       <h1>使ったお金だけでなく、<br><em>お金の流れまで見える</em>複式簿記の家計簿。</h1>
-      <p class="hero-sub">入力はいつもの家計簿のようにシンプル。<br>複式簿記の仕組みで、<strong>口座・資産・負債・収支</strong>がつながり、<strong>純資産</strong>まで見えます。<br><strong>銀行連携は不要</strong>。ブラウザだけで、登録なしにすぐ試せます。</p>
+      <p class="hero-sub">入力はいつもの家計簿のようにシンプル。<br>複式簿記の仕組みで、<strong>口座・資産・負債・収支</strong>がつながり、<strong>純資産</strong>まで見えます。<br><strong>銀行連携は不要</strong>。iPhoneアプリとブラウザで、同じ帳簿を使えます。</p>
       <div class="hero-actions">
-        <a href="https://app.kurofukubo.com/?guest" class="btn btn-g">無料で家計簿を始める</a>
-        <a href="#now" class="btn btn-ghost">できることを見る</a>
+        <a href="https://apps.apple.com/jp/app/kurofukubo-%E8%A4%87%E5%BC%8F%E7%B0%BF%E8%A8%98%E3%81%AE%E5%AE%B6%E8%A8%88%E7%B0%BF/id6806592989" class="hero-badge" data-cta="hero_appstore" aria-label="App Storeからダウンロード"><img src="/img/appstore-badge-ja.svg" alt="App Storeからダウンロード" height="56" style="height:56px;width:auto"></a>
+        <a href="https://app.kurofukubo.com/?guest" class="btn btn-g">ブラウザで無料で始める</a>
       </div>
       <div class="hero-facts">
         <span>登録・メール入力なし</span>
         <span>全機能無料（ベータ）</span>
-        <span>ブラウザですぐに使える</span>
+        <span>ブラウザ版は登録なしですぐ</span>
       </div>
     </div>
     <div class="hero-visual">
@@ -281,10 +283,40 @@ footer{background:#1a2622;padding:40px 0}
         <div class="browser-bar"><i></i><i></i><i></i><span class="url">app.kurofukubo.com — ダッシュボード</span></div>
         <img src="/img/lp-hero-dashboard.webp" style="width:100%;max-height:600px;object-fit:cover;object-position:top" alt="黒福簿のダッシュボード実画面。総資産・負債・純資産・今月の収支と、資産構成・支出内訳のグラフが1画面に表示されている" loading="eager" fetchpriority="high">
       </div>
-      <div class="hero-phone phone"><div class="phone-scr"><img src="/img/lp-hero-phone.webp" alt="スマートフォン表示の仕訳入力画面"></div></div>
+      <div class="hero-phone phone"><div class="phone-scr"><img src="/img/ios-dashboard.webp" alt="iPhoneアプリのダッシュボード。純資産と今月の収支、資産構成のグラフが表示されている"></div></div>
     </div>
   </div>
 </div>
+
+<!-- 1.2 iOS APP（2026-10-01 に「はじめ方」の後からファーストビューの直後へ移した）
+     ⚠ ダウンロード用の公式バッジは公開後だけ使う（Apple のガイドラインで、予約中は予約注文、
+        公開後はダウンロードと分けている）。公開の判定は scripts/check-ios-live.mjs で行う。 -->
+<section id="ios" class="ios">
+  <div class="wrap ios-in">
+    <div class="ios-tx">
+      <div class="eyebrow">iPHONE APP</div>
+      <h2>家計簿を、<br>ポケットに。</h2>
+      <p class="sec-desc">ブラウザ版と同じ帳簿を、iPhoneアプリでそのまま持ち歩けるようにしました。</p>
+      <ul class="ios-pt">
+        <li><strong>レシートを撮って記帳。</strong>文字の読み取りは端末の中だけで行い、写真も読み取り結果も外部には送りません</li>
+        <li><strong>電波がなくても記帳できる。</strong>いったん端末に保存し、つながったときに自動で同期します</li>
+        <li><strong>Face IDでロック。</strong>家計を人に見られたくない場面のために</li>
+        <li><strong>Siri・背面タップ・ショートカットから記帳。</strong>よく使う支払いを1アクションで</li>
+        <li><strong>貸借対照表・損益計算書・キャッシュフローも同じように見られます</strong></li>
+      </ul>
+      <div class="ios-soon">App Store で配信中</div>
+      <div class="ios-ctas">
+        <a href="https://apps.apple.com/jp/app/kurofukubo-%E8%A4%87%E5%BC%8F%E7%B0%BF%E8%A8%98%E3%81%AE%E5%AE%B6%E8%A8%88%E7%B0%BF/id6806592989" class="ios-badge" data-cta="ios_appstore" aria-label="App Storeからダウンロード"><img src="/img/appstore-badge-ja.svg" alt="App Storeからダウンロード" height="52" style="height:52px;width:auto"></a>
+        <a href="https://app.kurofukubo.com/?guest" class="btn btn-ghost">ブラウザ版を先に使ってみる</a>
+      </div>
+      <small class="ios-note">アプリはアカウントでのログインが必要です。<strong>ブラウザ版と同じアカウントでログインすれば、同じ帳簿がそのまま続きます。</strong><br>ゲストのまま使った場合、端末に保存されたデータはアプリへは引き継がれません。</small>
+    </div>
+    <div class="ios-im">
+      <div class="phone"><div class="phone-scr"><img src="/img/ios-dashboard.webp" width="700" height="1515" alt="iPhoneアプリのダッシュボード。総資産・負債・純資産と今月の収支、資産構成のグラフが表示されている" loading="lazy"></div></div>
+      <div class="phone"><div class="phone-scr"><img src="/img/ios-entry.webp" width="700" height="1515" alt="iPhoneアプリの記帳画面" loading="lazy"></div></div>
+    </div>
+  </div>
+</section>
 
 <!-- 1.5 PRODUCT TOUR -->
 <section id="demo" class="alt">
@@ -292,7 +324,7 @@ footer{background:#1a2622;padding:40px 0}
     <div class="demo-head">
       <div class="eyebrow">PRODUCT TOUR</div>
       <h2>記録するところから、<br>お金の流れが見えるまで。</h2>
-      <p class="sec-desc">実際の画面そのままの18秒。「スーパー 5240 食費」と一行で書くだけで複式簿記の仕訳になり、純資産・グラフ・カテゴリまで一度に反映されるところを通しで見られます。</p>
+      <p class="sec-desc">実際の画面そのままの18秒。1回の記帳が複式簿記の仕訳になり、純資産・グラフ・カテゴリまで一度に反映されるところを通しで見られます。</p>
     </div>
 
     <figure class="demo-frame" data-demo>
@@ -376,16 +408,16 @@ footer{background:#1a2622;padding:40px 0}
         <div class="eyebrow">INPUT</div>
         <h2>毎日の入力は、<br>難しくありません。</h2>
         <div class="steps">
-          <div class="step"><b>1</b><div><h3>1行で入力する</h3><p>クイック入力に「食費 1200 現金」のように書くだけ。金額・使い道・支払元をまとめて記帳できます。</p></div></div>
+          <div class="step"><b>1</b><div><h3>支出・収入・振替を選ぶ</h3><p>金額を入れて、何に使ったか・どこから払ったかを選ぶだけ。借方・貸方を考える必要はありません。</p></div></div>
           <div class="step"><b>2</b><div><h3>よく使う取引はプリセットで</h3><p>「食費（現金）」「日用品（カード）」など、いつもの取引はワンタップで呼び出せます。</p></div></div>
           <div class="step"><b>3</b><div><h3>登録する</h3><p>裏側では複式簿記の仕訳として自動で記録。毎回仕訳を考える必要はありません。</p></div></div>
         </div>
-        <p class="honest"><b>慣れてきたら：</b>借方・貸方を直接指定する詳細モードも用意しています。かんたん入力と詳細入力は、いつでも切り替えられます。</p>
+        <p class="honest"><b>慣れてきたら：</b>借方・貸方を直接指定する詳細モードや、一行で書いて記帳する入力欄も用意しています。いつでも切り替えられます。</p>
       </div>
       <div>
         <div class="browser">
-          <div class="browser-bar"><i></i><i></i><i></i><span class="url">仕訳入力 — クイック入力</span></div>
-          <img src="/img/lp-quick-entry.webp" alt="仕訳入力の実画面。クイック入力欄とプリセット、記帳済みの取引一覧が表示されている">
+          <div class="browser-bar"><i></i><i></i><i></i><span class="url">仕訳入力</span></div>
+          <img src="/img/lp-quick-entry.webp" alt="仕訳入力の実画面。入力欄とプリセット、記帳済みの取引一覧が表示されている">
         </div>
       </div>
     </div>
@@ -484,38 +516,8 @@ footer{background:#1a2622;padding:40px 0}
       </div>
       <div class="start-card">
         <div class="start-im"><img src="/img/lp-quick-entry.webp" style="width:220%;left:-20%;top:-8%" alt="仕訳入力画面の一部"></div>
-        <div class="start-tx"><span class="no">STEP 3</span><h3>日々の収支を記録する</h3><p>「食費 1200 現金」のように1行入力。あとはダッシュボードが勝手につながります。</p></div>
+        <div class="start-tx"><span class="no">STEP 3</span><h3>日々の収支を記録する</h3><p>金額と使い道、どこから払ったかを入れるだけ。あとはダッシュボードが勝手につながります。</p></div>
       </div>
-    </div>
-  </div>
-</section>
-
-<!-- 8.5 iOS APP（公開後）
-     ⚠ ダウンロード用の公式バッジは公開後だけ使う（Apple のガイドラインで、予約中は予約注文、
-        公開後はダウンロードと分けている）。公開の判定は scripts/check-ios-live.mjs で行う。 -->
-<section id="ios" class="ios">
-  <div class="wrap ios-in">
-    <div class="ios-tx">
-      <div class="eyebrow">iPHONE APP</div>
-      <h2>家計簿を、<br>ポケットに。</h2>
-      <p class="sec-desc">ブラウザ版と同じ帳簿を、iPhoneアプリでそのまま持ち歩けるようにしました。</p>
-      <ul class="ios-pt">
-        <li><strong>レシートを撮って記帳。</strong>文字の読み取りは端末の中だけで行い、写真も読み取り結果も外部には送りません</li>
-        <li><strong>電波がなくても記帳できる。</strong>いったん端末に保存し、つながったときに自動で同期します</li>
-        <li><strong>Face IDでロック。</strong>家計を人に見られたくない場面のために</li>
-        <li><strong>Siri・背面タップ・ショートカットから記帳。</strong>よく使う支払いを1アクションで</li>
-        <li><strong>貸借対照表・損益計算書・キャッシュフローも同じように見られます</strong></li>
-      </ul>
-      <div class="ios-soon">App Store で配信中</div>
-      <div class="ios-ctas">
-        <a href="https://apps.apple.com/jp/app/kurofukubo-%E8%A4%87%E5%BC%8F%E7%B0%BF%E8%A8%98%E3%81%AE%E5%AE%B6%E8%A8%88%E7%B0%BF/id6806592989" class="ios-badge" aria-label="App Storeからダウンロード"><img src="/img/appstore-badge-ja.svg" alt="App Storeからダウンロード" height="52" style="height:52px;width:auto"></a>
-        <a href="https://app.kurofukubo.com/?guest" class="btn btn-ghost">ブラウザ版を先に使ってみる</a>
-      </div>
-      <small class="ios-note">アプリはアカウントでのログインが必要です。<strong>ブラウザ版と同じアカウントでログインすれば、同じ帳簿がそのまま続きます。</strong><br>ゲストのまま使った場合、端末に保存されたデータはアプリへは引き継がれません。</small>
-    </div>
-    <div class="ios-im">
-      <div class="phone"><div class="phone-scr"><img src="/img/ios-dashboard.webp" width="700" height="1515" alt="iPhoneアプリのダッシュボード。総資産・負債・純資産と今月の収支、資産構成のグラフが表示されている" loading="lazy"></div></div>
-      <div class="phone"><div class="phone-scr"><img src="/img/ios-entry.webp" width="700" height="1515" alt="iPhoneアプリの記帳画面" loading="lazy"></div></div>
     </div>
   </div>
 </section>
@@ -543,7 +545,7 @@ footer{background:#1a2622;padding:40px 0}
       <h2>よくある質問</h2>
     </div>
     <div class="faq">
-      <details><summary>簿記の知識がなくても使えますか？</summary><p class="faq-a">はい。クイック入力に「食費 1200 現金」のように書くだけで、裏側で正しい複式簿記の仕訳が自動生成されます。借方・貸方を意識するのは、使いたくなってからで十分です。</p></details>
+      <details><summary>簿記の知識がなくても使えますか？</summary><p class="faq-a">はい。金額と使い道、どこから払ったかを選ぶだけで、裏側で正しい複式簿記の仕訳が自動生成されます。借方・貸方を意識するのは、使いたくなってからで十分です。</p></details>
       <details><summary>無料で利用できますか？</summary><p class="faq-a">現在はベータ版として、全機能を無料で提供しています。クレジットカードの登録も不要です。</p></details>
       <details><summary>スマートフォンでも利用できますか？</summary><p class="faq-a">はい。ブラウザで動くWebサービスなので、スマートフォンからも利用できます。iPhoneアプリもApp Storeで配信しています。同じアカウントで同じ帳簿が見られます。</p></details>
       <details><summary>一般的な家計簿との違いは何ですか？</summary><p class="faq-a">支出の記録だけでなく「どこから払ったか」まで記録するため、口座残高・資産・負債・収支がひとつにつながります。貸借対照表や損益計算書も自動で作られます。</p></details>

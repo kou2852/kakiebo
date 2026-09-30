@@ -38,6 +38,9 @@
   //   〜2026-09-08: 1=ナビ, 2=ヒーロー, 3=本文下, 4=追従バー
   //   2026-09-09〜: 1=ナビ, 2=ヒーロー, 3=iOSセクション, 4=本文下, 5=追従バー（iOS告知の追加でずれた）
   // この日付をまたいで cta_location を比較しないこと。区別が要るときは cta_text を使う。
+  //   2026-10-01〜: リンクに data-cta があればその名前を使う（番号は並べ替えのたびにずれるため）。
+  //     App Store: hero_appstore（ファーストビュー）/ ios_appstore（iPhoneアプリの節）。
+  //     それまでの ios1 は、いまの ios_appstore と同じリンク。
   // ガイド記事は本文中CTAを utm_content の -mid で判別できる。
   function ctaList() {
     return [].filter.call(document.querySelectorAll('a[href]'), function (x) {
@@ -57,7 +60,7 @@
       });
       window.gtag('event', 'cta_appstore', {
         link_url: a.href,
-        cta_location: 'ios' + (ios.indexOf(a) + 1),
+        cta_location: a.dataset.cta || ('ios' + (ios.indexOf(a) + 1)),
         // バッジは画像リンクで textContent が空になるため alt で補う
         cta_text: ((a.textContent || '').trim() || ((a.querySelector('img') || {}).alt || '')).replace(/\s+/g, ' ').slice(0, 60)
       });
@@ -66,7 +69,7 @@
     if (a.hostname !== 'app.kurofukubo.com') return;
     window.gtag('event', 'cta_app_start', {
       link_url: a.href,
-      cta_location: 'cta' + (ctaList().indexOf(a) + 1),
+      cta_location: a.dataset.cta || ('cta' + (ctaList().indexOf(a) + 1)),
       cta_text: (a.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60)
     });
   });
