@@ -11,7 +11,7 @@ import ReconcileModal from './ReconcileModal';
 import MigrateModal from './MigrateModal';
 
 export default function SettingsPage() {
-  const { exportAll, importAll } = useData();
+  const { exportAll, importAll, encEnabled, exportEncryptedBackup } = useData();
   const { guestMode, deleteAccount } = useAuth();
   const { isHidden, toggleNav } = useUI();
   const toast = useToast();
@@ -42,17 +42,36 @@ export default function SettingsPage() {
     }
   };
 
+  const download = (obj, name) => {
+    const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleExport = async () => {
+    // 暗号化を有効にしていても、このファイルは復号済みの平文になる。保存先がクラウド同期されていると
+    // 平文がそこへ上がるので、押す前に一度だけ確かめる。
+    if (encEnabled && !window.confirm(
+      'このファイルは暗号化されていません。金額や摘要がそのまま読める状態で保存されます。\n' +
+      'ダウンロードフォルダがクラウドと同期されている場合は、そこにも平文で上がります。\n\n続けますか？'
+    )) return;
     try {
-      const data = await exportAll();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `kakeibo_${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
+      download(await exportAll(), `kakeibo_${new Date().toISOString().slice(0, 10)}.json`);
       toast('エクスポートしました');
+    } catch {
+      toast('エクスポートに失敗しました');
+    }
+  };
+
+  // 暗号化したまま書き出す。取り込みは下の「JSONファイルを選択」でパスフレーズを入れて戻せる。
+  const handleEncryptedExport = async () => {
+    try {
+      download(await exportEncryptedBackup(), `kurofukubo-encrypted-${new Date().toISOString().slice(0, 10)}.json`);
+      toast('暗号化したまま保存しました');
     } catch {
       toast('エクスポートに失敗しました');
     }
@@ -131,8 +150,18 @@ export default function SettingsPage() {
         <h3 style={{ fontSize: 14, marginBottom: 6 }}>エクスポート</h3>
         <p style={{ color: 'var(--tx3)', fontSize: 12, marginBottom: 12 }}>
           現在のデータをJSONファイルとして保存します。
+          {encEnabled
+            ? ' 暗号化を有効にしているので、ふだんは「暗号化したまま保存」を使ってください。通常のJSONは暗号化されず、中身がそのまま読めます。'
+            : ' ファイルは暗号化されません。保管場所に気をつけてください。'}
         </p>
-        <button className="btn btn-p" onClick={handleExport}>JSONをダウンロード</button>
+        {encEnabled ? (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn btn-p" onClick={handleEncryptedExport}>暗号化したまま保存</button>
+            <button className="btn btn-g" onClick={handleExport}>暗号化せずにJSONを保存</button>
+          </div>
+        ) : (
+          <button className="btn btn-p" onClick={handleExport}>JSONをダウンロード</button>
+        )}
       </div>
 
       <div style={{ background: 'var(--bg1)', border: '1px solid var(--bd)', borderRadius: 10, padding: 18 }}>
