@@ -11,6 +11,7 @@ import { accountBalance, calcBalances } from '../../src/utils/bookkeeping';
 import { nextCode } from '../../src/utils/accountCode';
 import { useTourTarget } from '../../src/store/TourProvider';
 import { isHidden, selectable } from '../../src/utils/hiddenAccounts';
+import SwipeRow from '../../src/components/SwipeRow';
 
 const TYPE_OPTS = Object.entries(ACCOUNT_TYPES).map(([value, label]) => ({ value, label }));
 
@@ -54,6 +55,15 @@ export default function Accounts() {
     setEditing((e) => ({ ...e, hidden: v ? 1 : 0 }));
     const cur = accounts.find((a) => a.id === editing?.id);
     if (v && cur && hasBalance(cur)) {
+      Alert.alert('残高が残っています', '非表示にしても、残高があるうちは貸借対照表とダッシュボードに表示されます。');
+    }
+  };
+
+  // 一覧から左へスライドして非表示・表示を切り替える。編集画面のスイッチと同じ扱い。
+  // ⚠ 元の科目の項目はすべて引き継ぐ（commit と同じ理由。sys・note・カード設定を落とさない）。
+  const setHiddenNow = (a, v) => {
+    commitAll([upsert('accounts', { ...a, hidden: v ? 1 : 0 })]);
+    if (v && hasBalance(a)) {
       Alert.alert('残高が残っています', '非表示にしても、残高があるうちは貸借対照表とダッシュボードに表示されます。');
     }
   };
@@ -214,14 +224,19 @@ export default function Accounts() {
 
   const hiddenRows = accounts.filter(isHidden).sort((a, b) => (a.code > b.code ? 1 : -1));
   const row = (a) => (
-    <TouchableOpacity key={a.id} onPress={() => setEditing({ ...a })} onLongPress={() => remove(a)}
-      style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 9 }, sep(t)]}>
+    <SwipeRow key={a.id} actions={[isHidden(a)
+      ? { label: '表示', onPress: () => setHiddenNow(a, false) }
+      : { label: '非表示', color: t.tx2, textColor: t.bg1, onPress: () => setHiddenNow(a, true) }]}>
+    <TouchableOpacity onPress={() => setEditing({ ...a })} onLongPress={() => remove(a)}
+      // 背景を塗る。塗らないと、スライド中に後ろのボタンが透けて見える
+      style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 9, backgroundColor: t.bg1 }, sep(t)]}>
       <View style={{ flex: 1 }}>
         <Text style={{ color: isHidden(a) ? t.tx3 : t.tx, fontSize: 15 }}>{a.name}</Text>
         <Text style={{ color: t.tx3, fontSize: 13 }}>{a.code}{a.sys ? ' · 既定' : ''}{isHidden(a) ? ' · 非表示' : ''}</Text>
       </View>
       <Text style={{ color: t.tx2, fontSize: 15 }}>{faBal(accountBalance(a.id, accounts, balances))}</Text>
     </TouchableOpacity>
+    </SwipeRow>
   );
 
   return (
@@ -253,7 +268,7 @@ export default function Accounts() {
           {showHidden ? hiddenRows.map(row) : null}
         </Card>
       ) : null}
-      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>タップで編集（非表示の切り替えも編集から）・長押しで削除</Text>
+      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>タップで編集・左へスライドで非表示（表示に戻す）・長押しで削除</Text>
     </Screen>
   );
 }

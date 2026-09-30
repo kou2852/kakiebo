@@ -38,7 +38,9 @@ export default function SwipeRow({ actions, disabled, children }) {
   // eslint-disable-next-line react-hooks/refs
   const [pan] = useState(() => PanResponder.create({
     // 横に動いたときだけ取る。縦のスクロールは一覧に任せる。
-    onMoveShouldSetPanResponder: (_, g) => !disabledRef.current && Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+    // ⚠ Capture（親から先に聞かれる側）で取る。バブリング側だけだと、中の行（TouchableOpacity）が
+    //   先に応答者のまま離され、スライドがタップ扱いになって編集画面が開くことがあった（エミュレーターで再現）。
+    onMoveShouldSetPanResponderCapture: (_, g) => !disabledRef.current && Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
     onPanResponderGrant: () => {
       // 別の行が開いていたら閉じる
       if (!openRef.current && current.close) current.close();
