@@ -41,6 +41,8 @@
   //   2026-10-01〜: リンクに data-cta があればその名前を使う（番号は並べ替えのたびにずれるため）。
   //     App Store: hero_appstore（ファーストビュー）/ ios_appstore（iPhoneアプリの節）。
   //     それまでの ios1 は、いまの ios_appstore と同じリンク。
+  //   2026-10-01（同日）: iPhoneアプリの節を削除。App Store は hero_appstore だけになり、
+  //     アプリへの CTA は 1=ナビ, 2=ヒーロー, 3=本文下, 4=追従バー に戻った。
   // ガイド記事は本文中CTAを utm_content の -mid で判別できる。
   function ctaList() {
     return [].filter.call(document.querySelectorAll('a[href]'), function (x) {
