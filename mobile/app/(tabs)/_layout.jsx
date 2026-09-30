@@ -4,6 +4,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme';
 import TabBar from '../../src/components/TabBar';
 import { useOnboarding } from '../../src/store/OnboardingProvider';
+import { useUpdates } from '../../src/updates';
+
+// ホーム右上の更新情報のベル。新しい記事があると赤い点を付ける（Web 版と同じ）。
+function UpdatesBell() {
+  const t = useTheme();
+  const router = useRouter();
+  const { unread } = useUpdates();
+  return (
+    <TouchableOpacity onPress={() => router.push('/updates')} style={{ paddingHorizontal: 16, paddingVertical: 6 }}
+      accessibilityLabel={unread ? '更新情報（新しいお知らせあり）' : '更新情報'}>
+      <Ionicons name="notifications-outline" size={25} color={t.tx} />
+      {unread ? (
+        <View style={{ position: 'absolute', top: 8, right: 18, width: 9, height: 9, borderRadius: 5, backgroundColor: t.red, borderWidth: 1.5, borderColor: t.bg1 }} />
+      ) : null}
+    </TouchableOpacity>
+  );
+}
 
 export default function TabsLayout() {
   const t = useTheme();
@@ -20,7 +37,7 @@ export default function TabsLayout() {
           sceneStyle: { backgroundColor: t.bg0 },
         }}
       >
-        <Tabs.Screen name="index"    options={{ title: 'ダッシュボード', tabBarLabel: 'ホーム' }} />
+        <Tabs.Screen name="index"    options={{ title: 'ダッシュボード', tabBarLabel: 'ホーム', headerRight: () => <UpdatesBell /> }} />
         <Tabs.Screen name="ledger"   options={{ title: '仕訳帳', tabBarLabel: '仕訳帳' }} />
         {/* 記帳は中央のボタンから開く。タブには出さない（役割が重複するため） */}
         {/* レシート撮影は右上のアイコンから。入力欄の上にボタンを置くと、毎回それを越えて入力することになる */}

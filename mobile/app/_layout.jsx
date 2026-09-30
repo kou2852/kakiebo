@@ -104,6 +104,7 @@ function Nav() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="connect" options={{ title: 'アカウント接続', presentation: 'modal' }} />
       <Stack.Screen name="journal/[id]" options={{ title: '仕訳を編集' }} />
+      <Stack.Screen name="updates" options={{ title: '更新情報' }} />
       <Stack.Screen name="settings/sync" options={{ title: 'アカウントと同期' }} />
       <Stack.Screen name="settings/appearance" options={{ title: '外観' }} />
       <Stack.Screen name="settings/security" options={{ title: 'アプリロック' }} />
