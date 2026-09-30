@@ -18,7 +18,7 @@ im.crop((1320, 0, 2640, 2868)).save('out/iphone-02.png')
 imgs = [Image.open(f'out/iphone-0{i}.png').convert('RGB').resize((330, 717)) for i in range(1, 7)]
 sheet = Image.new('RGB', (330 * 6 + 24 * 5, 717), 'white')
 for i, a in enumerate(imgs): sheet.paste(a, (i * 354, 0))
-sheet.save('out/_sheet.png')
+sheet.save('out/sheet.png')  # _sheet.png は画像ビューアで開いていると書けないことがあったため名前を変えた
 for i in range(1, 7): assert Image.open(f'out/iphone-0{i}.png').size == (1320, 2868)
 print('ok: iphone-01..06 (1320x2868)')
 PY
