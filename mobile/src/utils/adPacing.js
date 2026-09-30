@@ -2,7 +2,8 @@
 // 検証: node src/utils/adPacing.check.mjs
 
 // ゲストの新しい記帳が、この件数に達するたびに1回出す
-export const EVERY = 5;
+// 2026-09-30 に 5 → 8 へ（ロードマップの判断。全画面広告はもともとゲストのみ）
+export const EVERY = 8;
 
 // 記帳を1件数える。ログイン中は数えない
 export const bump = (count, guest) => (guest ? count + 1 : count);

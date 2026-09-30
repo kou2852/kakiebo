@@ -20,23 +20,23 @@ const simulate = (n, { guest = true, loadedAt = () => true } = {}) => {
 };
 
 console.log('ゲスト');
-ok(EVERY === 5, '5件ごと');
-ok(JSON.stringify(simulate(4)) === '[]', '4件までは出ない');
-ok(JSON.stringify(simulate(5)) === '[5]', '5件目の OK で出る');
-ok(JSON.stringify(simulate(15)) === '[5,10,15]', '以降も5件ごと');
+ok(EVERY === 8, '8件ごと');
+ok(JSON.stringify(simulate(7)) === '[]', '7件までは出ない');
+ok(JSON.stringify(simulate(8)) === '[8]', '8件目の OK で出る');
+ok(JSON.stringify(simulate(24)) === '[8,16,24]', '以降も8件ごと');
 
 console.log('ログイン中');
 ok(JSON.stringify(simulate(20, { guest: false })) === '[]', '何件記帳しても出ない');
 ok(bump(3, false) === 3, '件数が進まない');
 
 console.log('読み込みが間に合わなかったとき');
-ok(JSON.stringify(simulate(10, { loadedAt: (i) => i !== 5 })) === '[6]', '5件目で出せなければ6件目で出す');
-ok(JSON.stringify(simulate(11, { loadedAt: (i) => i !== 5 })) === '[6,11]', 'そこから数え直して11件目');
+ok(JSON.stringify(simulate(16, { loadedAt: (i) => i !== 8 })) === '[9]', '8件目で出せなければ9件目で出す');
+ok(JSON.stringify(simulate(17, { loadedAt: (i) => i !== 8 })) === '[9,17]', 'そこから数え直して17件目');
 
 console.log('先読み');
-ok(!shouldPreload(3), '3件目ではまだ読まない');
-ok(shouldPreload(4), '4件目（出す番の1件前）で読み始める');
-ok(shouldPreload(6), '持ち越し中も読む');
+ok(!shouldPreload(6), '6件目ではまだ読まない');
+ok(shouldPreload(7), '7件目（出す番の1件前）で読み始める');
+ok(shouldPreload(9), '持ち越し中も読む');
 
 console.log(ng ? `\n${ng} 件 NG` : '\nすべて ok');
 process.exit(ng ? 1 : 0);
