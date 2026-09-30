@@ -24,6 +24,7 @@ export default function JournalPage() {
   const [sortDir, setSortDir] = useState('desc');
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [copyId, setCopyId] = useState(null);
   const [presetData, setPresetData] = useState(null);
   const [csvOpen, setCsvOpen] = useState(false);
   const [migrating, setMigrating] = useState(false);
@@ -41,8 +42,8 @@ export default function JournalPage() {
   const sortedAccounts = useMemo(() => accounts.filter((a) => !a.hidden).sort((a, b) => (a.code || '').localeCompare(b.code || '')), [accounts]);
 
   const walletName = (id) => wallets.find((w) => w.id === id)?.name || '';
-  const openNew = () => { setEditId(null); setPresetData(null); setModalOpen(true); };
-  const applyPreset = (p) => { setEditId(null); setPresetData(p); setModalOpen(true); };
+  const openNew = () => { setEditId(null); setCopyId(null); setPresetData(null); setModalOpen(true); };
+  const applyPreset = (p) => { setEditId(null); setCopyId(null); setPresetData(p); setModalOpen(true); };
   const closeModal = () => { setModalOpen(false); setPresetData(null); };
 
   useEffect(() => {
@@ -301,7 +302,8 @@ export default function JournalPage() {
                       <td data-label="借方金額" className="text-r mono dr-c">{fa(dr.reduce((s, l) => s + l.amount, 0))}</td>
                       <td data-label="貸方金額" className="text-r mono cr-c">{fa(cr.reduce((s, l) => s + l.amount, 0))}</td>
                       <td className="td-actions" style={{ whiteSpace: 'nowrap' }}>
-                        <button className="btn btn-g btn-s" onClick={(e) => { e.stopPropagation(); setEditId(j.id); setPresetData(null); setModalOpen(true); }}>編集</button>
+                        <button className="btn btn-g btn-s" onClick={(e) => { e.stopPropagation(); setEditId(j.id); setCopyId(null); setPresetData(null); setModalOpen(true); }}>編集</button>
+                        <button className="btn btn-g btn-s" onClick={(e) => { e.stopPropagation(); setEditId(null); setCopyId(j.id); setPresetData(null); setModalOpen(true); }}>コピー</button>
                         <button className="btn btn-d btn-s" onClick={(e) => { e.stopPropagation(); handleDelete(j.id); }}>削除</button>
                       </td>
                     </tr>
@@ -313,7 +315,7 @@ export default function JournalPage() {
         )}
       </div>
 
-      <JournalModal open={modalOpen} onClose={closeModal} editId={editId} preset={presetData} />
+      <JournalModal open={modalOpen} onClose={closeModal} editId={editId} copyId={copyId} preset={presetData} />
       <CSVModal open={csvOpen} onClose={() => setCsvOpen(false)} onMigrate={() => setMigrating(true)} />
       <MigrateModal open={migrating} onClose={() => setMigrating(false)} />
       <CheatSheetModal open={cheatOpen} onClose={() => setCheatOpen(false)} />

@@ -13,7 +13,8 @@ const emptyLine = (side = 'dr') => ({ id: uid(), accountId: '', side, amount: ''
 // ポイント利用の目印（摘要に追記）＋編集時の検出に使用
 const POINT_MARK = '（ポイント利用）';
 
-export default function JournalModal({ open, onClose, editId, preset = null, defaultDate = null }) {
+// copyId: その仕訳と同じ内容で新しい仕訳を作る（日付は今日）。editId とは同時に渡さない。
+export default function JournalModal({ open, onClose, editId, copyId = null, preset = null, defaultDate = null }) {
   const { accounts, tags, journals, addJournal, updateJournal } = useData();
   const toast = useToast();
 
@@ -40,13 +41,15 @@ export default function JournalModal({ open, onClose, editId, preset = null, def
     [accounts]
   );
 
-  // 編集時: 既存データをロード
+  // 編集・コピー時: 既存データをロード
   useEffect(() => {
     if (!open) return;
-    if (editId) {
-      const j = journals.find((x) => x.id === editId);
+    const srcId = editId || copyId;
+    if (srcId) {
+      const j = journals.find((x) => x.id === srcId);
       if (j) {
-        setDate(j.date);
+        // コピーは同じ中身で新しく記帳する。日付だけ今日にする（同じ支払いを別の日に付け直す用途）。
+        setDate(editId ? j.date : today());
         setDesc(j.desc || '');
         const loaded = j.lines.map((l) => ({ ...l, id: uid(), amount: l.amount }));
         // ポイント振替（雑収入）行を検出 → フィールドへ戻し、出金行を使用額へ復元
@@ -89,7 +92,7 @@ export default function JournalModal({ open, onClose, editId, preset = null, def
       setPointAmt('');
       setLines([emptyLine('dr'), emptyLine('cr')]);
     }
-  }, [open, editId, preset, defaultDate, journals, pointAccount]);
+  }, [open, editId, copyId, preset, defaultDate, journals, pointAccount]);
 
   // 合計計算（ポイント分は記帳時に出金から差し引いて雑収入へ振替えるため、合計は使用額のまま）
   const pAmt = parseFloat(pointAmt) || 0;
@@ -178,7 +181,7 @@ export default function JournalModal({ open, onClose, editId, preset = null, def
     <Modal
       open={open}
       onClose={onClose}
-      title={editId ? '仕訳編集' : '仕訳入力'}
+      title={editId ? '仕訳編集' : copyId ? '仕訳のコピー' : '仕訳入力'}
       footer={
         <>
           <button className="btn btn-g" onClick={onClose} disabled={saving}>キャンセル</button>
