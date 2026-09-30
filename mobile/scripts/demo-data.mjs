@@ -57,6 +57,17 @@ const tags = [
   { id: 't1', name: '生活費', color: '#2f9e8d' },
   { id: 't2', name: '固定費', color: '#3f7cad' },
   { id: 't3', name: '交際費', color: '#d98324' },
+  // 目的別の取り分け（タグ配分）。ストアの画像と審査で「口座のお金を目的ごとに」を見せるため（2026-10-01）
+  { id: 't4', name: '旅行', color: '#5b8def' },
+  { id: 't5', name: '積立', color: '#e0a526' },
+];
+
+// 普通預金の残高のうち、目的ごとに取り分けている額。残りは未配分として表示される。
+// ⚠ 残高より大きくしない（開始残高 84万＋給与3か月分で、どの日に生成しても下回らない額にしている）
+const allocs = [
+  { accountId: BANK, tagId: 't1', amount: 300000 },
+  { accountId: BANK, tagId: 't4', amount: 200000 },
+  { accountId: BANK, tagId: 't5', amount: 400000 },
 ];
 
 const wallets = [
@@ -158,7 +169,7 @@ const TODAY = ymd(today);
 const past = journals.filter((j) => j.date <= TODAY);
 
 const dataset = {
-  accounts, tags, wallets, budgets, rules, allocs: [],
+  accounts, tags, wallets, budgets, rules, allocs,
   journals: past,
   presets: DEFAULT_PRESETS,
   recurring: [
