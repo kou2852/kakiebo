@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useData } from '../../src/store/DataProvider';
-import { Button, Screen, Segmented } from '../../src/components/ui';
+import { Screen, Segmented } from '../../src/components/ui';
 import JournalForm from '../../src/components/JournalForm';
 import SplitForm from '../../src/components/SplitForm';
 import { fa } from '../../src/utils/format';
@@ -16,7 +15,6 @@ const MODES = [
 
 export default function JournalEntry() {
   const kindRef = useTourTarget('entry-kind');
-  const router = useRouter();
   const { save } = useData();
   const entryAd = useEntryAd();
   const [mode, setMode] = useState('simple');
@@ -41,8 +39,6 @@ export default function JournalEntry() {
         </View>
       )}
     >
-      <Button label="レシート・利用控えを撮って記帳" variant="ghost" onPress={() => router.push('/scan')} />
-
       {mode === 'simple'
         ? <JournalForm key={seq} onSubmit={done} />
         : <SplitForm key={`s${seq}`} onSubmit={done} submitLabel="記帳する" />}
