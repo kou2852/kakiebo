@@ -2,7 +2,7 @@
 // 家計データは端末内に平文の SQLite で持つため、端末を他人に渡したときの防波堤になる。
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Text, View } from 'react-native';
-import { authenticate, isEnabled } from '../auth/biometric';
+import { authenticate, isEnabled, methodLabel, setEnabled } from '../auth/biometric';
 import { useTheme } from '../theme';
 import { Button } from './ui';
 
@@ -12,11 +12,17 @@ const GRACE_MS = 60 * 1000;
 export default function AppLock({ children }) {
   const t = useTheme();
   const [locked, setLocked] = useState(null); // null = 判定中
+  const [method, setMethod] = useState('');
   const backgroundedAt = useRef(0);
 
   const unlock = useCallback(async () => {
-    if (await authenticate()) setLocked(false);
+    const r = await authenticate();
+    if (r === 'ok') { setLocked(false); return; }
+    // この端末ではもう認証できない（生体もパスコードも無い・外された）。締め出すとアプリを消すしかなくなるので、
+    // ロックを外して開く。ロックの設定もオフに戻し、次の起動で同じことが起きないようにする。
+    if (r === 'unavailable') { await setEnabled(false); setLocked(false); }
   }, []);
+  useEffect(() => { methodLabel().then(setMethod); }, []);
 
   useEffect(() => {
     (async () => {
@@ -48,7 +54,8 @@ export default function AppLock({ children }) {
       <View style={{ flex: 1, backgroundColor: t.bg0, alignItems: 'center', justifyContent: 'center', gap: 18, padding: 30 }}>
         <Text style={{ color: t.tx, fontSize: 20, fontWeight: '800' }}>ロック中</Text>
         <Text style={{ color: t.tx2, fontSize: 15, textAlign: 'center' }}>
-          Face ID または端末のパスコードで解除してください。
+          {method ? `${method}または端末のパスコードで解除してください。` : '端末の認証で解除してください。'}
+          {'\n'}「解除する」を押すと、認証の画面が出ます。
         </Text>
         <View style={{ width: 200 }}>
           <Button label="解除する" onPress={unlock} />
