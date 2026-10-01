@@ -12,6 +12,7 @@ import KdfBridge from '../src/crypto/KdfBridge';
 import AppLock from '../src/components/AppLock';
 import { useQuickActionRouting } from '../src/quickActions';
 import { initAds } from '../src/ads';
+import { recordInstall } from '../src/components/ReviewAsk';
 import { useTheme, useThemeMode } from '../src/theme';
 import { ThemeProvider } from '../src/store/ThemeProvider';
 import { TourProvider } from '../src/store/TourProvider';
@@ -138,6 +139,8 @@ function Nav() {
 export default function RootLayout() {
   // 広告SDKは起動時に一度だけ初期化する（暗黙初期化だと初回表示が遅れる）
   useEffect(() => { initAds(); }, []);
+  // ストア評価の「インストールから3日」の起点。初回起動で一度だけ記録する
+  useEffect(() => { recordInstall(); }, []);
   // 自動で消すのを止めてあるので、ここで責任を持って消す。
   // 失敗しても握りつぶさない（スプラッシュが残ったままになると何も操作できない）。
   useEffect(() => {
