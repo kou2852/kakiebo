@@ -63,6 +63,7 @@
 **例外（明示判断済み）:**
 - **Google ログイン**（Cognito + Google IdP / OAuth）: ユーザー認証のみ。`auth/oauth.js`、backend の Google IdP。
 - **Google AdSense**（広告配信）: ティア別インライン広告（`Common/AdBanner.jsx` を `Common/Ad.jsx` で遅延ロード。配置とゲスト上限は `config/tiers.js` の `AD_CONFIG` / `GUEST_LIMITS`）。ゲスト=多め・Free=同配置で頻度低・Pro/Family=なし。env（`VITE_ADSENSE_CLIENT`/`VITE_ADSENSE_SLOT`）未設定なら非表示、広告ブロック時は枠を畳む。全画面インタースティシャルは AdSense ポリシー上使わずインライン差込で代替。**家計データは広告事業者へ渡さない**。プライバシーポリシー（`lp/privacy.html` 第7項）に第三者Cookie/オプトアウトを記載済み。（旧 `Common/DailyAd.jsx` は削除済み）
+- **Google ML Kit**（Android の端末内文字認識・2026-10-01 判断）: レシート撮影の OCR を Android でも使うため。認識はアプリ同梱のモデルで端末内に完結。ML Kit は診断情報（端末・性能・入出力の大きさ）を Google に送るため、Google Play のデータセーフティとプライバシーポリシーに記載する。iOS は従来どおり Apple Vision。
 - いずれも**家計データそのものを外部送信しない**点は維持する。
 
 ## 主要ファイルの役割
