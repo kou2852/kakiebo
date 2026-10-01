@@ -27,35 +27,19 @@ function isRecorded(r, date, journals) {
   return (journals || []).some((j) => j.date === date && (j.desc || '') === desc);
 }
 
-/** 日付 D が定期取引 r の予定日列（nextDate から period 単位）に乗っているか */
-function onSchedule(r, D) {
-  if (!r.nextDate) return false;
-  if (D === r.nextDate) return true;
-  let d = r.nextDate;
-  let g = 0;
-  if (D < d) { while (d > D && g++ < 1200) d = prevDate(d, r.frequency); }
-  else { while (d < D && g++ < 1200) d = advanceDate(d, r.frequency); }
-  return d === D;
-}
-
-/** r の予定日に一致して実際に記帳済みの日付（昇順） */
-function recordedDates(r, journals) {
-  const desc = r.desc || r.name;
-  return (journals || [])
-    .filter((j) => (j.desc || '') === desc && onSchedule(r, j.date))
-    .map((j) => j.date)
-    .sort();
-}
-
-/** 走査の起点：記帳済みがあれば最古の記帳済み予定日、無ければ nextDate（直近に起票された分を基準にする） */
-function recurringAnchor(r, journals) {
-  const rec = recordedDates(r, journals);
-  return rec.length ? rec[0] : r.nextDate;
+/**
+ * 走査の起点＝保存されている次回予定日（nextDate）。
+ * 以前は「記帳済みの最古の予定日」から数えていたため、次回予定日を手で後ろへずらしても（1回飛ばすなど）
+ * 飛ばした日が期日として出続け、「次回の予定日を直せない」状態だった（2026-10-01 問い合わせ）。
+ * 生成した仕訳を消したときの再生成は、削除時に nextDate をその日へ戻す（rollbackNextDate）ことで担う。
+ */
+function recurringAnchor(r) {
+  return r.nextDate;
 }
 
 /** 実効「次回生成日」：起点以降で最初に未記帳の予定日（途中で削除されたギャップ＝生成対象を含む） */
 export function effectiveNextDate(r, journals, todayStr = todayYmd()) {
-  let d = recurringAnchor(r, journals);
+  let d = recurringAnchor(r);
   let g = 0;
   while (d && g++ < 1200) {
     if (!isRecorded(r, d, journals)) return d;
@@ -68,7 +52,7 @@ export function effectiveNextDate(r, journals, todayStr = todayYmd()) {
 export function dueRecurring(recurring, journals, todayStr = todayYmd()) {
   return (recurring || []).map((r) => {
     const dates = [];
-    let next = recurringAnchor(r, journals);
+    let next = recurringAnchor(r);
     let guard = 0;
     while (next && next <= todayStr && guard < 600) {
       if (!isRecorded(r, next, journals)) dates.push(next);
@@ -137,7 +121,7 @@ export async function generateRecurring({ recurring, journals = [], addJournal, 
     // 事前生成: 追いつき済み（次の予定日が未来）なら、その1件まで先取り生成する
     const eff = effectiveNextDate(r, journals, todayStr);
     const horizon = (preGenerate && eff && eff > todayStr) ? eff : todayStr;
-    let next = recurringAnchor(r, journals);
+    let next = recurringAnchor(r);
     let gen = 0;
     while (next && next <= horizon && gen < 600) {
       if (!isRecorded(r, next, journals)) {
