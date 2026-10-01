@@ -1,0 +1,20 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.kurofukubo'
+version = '1.0.0'
+
+android {
+  namespace "expo.modules.textrecognition"
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+}
+
+dependencies {
+  // 日本語の文字認識・同梱版（モデルをアプリに含める。認識は端末内で、使う時点で通信しない）。2026-10-01 判断
+  implementation "com.google.mlkit:text-recognition-japanese:16.0.1"
+}
