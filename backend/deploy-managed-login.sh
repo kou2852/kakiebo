@@ -45,6 +45,13 @@ else
 fi
 sam --version >/dev/null 2>&1 || { echo "  !! sam を実行できません。"; exit 1; }
 
+echo "== 0. ビルド（テンプレートの変更を反映する） =="
+# ⚠ sam deploy は .aws-sam/build の古いビルド結果を使う。ビルドし直さないと、テンプレートを直しても
+#    「No changes to deploy」になる（2026-10-01 に踏んだ。9/23 のビルドが使われていた）。
+PYTHONUTF8=1 sam build >/dev/null || { echo "  !! sam build に失敗しました"; exit 1; }
+grep -q 'ManagedLoginVersion' .aws-sam/build/template.yaml || { echo "  !! ビルド結果に ManagedLoginVersion がありません"; exit 1; }
+echo "  ok"
+
 echo "== 1. 本番の現在値を読む =="
 PARAMS_JSON=$(aws cloudformation describe-stacks --stack-name "$STACK" \
   --query 'Stacks[0].Parameters' --output json)
