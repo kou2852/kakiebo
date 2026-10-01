@@ -11,6 +11,7 @@ import { syncNow } from './sync';
 import { readOnboardingIds } from './onboardingMark';
 import { clearDek, loadDek, saveDek } from '../crypto/dekStore';
 import { useAuth } from './AuthProvider';
+import { rollbackNextDate } from '../utils/autoGen';
 
 const Ctx = createContext(null);
 export const useData = () => useContext(Ctx);
@@ -202,13 +203,23 @@ export function DataProvider({ children }) {
   const api = useMemo(() => ({
     save: (collection, item) => commit(upsert(collection, item)),
     commitAll,
-    del: (collection, id) => commit(remove(collection, id)),
+    del: (collection, id) => {
+      // 定期取引で生成した仕訳を消したら、その定期取引の次回予定日をその日へ戻す（ウェブ版と同じ）。
+      // 期日の計算は nextDate から数えるので、戻さないと消した分が再生成されない。
+      if (collection === 'journals' && dataset) {
+        const before = dataset.recurring || [];
+        const rolled = rollbackNextDate(before, (dataset.journals || []).find((j) => j.id === id));
+        const changed = rolled.filter((r, i) => r !== before[i]);
+        if (changed.length) return commitAll([remove('journals', id), ...changed.map((r) => upsert('recurring', r))]);
+      }
+      return commit(remove(collection, id));
+    },
     setAll: (collection, items) => commit(replace(collection, items)),
     replaceAll,
     sync,
     rememberDek,
     forgetDek,
-  }), [commit, commitAll, replaceAll, sync, rememberDek, forgetDek]);
+  }), [commit, commitAll, replaceAll, sync, rememberDek, forgetDek, dataset]);
 
   const value = useMemo(() => ({
     loading: dataset === null,
