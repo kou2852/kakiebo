@@ -78,6 +78,9 @@ export async function loginWithIdp(env, which) {
 
   const u = new URL(`${domain(env)}/oauth2/authorize`);
   u.searchParams.set('identity_provider', IDP[which]);
+  // Google は毎回アカウントを選ばせる。無いと端末・ブラウザの Google アカウントで勝手に進み、別のアカウントで入れない。
+  // Cognito がこれを Google へ渡すのはマネージドログイン（ドメインの ManagedLoginVersion: 2）のときだけ（2026-10-01）
+  if (which === 'google') u.searchParams.set('prompt', 'select_account');
   u.searchParams.set('client_id', ENVIRONMENTS[env].clientId);
   u.searchParams.set('response_type', 'code');
   u.searchParams.set('scope', 'email openid profile');
