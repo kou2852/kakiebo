@@ -53,6 +53,11 @@
     var t = ev.target;
     var a = t && t.closest && t.closest('a[href]');
     if (!a) return;
+    // Android 版のテスト参加（android-test.html の Google グループへのリンク）。2026-10-01 追加
+    if (a.dataset.cta === 'android_group' || a.hostname === 'groups.google.com') {
+      window.gtag('event', 'cta_android_tester', { link_url: a.href, cta_location: a.dataset.cta || 'android_group' });
+      return;
+    }
     // App Store は別ドメイン。GA4の「外部リンクのクリック」には入るが、どのCTAから
     // 出たかが残らないので、cta_app_start と同じ粒度で自前で送る。
     // ※ cta_appstore も管理画面でキーイベントに指定して初めてCVとして数えられる。
