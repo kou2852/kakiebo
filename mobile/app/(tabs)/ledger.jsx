@@ -97,9 +97,9 @@ export default function Ledger() {
   const [month, setMonth] = useState(() => new Date());
   const [dayOpen, setDayOpen] = useState(null); // モーダルで開いている日
   const period = usePeriod('month');
-  // 科目で絞り込む（ウェブの仕訳帳の「全科目」と同じ。その科目を使っている仕訳だけを出す）。
+  // 科目で絞り込む（ウェブの仕訳帳の「全科目」に当たる）。複数選べて、どれかを使っている仕訳を出す。
   // 2026-10-01 の問い合わせ（全科目の場所が分からない）から。非表示の科目も過去の仕訳を見るために選べる。
-  const [acct, setAcct] = useState(null);
+  const [accts, setAccts] = useState([]);
 
   // 一括操作。選択モードに入るまでチェックは出さない（通常の閲覧を邪魔しないため）。
   const [picking, setPicking] = useState(false);
@@ -114,9 +114,9 @@ export default function Ledger() {
   const name = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a.name])), [accounts]);
   const rows = useMemo(
     () => [...filterByPeriod(journals, period.start, period.end)]
-      .filter((j) => !acct || j.lines.some((l) => l.accountId === acct))
+      .filter((j) => !accts.length || j.lines.some((l) => accts.includes(l.accountId)))
       .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
-    [journals, period, acct]
+    [journals, period, accts]
   );
   const dayRows = useMemo(
     () => (dayOpen ? journals.filter((j) => j.date === dayOpen) : []),
@@ -194,10 +194,10 @@ export default function Ledger() {
         {mode === 'list' ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <View style={{ flex: 1 }}>
-              <AccountPicker label="科目" accounts={accounts} value={acct} onChange={setAcct} placeholder="全科目" />
+              <AccountPicker label="科目" accounts={accounts} value={accts} onChange={setAccts} placeholder="全科目" multiple />
             </View>
-            {acct ? (
-              <TouchableOpacity onPress={() => setAcct(null)} style={{ paddingVertical: 8 }}>
+            {accts.length ? (
+              <TouchableOpacity onPress={() => setAccts([])} style={{ paddingVertical: 8 }}>
                 <Text style={{ color: t.ac, fontSize: 15, fontWeight: '600' }}>解除</Text>
               </TouchableOpacity>
             ) : null}
@@ -217,7 +217,7 @@ export default function Ledger() {
           contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}
           refreshControl={refresh.control}
         >
-          <Empty text={acct ? 'この期間に、この科目の仕訳はありません' : 'この期間の仕訳はありません'} />
+          <Empty text={accts.length ? 'この期間に、選んだ科目の仕訳はありません' : 'この期間の仕訳はありません'} />
         </ScrollView>
       ) : (
         <FlatList

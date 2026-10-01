@@ -6,7 +6,8 @@
 // 資産・負債の科目には残高も出す。支払方法を選ぶとき「その口座にいくら残っているか」は
 // 選択の判断そのものなので、別画面で確認させない。
 import { useMemo, useState } from 'react';
-import { FlatList, Modal, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Modal, Platform, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useData } from '../store/DataProvider';
 import { useTheme } from '../theme';
 import { Input, sep } from './ui';
@@ -15,11 +16,15 @@ import { accountBalance, calcBalances } from '../utils/bookkeeping';
 
 const TYPE_ORDER = ['expense', 'asset', 'liability', 'income', 'equity'];
 
-export default function AccountPicker({ label, accounts, value, onChange, placeholder = '選択してください' }) {
+// multiple: 複数を選ぶ（value は id の配列）。押しても閉じず、押すたびに選択を切り替える。
+export default function AccountPicker({ label, accounts, value, onChange, placeholder = '選択してください', multiple = false }) {
   const t = useTheme();
   const [open, setOpen] = useState(false);
 
-  const selected = accounts.find((a) => a.id === value);
+  const picked = multiple ? accounts.filter((a) => (value || []).includes(a.id)) : [];
+  const selected = multiple
+    ? (picked.length ? { name: picked.length <= 2 ? picked.map((a) => a.name).join('・') : `${picked[0].name} ほか${picked.length - 1}件` } : null)
+    : accounts.find((a) => a.id === value);
 
   return (
     <>
@@ -37,17 +42,25 @@ export default function AccountPicker({ label, accounts, value, onChange, placeh
 
       <PickerSheet
         visible={open} onClose={() => setOpen(false)}
-        title={label} accounts={accounts} value={value}
-        onPick={(id) => { onChange(id); setOpen(false); }}
+        title={label} accounts={accounts} value={value} multiple={multiple}
+        onPick={(id) => {
+          if (!multiple) { onChange(id); setOpen(false); return; }
+          const cur = value || [];
+          onChange(cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]);
+        }}
       />
     </>
   );
 }
 
-function PickerSheet({ visible, onClose, title, accounts, value, onPick }) {
+function PickerSheet({ visible, onClose, title, accounts, value, onPick, multiple }) {
   const t = useTheme();
   const { journals, accounts: allAccounts } = useData();
   const [q, setQ] = useState('');
+  // Android には pageSheet が無く全画面で開き、見出しがステータスバーの下に潜って「閉じる」が押せなかった。
+  // iOS は pageSheet なので上の余白は要らない。
+  const insets = useSafeAreaInsets();
+  const top = Platform.OS === 'android' ? insets.top : 0;
 
   // 残高は開いている間だけ計算する。閉じているときに全仕訳を舐める必要はない。
   const balances = useMemo(
@@ -77,10 +90,10 @@ function PickerSheet({ visible, onClose, title, accounts, value, onPick }) {
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: t.bg0 }}>
-        <View style={[{ flexDirection: 'row', alignItems: 'center', padding: 14, backgroundColor: t.bg1 }, sep(t)]}>
+        <View style={[{ flexDirection: 'row', alignItems: 'center', padding: 14, paddingTop: 14 + top, backgroundColor: t.bg1 }, sep(t)]}>
           <Text style={{ color: t.tx, fontSize: 17, fontWeight: '700', flex: 1 }}>{title}</Text>
           <TouchableOpacity onPress={onClose} style={{ padding: 4 }}>
-            <Text style={{ color: t.ac, fontSize: 15, fontWeight: '600' }}>閉じる</Text>
+            <Text style={{ color: t.ac, fontSize: 15, fontWeight: '600' }}>{multiple ? '完了' : '閉じる'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -108,7 +121,7 @@ function PickerSheet({ visible, onClose, title, accounts, value, onPick }) {
               );
             }
             const a = item.account;
-            const on = a.id === value;
+            const on = multiple ? (value || []).includes(a.id) : a.id === value;
             // 残高が判断材料になるのは資産・負債だけ。費目に残高を出しても意味がない。
             const showBal = a.type === 'asset' || a.type === 'liability';
             return (
