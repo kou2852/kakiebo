@@ -144,7 +144,8 @@ const SLIDES = (d) => [
   <div class="row total"><span>純資産</span><b>${V.netWorth}</b></div>
 </div>`,
   })],
-  ['04', single(d, {
+  // 1.0.2 では外す（実機で撮るとテスト広告が写るため撮れなかった）。撮れたら戻す
+  ['_receipt', single(d, {
     eyebrow: 'レシート撮影', h1: 'レシートは、<br><em>撮るだけ</em>。', sub: '文字の読み取りは端末の中だけで行います',
     screen: todo('撮影と読み取り結果'), side: 'right',
     // ⚠ レシートは撮影に使った実物と同じ内容に差し替える（画面の読み取り結果と食い違わないように）
@@ -154,14 +155,14 @@ const SLIDES = (d) => [
   <p class="sum"><span>合計</span><span>¥862</span></p>
 </div>`,
   })],
-  ['05', single(d, {
+  ['04', single(d, {
     eyebrow: 'クレジットカード', h1: 'カードの引落し、<br><em>先まで</em>見える。', screen: img(d, 'card'), side: 'left',
     float: (d) => `<div class="card" style="top:${y(d, 1750)}px;left:${d.W - u(d, 800)}px;width:${u(d, 740)}px;transform:rotate(3deg)">
   <div class="lb">${V.ccNextLabel}</div><div class="big" style="color:#cf4436">${V.ccNext}</div>
   <div class="row"><span style="color:#5c656d">メインカード → 普通預金</span></div>
 </div>`,
   })],
-  ['06', single(d, {
+  ['_safety', single(d, {
     eyebrow: '安心して使える', h1: '銀行連携なし。<br><em>だから安心</em>。',
     screen: todo('アプリロックの画面'), side: 'right',
     float: (d) => `<div class="card" style="top:${y(d, 1600)}px;left:${u(d, 60)}px;width:${u(d, 800)}px;transform:rotate(-3deg)">
