@@ -52,6 +52,21 @@ async function store(env, tok, prev, idp) {
 }
 
 export const clearOAuth = (env) => AsyncStorage.removeItem(key(env));
+
+/**
+ * Cognito 側のログインの記録（ログイン用ブラウザのクッキー）を消す。ウェブ版のログアウトと同じく /logout を通す。
+ * ⚠ これをしないと、ログアウトしても Cognito の記録が残り、次の Google ログインが Google の画面を通らずに
+ *   前のアカウントで即座に終わる（別のアカウントを選べない。2026-10-01 に iPhone で確認）。
+ * ログインの画面と同じ認証用ブラウザで開く（クッキーの置き場が同じでないと消せない）。失敗してもログアウトは止めない。
+ */
+export async function logoutIdp(env) {
+  try {
+    const u = new URL(`${domain(env)}/logout`);
+    u.searchParams.set('client_id', ENVIRONMENTS[env].clientId);
+    u.searchParams.set('logout_uri', redirectUri);
+    await WebBrowser.openAuthSessionAsync(u.toString(), redirectUri);
+  } catch { /* 通信できなくても、端末のログイン情報は消す */ }
+}
 export const hasOAuthSession = async (env) => !!(await read(env));
 
 /** 保存済みセッションがどちらの IdP のものか。'google' | 'apple' | null。 */
