@@ -1,8 +1,9 @@
 import '../src/polyfills';
 import { Component, useEffect } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 import * as Updates from 'expo-updates';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -87,6 +88,7 @@ function ThemedStatusBar() {
 
 function Nav() {
   const t = useTheme();
+  const router = useRouter();
   const { presets } = useData();
   useQuickActionRouting(presets);
   return (
@@ -100,6 +102,19 @@ function Nav() {
         // 名前が無いためルート名がそのまま出て「＜ (tabs)」になっていた。
         // 画面名を付けて回っても、日本語のタイトルは長くて矢印の横に収まらない。
         headerBackButtonDisplayMode: 'minimal',
+        // ⚠ iOS は戻るボタンを自前にする。iOS 26 ＋ react-native-screens 4.16.0（Expo SDK 54 の固定版）では、
+        //   ヘッダーを隠した画面（タブ）の上に積んだ画面で、標準の「＜」が途中から押しても反応しなくなる
+        //   （スワイプで戻るのは効く）。設定の中の画面で起きていた（2026-10-02 問い合わせ）。
+        //   本来の修正は react-native-screens 4.28 以降。上げたらここを外す。
+        //   参考: software-mansion/react-native-screens #3294
+        ...(Platform.OS === 'ios' ? {
+          headerLeft: ({ canGoBack, tintColor }) => (canGoBack ? (
+            <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="戻る"
+              style={{ paddingRight: 8 }}>
+              <Ionicons name="chevron-back" size={28} color={tintColor || t.tx} />
+            </Pressable>
+          ) : null),
+        } : {}),
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
