@@ -124,6 +124,7 @@ function Nav() {
       {/* ログイン・ログアウトからの戻り先（Android）。見せずにすぐ戻る */}
       <Stack.Screen name="auth" options={{ headerShown: false, animation: 'none' }} />
       <Stack.Screen name="settings/sync" options={{ title: 'アカウントと同期' }} />
+      <Stack.Screen name="settings/delete-account" options={{ title: 'アカウントの削除' }} />
       <Stack.Screen name="settings/appearance" options={{ title: '外観' }} />
       <Stack.Screen name="settings/security" options={{ title: 'アプリロック' }} />
       <Stack.Screen name="settings/reminder" options={{ title: 'リマインダー' }} />
