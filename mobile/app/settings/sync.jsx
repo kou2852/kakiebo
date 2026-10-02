@@ -5,13 +5,13 @@
 // かつ見つけにくい場所に隠すことも認められていないため。
 // アカウントに関する操作はこの1画面に集めて、設定の先頭から辿れるようにしている。
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from 'react-native';
 import * as Updates from 'expo-updates';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../src/store/AuthProvider';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
-import { Button, Card, Screen } from '../../src/components/ui';
+import { Button, Card, Input, Screen } from '../../src/components/ui';
 import { useSyncRefresh } from '../../src/store/useSyncRefresh';
 import { resetAll } from '../../src/db';
 import { forgetOnboarding } from '../../src/store/OnboardingProvider';
@@ -27,6 +27,19 @@ function Row({ label, value }) {
   );
 }
 
+// 削除の理由の選択肢。自由記述だけだと書かれない（9/7 以降の退会7件がすべて空。2026-09-22 調査）ので、
+// 数タップで選べる形を先に置く。選ばなくても削除はできる（退会を妨げない）。
+// サーバーは理由をログに1行残すだけで、DB には保存しない（backend/src/handlers/settings.js）。
+const REASONS = [
+  '操作が分かりにくい',
+  '登録を間違えて、直し方が分からない',
+  '欲しい機能がない',
+  '別のアプリに乗り換える',
+  '入力が面倒で続かない',
+  '試しに使っただけ',
+  'その他',
+];
+
 export default function Sync() {
   const connectRef = useTourTarget('sync-connect');
   const t = useTheme();
@@ -36,13 +49,20 @@ export default function Sync() {
 
   const refresh = useSyncRefresh();
   const [deleting, setDeleting] = useState(false);
+  // 削除の理由を聞いている途中か。押してすぐ確認のダイアログを出さず、先に理由の欄を開く
+  const [asking, setAsking] = useState(false);
+  const [reasons, setReasons] = useState([]);
+  const [note, setNote] = useState('');
+  const toggleReason = (x) => setReasons((cur) => (cur.includes(x) ? cur.filter((y) => y !== x) : [...cur, x]));
 
   // サーバー → 端末の順で消す。逆にすると、サーバーの削除に失敗したときに
   // 端末だけ空になり、次の同期でサーバーの内容が戻ってくる。
   const doDelete = async () => {
     setDeleting(true);
     try {
-      await auth.deleteAccount();
+      // 選んだ理由と自由記述を1つの文字列にして送る（サーバーは500字で切る）
+      const reason = [reasons.join('、'), note.trim()].filter(Boolean).join(' / ');
+      await auth.deleteAccount(reason || undefined);
       // 端末に預けたデータ鍵（Keychain）も消す。ここを忘れると、消したはずの
       // アカウントの鍵が端末に残る。
       await d.forgetDek();
@@ -192,8 +212,30 @@ export default function Sync() {
               <ActivityIndicator color={t.red} />
               <Text style={{ color: t.tx2, fontSize: 15 }}>削除中…</Text>
             </View>
+          ) : asking ? (
+            <View style={{ gap: 10 }}>
+              <Text style={{ color: t.tx, fontSize: 15, fontWeight: '600' }}>よろしければ、削除の理由を教えてください（任意・複数可）</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {REASONS.map((x) => {
+                  const on = reasons.includes(x);
+                  return (
+                    <TouchableOpacity key={x} onPress={() => toggleReason(x)} accessibilityRole="checkbox" accessibilityState={{ checked: on }}
+                      style={{
+                        paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999,
+                        borderWidth: 1, borderColor: on ? t.ac : t.bd2, backgroundColor: on ? t.acb : t.bg1,
+                      }}>
+                      <Text style={{ color: on ? t.ac : t.tx2, fontSize: 14, fontWeight: on ? '700' : '400' }}>{x}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Input value={note} onChangeText={setNote} placeholder="よろしければ詳しく教えてください" multiline
+                maxLength={400} style={{ minHeight: 80, textAlignVertical: 'top', fontSize: 15 }} />
+              <Button label="削除に進む" variant="danger" onPress={confirmDelete} />
+              <Button label="やめる" variant="ghost" onPress={() => { setAsking(false); setReasons([]); setNote(''); }} />
+            </View>
           ) : (
-            <Button label="アカウントを削除" variant="danger" onPress={confirmDelete} />
+            <Button label="アカウントを削除" variant="danger" onPress={() => setAsking(true)} />
           )}
         </Card>
       ) : null}
