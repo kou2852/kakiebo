@@ -24,6 +24,9 @@ import Onboarding from '../src/components/Onboarding';
 // スプラッシュは既定だと最初の描画と同時に消える。起動が速い端末では一瞬すぎて
 // 何が出たのか分からないので、自動で消えるのを止めて最低表示時間を持たせる。
 SplashScreen.preventAutoHideAsync().catch(() => {});
+// スプラッシュは白基調に固定している（ダークモードでも）ため、消えた瞬間に
+// ダークモードの画面へ切り替わると色の変化が硬い。フェードで和らげる。
+SplashScreen.setOptions({ fade: true, duration: 250 });
 const SPLASH_HOLD_MS = 500;
 
 /**
