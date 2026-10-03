@@ -13,7 +13,7 @@ import { usePathname, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
-import { Button, useDoneBar } from './ui';
+import { Button } from './ui';
 import Sparkline from './Sparkline';
 import { useOnboarding } from '../store/OnboardingProvider';
 import { useAuth } from '../store/AuthProvider';
@@ -120,7 +120,6 @@ function Reveal({ color, children, delay = 600, duration = 1100 }) {
 function Money({ value, onChange }) {
   const t = useTheme();
   const [on, setOn] = useState(false);
-  const done = useDoneBar();
   return (
     <View style={{
       flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -136,7 +135,6 @@ function Money({ value, onChange }) {
         onFocus={() => setOn(true)}
         onBlur={() => setOn(false)}
         keyboardType="number-pad"
-        inputAccessoryViewID={done.id}
         placeholder="0"
         placeholderTextColor={t.tx3}
         style={{
@@ -144,7 +142,6 @@ function Money({ value, onChange }) {
           paddingVertical: on ? 10 : 11,
         }}
       />
-      {done.bar}
     </View>
   );
 }
@@ -315,7 +312,6 @@ function Balance({ draft, setDraft }) {
 
 function Monthly({ draft, setDraft }) {
   const t = useTheme();
-  const done = useDoneBar();
   const update = (i, patch) => setDraft((p) => ({
     ...p, monthly: p.monthly.map((m, j) => (j === i ? { ...m, ...patch } : m)),
   }));
@@ -344,7 +340,6 @@ function Monthly({ draft, setDraft }) {
               {m.custom ? (
                 <TextInput value={m.name} onChangeText={(v) => update(i, { name: v })}
                   placeholder="名前（例: 携帯電話）" placeholderTextColor={t.tx3}
-                  inputAccessoryViewID={done.id}
                   style={{ flex: 1, color: t.tx, fontSize: 16, fontWeight: '700', paddingVertical: 2 }} />
               ) : (
                 <Text style={{ color: t.tx, fontSize: 16, fontWeight: '700', flex: 1 }}>{m.name}</Text>
@@ -366,7 +361,6 @@ function Monthly({ draft, setDraft }) {
                     value={String(m.day ?? '')}
                     onChangeText={(v) => update(i, { day: Number(v.replace(/[^0-9]/g, '').slice(0, 2)) || '' })}
                     keyboardType="number-pad"
-                    inputAccessoryViewID={done.id}
                     style={{ color: t.tx, fontSize: 17, paddingVertical: 11, paddingHorizontal: 4, minWidth: 34, textAlign: 'right' }} />
                   <Text style={{ color: t.tx, fontSize: 17 }}>日</Text>
                 </View>
@@ -404,7 +398,6 @@ function Monthly({ draft, setDraft }) {
           </Pressable>
         </View>
       </View>
-      {done.bar}
     </View>
   );
 }

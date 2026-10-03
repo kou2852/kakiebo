@@ -2,8 +2,7 @@
 //
 // 枠線ではなく影で階層を作る。枠線でカードを囲うと画面が箱だらけに見え、
 // どれも同じ強さになって主役（純資産）が埋もれる。
-import { useId } from 'react';
-import { InputAccessoryView, Keyboard, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useColorScheme, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useTheme } from '../theme';
 
 /**
@@ -135,61 +134,18 @@ export function Field({ label, children }) {
   );
 }
 
-// iOS 標準のキーボード上部バー（QuickType の予測変換バーなど）に近い色。
-// キーボード自体はOSの外観（アプリ内のテーマ切替とは別）に従って描画されるため、
-// アプリのテーマ色ではなく端末の配色モードに合わせる。でないと「キーボードの一部」に見えない。
-const KB_BAR = {
-  light: { bg: '#f8f8f8', bd: '#b2b2b2', tx: '#007aff' },
-  dark: { bg: '#1c1c1e', bd: '#38383a', tx: '#0a84ff' },
-};
-
-/**
- * iOS のキーボードの上に出す「完了」の帯。数字のキーボードには閉じるキーが無いため。
- * Android はキーボード自身に閉じる手段があるので出さない。
- * 帯は入力欄ごとに持つ。1つを共有すると、Modal（科目の選択など）の中で出ないことがある。
- * 使い方: const done = useDoneBar(); <TextInput inputAccessoryViewID={done.id} />{done.bar}
- */
-export function useDoneBar() {
-  const scheme = useColorScheme();
-  const c = KB_BAR[scheme === 'dark' ? 'dark' : 'light'];
-  const id = 'kb-done-' + useId();
-  if (Platform.OS !== 'ios') return { id: undefined, bar: null };
-  return {
-    id,
-    bar: (
-      <InputAccessoryView nativeID={id}>
-        <View style={{
-          flexDirection: 'row', justifyContent: 'flex-end',
-          backgroundColor: c.bg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.bd,
-        }}>
-          <TouchableOpacity onPress={() => Keyboard.dismiss()} hitSlop={8}
-            accessibilityRole="button" accessibilityLabel="キーボードを閉じる"
-            style={{ paddingVertical: 8, paddingHorizontal: 14 }}>
-            <Text style={{ color: c.tx, fontSize: 17, fontWeight: '600' }}>完了</Text>
-          </TouchableOpacity>
-        </View>
-      </InputAccessoryView>
-    ),
-  };
-}
-
 export function Input(props) {
   const t = useTheme();
-  const done = useDoneBar();
   return (
-    <>
-      <TextInput
-        placeholderTextColor={t.tx3}
-        inputAccessoryViewID={done.id}
-        {...props}
-        style={[{
-          backgroundColor: t.bg3, borderWidth: 1, borderColor: t.bd,
-          borderRadius: 10, color: t.tx, fontSize: 17,
-          paddingVertical: 11, paddingHorizontal: 12,
-        }, props.style]}
-      />
-      {done.bar}
-    </>
+    <TextInput
+      placeholderTextColor={t.tx3}
+      {...props}
+      style={[{
+        backgroundColor: t.bg3, borderWidth: 1, borderColor: t.bd,
+        borderRadius: 10, color: t.tx, fontSize: 17,
+        paddingVertical: 11, paddingHorizontal: 12,
+      }, props.style]}
+    />
   );
 }
 
