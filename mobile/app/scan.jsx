@@ -38,6 +38,11 @@ export default function Scan() {
     setResult((r) => (r ? { ...r, amount: n } : r));
     setScanSeq((s) => s + 1);
   };
+  // 店名も同じ理由で、候補から選び直せるようにする（選ぶと科目のルールも効き直す）。
+  const selectStore = (name) => {
+    setResult((r) => (r ? { ...r, store: name } : r));
+    setScanSeq((s) => s + 1);
+  };
 
   const run = async (fromCamera) => {
     const perm = fromCamera
@@ -124,6 +129,16 @@ export default function Scan() {
               </View>
             ) : null}
             <Row label="店名" value={result.store || '読み取れず'} ok={!!result.store} />
+            {result.storeCandidates?.length > 1 ? (
+              <View style={{ gap: 4 }}>
+                <Text style={{ color: t.tx3, fontSize: 12.5 }}>店名の候補（違っていたらタップ）</Text>
+                <ChipRow
+                  value={result.store}
+                  onChange={selectStore}
+                  options={result.storeCandidates.map((s) => ({ value: s, label: s }))}
+                />
+              </View>
+            ) : null}
             <Text style={{ color: t.tx3, fontSize: 13 }}>
               必ず内容を確認してください。読み違いをそのまま記帳すると帳簿がずれます。
             </Text>

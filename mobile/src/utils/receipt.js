@@ -95,6 +95,13 @@ export function extractReceipt(lines) {
   // 「合計」の印字がかすれて OCR に映らないなど、根拠が薄く同点・僅差になることがある
   // (実例: 2026-10-03 SEIYU)。1位だけを機械的に信じず、上位候補を画面側にも渡して
   // 選び直せるようにする。
+  // 「¥」が「4」に読まれると「¥2,711」が「42,711」になる（実機で確認）。先頭の4を外した額も
+  // 候補にあるなら、4付きの方は誤読の疑いが強いので点を下げる。候補としては残す。
+  for (const n of [...score.keys()]) {
+    const s = String(n);
+    const rest = Number(s.slice(1));
+    if (s[0] === '4' && s.length >= 5 && score.has(rest)) score.set(n, score.get(n) - 1.5);
+  }
   const ranked = [...score.entries()].sort((a, b) => (b[1] - a[1]) || (b[0] - a[0]));
   const amount = ranked.length ? ranked[0][0] : null;
   const amountCandidates = ranked.slice(0, 3).map(([n]) => n);
@@ -112,7 +119,12 @@ export function extractReceipt(lines) {
 
   // ── 店名 ──
   // 版面の先頭付近にある、数字や記号ばかりでない行を採る。
-  const store = clean.slice(0, 5).find((l) => l.length >= 2 && !/^[\d\s\-/:¥￥,.]+$/.test(l)) || null;
+  // 店名も OCR の読みが甘いことがあるため、候補を複数出して選べるようにする。
+  // 合計・支払の見出し（「合計」「クレジット」など）は店名ではないので外す。
+  const storeCandidates = [...new Set(clean.slice(0, 6).filter((l) => l.length >= 2
+    && !/^[\d\s\-/:¥￥,.]+$/.test(l)
+    && !TOTAL_WORDS.some((re) => re.test(l))))].slice(0, 4);
+  const store = storeCandidates[0] || null;
 
-  return { date, amount, amountCandidates, store, lines: clean };
+  return { date, amount, amountCandidates, store, storeCandidates, lines: clean };
 }
