@@ -50,7 +50,23 @@ export function extractReceipt(lines) {
   // OCR（特に Android の ML Kit）は「1,807」の桁区切りカンマの直後に余分な空白を
   // 入れて読むことがある（「1, 807」）。そのままだと金額の正規表現に引っかからず、
   // 本来の合計行が拾えなくなるので、ここで詰めておく。
-  const clean = (lines || []).map((l) => String(l).trim().replace(/,\s+(?=\d)/g, ',')).filter(Boolean);
+  let clean = (lines || []).map((l) => String(l).trim().replace(/,\s+(?=\d)/g, ',')).filter(Boolean);
+
+  // さらに、桁区切りカンマの直後で行ごと分かれてしまうことがある（「¥2,」「711」のように
+  // 2行に割れる）。1行ずつ見る仕組みだとどちらの行からも金額として拾えず、合計が
+  // 分裂していない別の数字（小計など）にすり替わるため、ここでくっつけておく。
+  const mergedClean = [];
+  for (let i = 0; i < clean.length; i++) {
+    const cur = clean[i];
+    const next = clean[i + 1];
+    if (next && /\d{1,3},$/.test(cur) && /^\d{3}(\D|$)/.test(next)) {
+      mergedClean.push(cur + next);
+      i++;
+    } else {
+      mergedClean.push(cur);
+    }
+  }
+  clean = mergedClean;
 
   // ── 合計 ──
   // 候補ごとに点を付けて選ぶ。単純な最大値だと識別番号を拾うため使わない。
