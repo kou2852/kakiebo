@@ -14,34 +14,54 @@ export default function AppLock({ children }) {
   const [locked, setLocked] = useState(null); // null = 判定中
   const [method, setMethod] = useState('');
   const backgroundedAt = useRef(0);
+  // isEnabled() は AsyncStorage 読み取りで非同期。バックグラウンドへ落ちる瞬間に
+  // await してから隠すと、その一瞬の間に OS がタスク切替画面用のスナップショットを
+  // 撮ってしまい、中身が写り込む。直近の判定をここへキャッシュし、同期的に使う。
+  const enabledRef = useRef(false);
 
   const unlock = useCallback(async () => {
     const r = await authenticate();
     if (r === 'ok') { setLocked(false); return; }
     // この端末ではもう認証できない（生体もパスコードも無い・外された）。締め出すとアプリを消すしかなくなるので、
     // ロックを外して開く。ロックの設定もオフに戻し、次の起動で同じことが起きないようにする。
-    if (r === 'unavailable') { await setEnabled(false); setLocked(false); }
+    if (r === 'unavailable') { await setEnabled(false); enabledRef.current = false; setLocked(false); }
   }, []);
   useEffect(() => { methodLabel().then(setMethod); }, []);
 
   useEffect(() => {
     (async () => {
-      if (!(await isEnabled())) { setLocked(false); return; }
+      const en = await isEnabled();
+      enabledRef.current = en;
+      if (!en) { setLocked(false); return; }
       setLocked(true);
       unlock();
     })();
   }, [unlock]);
 
   useEffect(() => {
-    const sub = AppState.addEventListener('change', async (state) => {
-      if (state === 'background') { backgroundedAt.current = Date.now(); return; }
+    const sub = AppState.addEventListener('change', (state) => {
+      // 裏へ回る・他の画面に切り替わる瞬間に、待たずに即座に隠す。
+      // ここで await を挟むと、OS がスナップショットを撮るのに間に合わないことがある。
+      if (state === 'background' || state === 'inactive') {
+        if (!backgroundedAt.current) backgroundedAt.current = Date.now();
+        if (enabledRef.current) setLocked(true);
+        // 設定が変わっていた場合に備え、キャッシュは裏で読み直しておく（次回のため）。
+        isEnabled().then((en) => { enabledRef.current = en; });
+        return;
+      }
       if (state !== 'active' || !backgroundedAt.current) return;
       const away = Date.now() - backgroundedAt.current;
       backgroundedAt.current = 0;
-      if (away < GRACE_MS) return;
-      if (!(await isEnabled())) return;
-      setLocked(true);
-      unlock();
+      (async () => {
+        const en = await isEnabled();
+        enabledRef.current = en;
+        if (!en) { setLocked(false); return; }
+        // 短時間の離席は認証を求めずそのまま戻す。隠すのはすでに済んでいるので、
+        // 戻す瞬間に中身が一瞬映ることもない。
+        if (away < GRACE_MS) { setLocked(false); return; }
+        setLocked(true);
+        unlock();
+      })();
     });
     return () => sub.remove();
   }, [unlock]);
