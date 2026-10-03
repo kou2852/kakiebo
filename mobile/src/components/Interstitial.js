@@ -7,6 +7,7 @@
 // 数えるのは、記帳タブ・ショートカット・レシート撮影から新しく保存した記帳だけ。
 // 編集・CSV 取り込み・定期取引の自動記帳・開始残高は、自分で1件ずつ付けた記帳ではないので数えない。
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { ADS_ENABLED } from './Ad';
 import { useAuth } from '../store/AuthProvider';
 import { useData } from '../store/DataProvider';
@@ -18,7 +19,7 @@ try { Ads = require('react-native-google-mobile-ads'); } catch { Ads = null; }
 
 // 本番のユニットID（AdMob: kurofukubo iOS / 記帳5回ごと全画面（ゲスト））。
 // 静止画と動画の両方、1人1時間2回までは AdMob 側で設定している。
-const PROD_UNIT_ID = 'ca-app-pub-1494837719359912/5602407892';
+const PROD_UNIT_ID = Platform.OS === 'android' ? 'ca-app-pub-1494837719359912/4898378467' : 'ca-app-pub-1494837719359912/5602407892';
 const COUNT_KEY = 'ads.entryCount';
 
 let ad = null;

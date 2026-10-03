@@ -11,7 +11,7 @@
 // アプリID（app.json）とユニットID（下記）はどちらも本番のものが入っている。
 // テスト広告に切り替わるのは開発中（__DEV__）だけで、切り替える手段は他に無い。
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 // ネイティブモジュールが無い環境（Expo Go・広告を含まないビルド）では読み込みに失敗する。
 // アプリ全体を落とさず、広告だけ出さない形で切り離す。
 let Ads = null;
@@ -46,11 +46,11 @@ export const ADS_ENABLED = true;
 // タップすると無効なトラフィックと判定され、AdMob のアカウントが停止されうる。
 export const PLACEMENTS = {
   // タブバーの直上に固定する帯
-  anchored: { unit: 'ca-app-pub-1494837719359912/3915570524', size: 'ANCHORED_ADAPTIVE_BANNER', test: 'ADAPTIVE_BANNER' },
+  anchored: { unit: 'ca-app-pub-1494837719359912/3915570524', androidUnit: 'ca-app-pub-1494837719359912/9396860827', size: 'ANCHORED_ADAPTIVE_BANNER', test: 'ADAPTIVE_BANNER' },
   // ホームの一番下（中サイズの四角）
-  homeBottom: { unit: 'ca-app-pub-1494837719359912/9747424628', size: 'MEDIUM_RECTANGLE', test: 'BANNER' },
+  homeBottom: { unit: 'ca-app-pub-1494837719359912/9747424628', androidUnit: 'ca-app-pub-1494837719359912/2036236391', size: 'MEDIUM_RECTANGLE', test: 'BANNER' },
   // レポートの一番下（中サイズの四角）。4つのタブのどれを見ていても同じ位置に出る
-  reportsBottom: { unit: 'ca-app-pub-1494837719359912/3790934097', size: 'MEDIUM_RECTANGLE', test: 'BANNER' },
+  reportsBottom: { unit: 'ca-app-pub-1494837719359912/3790934097', androidUnit: 'ca-app-pub-1494837719359912/9723154728', size: 'MEDIUM_RECTANGLE', test: 'BANNER' },
 };
 
 // ティア別の表示可否。Web 版 config/tiers.js の AD_CONFIG と同じ考え方。
@@ -98,7 +98,7 @@ export default function AnchoredAd({ tier = 'free', placement = 'anchored' }) {
       <BannerAd
         // 取り直すたびに新しい要求として出し直す
         key={attempt}
-        unitId={__DEV__ ? Ads.TestIds[p.test] : p.unit}
+        unitId={__DEV__ ? Ads.TestIds[p.test] : (Platform.OS === 'android' ? p.androidUnit : p.unit)}
         size={BannerAdSize[p.size]}
         // 非パーソナライズに固定する。IDFA を使わないので ATT の許可ダイアログが不要になり、
         // 「家計データを外部に出さない」という訴求と矛盾しない。単価は下がるが意図した選択。
