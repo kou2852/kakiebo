@@ -27,6 +27,10 @@ export default function Scan() {
   const [image, setImage] = useState(null);
   const [result, setResult] = useState(null); // { date, amount, store, lines }
   const [showLines, setShowLines] = useState(false);
+  // JournalForm は initial を初期化時にしか読まない（内部で編集させるため）。
+  // 撮り直すたびにこれを増やして key に渡し、フォームを作り直させることで
+  // 新しい読み取り結果を反映させる。でないと前の写真の内容が残り続ける。
+  const [scanSeq, setScanSeq] = useState(0);
 
   const run = async (fromCamera) => {
     const perm = fromCamera
@@ -47,6 +51,7 @@ export default function Scan() {
     setBusy(true);
     try {
       setResult(extractReceipt(await recognize(uri)));
+      setScanSeq((n) => n + 1);
     } catch (e) {
       Alert.alert('読み取れません', e?.message || String(e));
     } finally {
@@ -115,6 +120,7 @@ export default function Scan() {
           </Card>
 
           <JournalForm
+            key={scanSeq}
             initial={{
               type: 'out',
               date: result.date || today(),
