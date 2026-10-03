@@ -47,7 +47,10 @@ function moneyIn(line) {
  * 取れなかった項目は null（画面側で手入力させる）。
  */
 export function extractReceipt(lines) {
-  const clean = (lines || []).map((l) => String(l).trim()).filter(Boolean);
+  // OCR（特に Android の ML Kit）は「1,807」の桁区切りカンマの直後に余分な空白を
+  // 入れて読むことがある（「1, 807」）。そのままだと金額の正規表現に引っかからず、
+  // 本来の合計行が拾えなくなるので、ここで詰めておく。
+  const clean = (lines || []).map((l) => String(l).trim().replace(/,\s+(?=\d)/g, ',')).filter(Boolean);
 
   // ── 合計 ──
   // 候補ごとに点を付けて選ぶ。単純な最大値だと識別番号を拾うため使わない。
@@ -57,7 +60,9 @@ export function extractReceipt(lines) {
   const add = (n, pt) => score.set(n, (score.get(n) || 0) + pt);
 
   clean.forEach((line, i) => {
-    if (EXCLUDE_LINE.test(line)) return;
+    // 「ポイント対象金額」は TOTAL_WORDS の /対象金額/ に誤って一致する。
+    // ポイントがらみの行は、合計行としての強い加点ごと無視する。
+    if (EXCLUDE_LINE.test(line) || POINT_LINE.test(line)) return;
     const isTotalLine = TOTAL_WORDS.some((re) => re.test(line));
     moneyIn(line).forEach((n) => add(n, isTotalLine ? 10 : 1));
     // 「合計」だけの行で、金額が次の行に回っている版面
@@ -76,7 +81,8 @@ export function extractReceipt(lines) {
   let date = null;
   for (const line of clean) {
     // 行全体が日付とは限らないので、日付らしい部分文字列を切り出してから正規化する。
-    const m = line.match(/(\d{4}|\d{2})[/\-.年](\d{1,2})[/\-.月](\d{1,2})/);
+    // 「2026年 9月21日」のように年・月の後ろに空白が入ることがあるため、空白は許容する。
+    const m = line.match(/(\d{4}|\d{2})[/\-.年]\s*(\d{1,2})[/\-.月]\s*(\d{1,2})/);
     if (!m) continue;
     const d = normD(`${m[1]}/${m[2]}/${m[3]}`);
     if (d) { date = d; break; }
