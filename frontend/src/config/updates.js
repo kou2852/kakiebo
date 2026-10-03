@@ -40,7 +40,7 @@ const IOS_UPDATE = IOS_APP.live && IOS_APP.date ? [{
 export const APP_UPDATES = [
   {
     id: '2026-09-30-app',
-    date: '2026-09-30',
+    date: '2026-10-04',
     for: ['app'],
     minApp: '1.0.2',
     title: '仕訳のコピーと、更新情報のお知らせを追加しました',
