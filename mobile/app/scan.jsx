@@ -9,7 +9,7 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useData } from '../src/store/DataProvider';
 import { useTheme } from '../src/theme';
-import { Button, Card, Screen } from '../src/components/ui';
+import { Button, Card, ChipRow, Screen } from '../src/components/ui';
 import JournalForm from '../src/components/JournalForm';
 import { isAvailable, recognize } from '../modules/text-recognition';
 import { extractReceipt } from '../src/utils/receipt';
@@ -31,6 +31,13 @@ export default function Scan() {
   // 撮り直すたびにこれを増やして key に渡し、フォームを作り直させることで
   // 新しい読み取り結果を反映させる。でないと前の写真の内容が残り続ける。
   const [scanSeq, setScanSeq] = useState(0);
+
+  // OCR は「合計」の印字がかすれて読めない等で、根拠が薄いまま選んでいることがある
+  // （2026-10-03 実機で確認）。候補が複数あるときはタップで選び直せるようにする。
+  const selectAmount = (n) => {
+    setResult((r) => (r ? { ...r, amount: n } : r));
+    setScanSeq((s) => s + 1);
+  };
 
   const run = async (fromCamera) => {
     const perm = fromCamera
@@ -106,6 +113,16 @@ export default function Scan() {
           <Card title="読み取り結果">
             <Row label="日付" value={result.date || '読み取れず'} ok={!!result.date} />
             <Row label="合計" value={result.amount ? fa(result.amount) : '読み取れず'} ok={!!result.amount} />
+            {result.amountCandidates?.length > 1 ? (
+              <View style={{ gap: 4 }}>
+                <Text style={{ color: t.tx3, fontSize: 12.5 }}>金額の候補（違っていたらタップ）</Text>
+                <ChipRow
+                  value={result.amount}
+                  onChange={selectAmount}
+                  options={result.amountCandidates.map((n) => ({ value: n, label: fa(n) }))}
+                />
+              </View>
+            ) : null}
             <Row label="店名" value={result.store || '読み取れず'} ok={!!result.store} />
             <Text style={{ color: t.tx3, fontSize: 13 }}>
               必ず内容を確認してください。読み違いをそのまま記帳すると帳簿がずれます。

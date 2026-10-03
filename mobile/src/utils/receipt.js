@@ -92,11 +92,12 @@ export function extractReceipt(lines) {
     }
   });
 
-  let amount = null;
-  if (score.size) {
-    // 同点なら大きい方（明細より合計の方が大きい）
-    amount = [...score.entries()].sort((a, b) => (b[1] - a[1]) || (b[0] - a[0]))[0][0];
-  }
+  // 「合計」の印字がかすれて OCR に映らないなど、根拠が薄く同点・僅差になることがある
+  // (実例: 2026-10-03 SEIYU)。1位だけを機械的に信じず、上位候補を画面側にも渡して
+  // 選び直せるようにする。
+  const ranked = [...score.entries()].sort((a, b) => (b[1] - a[1]) || (b[0] - a[0]));
+  const amount = ranked.length ? ranked[0][0] : null;
+  const amountCandidates = ranked.slice(0, 3).map(([n]) => n);
 
   // ── 日付 ──
   let date = null;
@@ -113,5 +114,5 @@ export function extractReceipt(lines) {
   // 版面の先頭付近にある、数字や記号ばかりでない行を採る。
   const store = clean.slice(0, 5).find((l) => l.length >= 2 && !/^[\d\s\-/:¥￥,.]+$/.test(l)) || null;
 
-  return { date, amount, store, lines: clean };
+  return { date, amount, amountCandidates, store, lines: clean };
 }
