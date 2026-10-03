@@ -5,6 +5,7 @@ package expo.modules.textrecognition
 
 import android.net.Uri
 import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.japanese.JapaneseTextRecognizerOptions
 import expo.modules.kotlin.Promise
@@ -33,13 +34,25 @@ class TextRecognitionModule : Module() {
       recognizer.process(image)
         .addOnSuccessListener { text ->
           val lines = text.textBlocks.flatMap { it.lines }.filter { it.boundingBox != null }
-          // iOS と同じ並べ方。行の高さの半分以内に中心が並ぶものは同じ段として左から右へ
-          val sorted = lines.sortedWith { a, b ->
-            val ra = a.boundingBox!!; val rb = b.boundingBox!!
-            val tol = minOf(ra.height(), rb.height()) / 2
-            if (abs(ra.centerY() - rb.centerY()) > tol) ra.centerY().compareTo(rb.centerY())
-            else ra.left.compareTo(rb.left)
+          // iOS と同じ並べ方。行の高さの半分以内に中心が並ぶものは同じ段として左から右へ。
+          // ⚠ 以前はこれを1つの Comparator（2行ずつの比較のたびに許容誤差が変わる）で
+          //   やっていたが、それだと「AとBは同じ段」「BとCは同じ段」なのに「AとCは違う段」
+          //   になり得て推移律を満たさず、TimSort が
+          //   `Comparison method violates its general contract!` で落ちた（実機で確認）。
+          //   そのため、まず上から下へ単純にソートしてから、段をまとめる処理を分けて行う。
+          val byTop = lines.sortedBy { it.boundingBox!!.centerY() }
+          val rows = mutableListOf<MutableList<Text.Line>>()
+          for (line in byTop) {
+            val box = line.boundingBox!!
+            val row = rows.lastOrNull()
+            val ref = row?.first()?.boundingBox
+            if (ref != null && abs(box.centerY() - ref.centerY()) <= minOf(ref.height(), box.height()) / 2) {
+              row!!.add(line)
+            } else {
+              rows.add(mutableListOf(line))
+            }
           }
+          val sorted = rows.flatMap { row -> row.sortedBy { it.boundingBox!!.left } }
           promise.resolve(sorted.map { it.text })
           recognizer.close()
         }
