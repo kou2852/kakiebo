@@ -20,7 +20,6 @@ import { TourProvider } from '../src/store/TourProvider';
 import Tour from '../src/components/Tour';
 import { OnboardingProvider } from '../src/store/OnboardingProvider';
 import Onboarding from '../src/components/Onboarding';
-import RecruitPopup from '../src/components/RecruitPopup';
 
 // スプラッシュは既定だと最初の描画と同時に消える。起動が速い端末では一瞬すぎて
 // 何が出たのか分からないので、自動で消えるのを止めて最低表示時間を持たせる。
@@ -181,7 +180,6 @@ export default function RootLayout() {
             <AppLock>
               <Nav />
               <Onboarding />
-              <RecruitPopup />
             </AppLock>
             <Tour />
           </TourProvider>
