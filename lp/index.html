@@ -88,9 +88,16 @@ header{position:sticky;top:0;z-index:30;background:rgba(253,252,249,.92);backdro
 .hero h1 em{font-style:normal;color:var(--ac)}
 .hero-sub{font-size:clamp(15px,1.6vw,17px);line-height:2.1;color:var(--tx2);margin-top:24px}
 .hero-sub strong{color:var(--tx);font-weight:700}
-.hero-actions{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:34px;flex-wrap:wrap}
-.hero-actions .btn-g{font-size:16px;padding:17px 44px}
+.hero-actions{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:34px}
+.hero-stores{display:flex;gap:12px}
 .hero-badge{display:inline-flex}
+.hero-badge img{width:152px;height:56px}
+.badge-gplay{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:152px;height:56px;box-sizing:border-box;border:1px solid #a6a6a6;border-radius:9px;background:#000;opacity:.5;cursor:default}
+.badge-gplay svg{width:24px;height:24px;flex:none}
+.badge-gplay .label{text-align:left;line-height:1.2;white-space:nowrap}
+.badge-gplay .label small{display:block;font-size:10px;color:#fff}
+.badge-gplay .label strong{display:block;font-size:17px;color:#fff;font-weight:600}
+.hero-actions .btn-g{font-size:16px;width:316px;box-sizing:border-box;padding:17px 0;text-align:center}
 .hero-facts{display:flex;justify-content:center;gap:22px;flex-wrap:wrap;margin-top:20px}
 .hero-facts span{font-size:12.5px;color:var(--tx2);display:inline-flex;align-items:center;gap:6px}
 .hero-facts span::before{content:'✓';color:var(--ac);font-weight:700}
@@ -252,7 +259,13 @@ footer{background:#1a2622;padding:40px 0}
       <h1>使ったお金だけでなく、<br><em>お金の流れまで見える</em>複式簿記の家計簿。</h1>
       <p class="hero-sub">入力はいつもの家計簿のようにシンプル。<br>複式簿記の仕組みで、<strong>口座・資産・負債・収支</strong>がつながり、<strong>純資産</strong>まで見えます。<br><strong>銀行連携は不要</strong>。iPhoneアプリとブラウザで、同じ帳簿を使えます。</p>
       <div class="hero-actions">
-        <a href="https://apps.apple.com/jp/app/kurofukubo-%E8%A4%87%E5%BC%8F%E7%B0%BF%E8%A8%98%E3%81%AE%E5%AE%B6%E8%A8%88%E7%B0%BF/id6806592989" class="hero-badge" data-cta="hero_appstore" aria-label="App Storeからダウンロード"><img src="/img/appstore-badge-ja.svg" alt="App Storeからダウンロード" height="56" style="height:56px;width:auto"></a>
+        <div class="hero-stores">
+          <a href="https://apps.apple.com/jp/app/kurofukubo-%E8%A4%87%E5%BC%8F%E7%B0%BF%E8%A8%98%E3%81%AE%E5%AE%B6%E8%A8%88%E7%B0%BF/id6806592989" class="hero-badge" data-cta="hero_appstore" aria-label="App Storeからダウンロード"><img src="/img/appstore-badge-ja.svg" alt="App Storeからダウンロード" width="152" height="56"></a>
+          <span class="badge-gplay" role="img" aria-label="Google Play版は準備中です">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#00d2ff" d="M3.6 2.6c-.4.4-.6.9-.6 1.6v15.6c0 .7.2 1.2.6 1.6l.1.1L13 12.3v-.2L3.7 2.5l-.1.1z"/><path fill="#00f076" d="M16.2 15.5l-3.2-3.2v-.2l3.2-3.2.1.1 3.8 2.2c1.1.6 1.1 1.6 0 2.2l-3.8 2.2-.1-.1z"/><path fill="#ff3a44" d="M16.3 15.4L13 12.1 3.6 21.5c.3.4.9.4 1.5.1l11.2-6.2"/><path fill="#ffcd00" d="M16.3 8.6L5.1 2.4c-.6-.3-1.1-.3-1.5.1L13 12 16.3 8.6z"/></svg>
+            <span class="label"><small>Google Play</small><strong>準備中</strong></span>
+          </span>
+        </div>
         <a href="https://app.kurofukubo.com/?guest" class="btn btn-g">ブラウザで無料で始める</a>
       </div>
       <div class="hero-facts">
@@ -592,4 +605,5 @@ footer{background:#1a2622;padding:40px 0}
   v.addEventListener('pause', function () { if (!v.ended && v.currentTime === 0) f.classList.remove('is-playing'); });
 }());
 </script>
+<script defer src="/recruit-popup.js"></script>
 </body></html>
