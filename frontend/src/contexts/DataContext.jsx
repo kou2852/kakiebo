@@ -215,9 +215,9 @@ export function DataProvider({ children }) {
   // ── uid ──
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-  // ふるさと納税記事から来たゲストに、記事どおりの「立替金」科目と「ふるさと納税」タグを
-  // 用意する。目印は AuthContext が立てる一度きりの印で、読んだら必ず消す（二重に増やさないため）。
-  // 既にある分は作り直さない（記事のリンクを何度踏んでも増殖しない）。
+  // ふるさと納税記事から来たゲストに、記事の手順どおり「立替金（資産）」「ふるさと納税（費用）」の
+  // 2科目と、年間集計用の「ふるさと納税」タグを用意する。目印は AuthContext が立てる一度きりの印で、
+  // 読んだら必ず消す（二重に増やさないため）。既にある分は作り直さない（記事のリンクを何度踏んでも増殖しない）。
   const seedFurusatoEntry = (data) => {
     let flagged = false;
     try {
@@ -225,13 +225,16 @@ export function DataProvider({ children }) {
       sessionStorage.removeItem(FURUSATO_ENTRY_KEY);
     } catch {}
     if (!flagged) return data;
-    const hasAccount = data.accounts.some((a) => a.name === '立替金');
+    const hasAssetAccount = data.accounts.some((a) => a.name === '立替金');
+    const hasExpenseAccount = data.accounts.some((a) => a.name === 'ふるさと納税' && a.type === 'expense');
     const hasTag = data.tags.some((t) => t.name === 'ふるさと納税');
-    if (hasAccount && hasTag) return data;
+    if (hasAssetAccount && hasExpenseAccount && hasTag) return data;
+    let accounts = data.accounts;
+    if (!hasAssetAccount) accounts = [...accounts, { id: uid(), code: nextCode(accounts, 'asset'), name: '立替金', type: 'asset' }];
+    if (!hasExpenseAccount) accounts = [...accounts, { id: uid(), code: nextCode(accounts, 'expense'), name: 'ふるさと納税', type: 'expense' }];
     return {
       ...data,
-      accounts: hasAccount ? data.accounts
-        : [...data.accounts, { id: uid(), code: nextCode(data.accounts, 'asset'), name: '立替金', type: 'asset' }],
+      accounts,
       tags: hasTag ? data.tags
         : [...data.tags, { id: uid(), name: 'ふるさと納税', color: '#e0a020' }], // utils/format.js の TAG_COLORS と同じ色
     };
