@@ -29,6 +29,8 @@ async function loadCognito() {
 }
 
 const GUEST_KEY = 'kk_guest'; // ゲストモードのフラグ（データ本体は DataContext の kk4_guest）
+// ふるさと納税記事からの導線の目印。DataContext の同名キーと対（一度読んだら消す一度きりの受け渡し）。
+const FURUSATO_ENTRY_KEY = 'kk_entry_furusato';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -89,6 +91,10 @@ export function AuthProvider({ children }) {
       // 計測はクエリを消す前に送る。ビーコンの Referer に UTM を残し、流入元別に数えるため。
       track('guest_start');
       trackOnce('guest_first');
+      // ふるさと納税記事からの導線は、記事どおりの立替金の科目・タグを用意した状態で始める
+      // （DataContext 側がこの目印を読んで初回データに足す）。クエリを消す前に読む。
+      const utmContent = new URLSearchParams(window.location.search).get('utm_content') || '';
+      if (utmContent.startsWith('guide-furusato')) sessionStorage.setItem(FURUSATO_ENTRY_KEY, '1');
       window.history.replaceState({}, '', window.location.pathname);
     }
 

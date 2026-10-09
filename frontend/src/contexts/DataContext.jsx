@@ -8,11 +8,14 @@ import { readBundle, writeBundle, readCipher, clearEncryption } from '../utils/c
 import { saveDek, loadDek, clearDek } from '../utils/dekStore';
 import { track, trackOnce } from '../utils/track';
 import { DEFAULT_ACCOUNTS, DEFAULT_PRESETS, planGuestMigration } from '../utils/guestMigration';
+import { nextCode } from '../utils/accountCode';
 
 const DataContext = createContext(null);
 
 const STORAGE_KEY = 'kk4';
 const GUEST_KEY = 'kk4_guest'; // ゲストのデータは通常の kk4 と分離して保存
+// ふるさと納税記事からの導線の目印。AuthContext の同名キーと対（一度読んだら消す一度きりの受け渡し）。
+const FURUSATO_ENTRY_KEY = 'kk_entry_furusato';
 
 // 解錠できないまま持ち出すバックアップの識別子。インポート時にこれで平文JSONと見分ける。
 export const ENC_BACKUP_TYPE = 'kurofukubo-encrypted-backup';
@@ -122,7 +125,8 @@ export function DataProvider({ children }) {
       return;
     }
     setEncEnabled(false);
-    applyDataset(loadLocal(key));
+    const data = loadLocal(key);
+    applyDataset(key === GUEST_KEY ? seedFurusatoEntry(data) : data);
     setEncLocked(false);
     setLoading(false);
   }, [dek, applyDataset]);
@@ -210,6 +214,28 @@ export function DataProvider({ children }) {
 
   // ── uid ──
   const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+  // ふるさと納税記事から来たゲストに、記事どおりの「立替金」科目と「ふるさと納税」タグを
+  // 用意する。目印は AuthContext が立てる一度きりの印で、読んだら必ず消す（二重に増やさないため）。
+  // 既にある分は作り直さない（記事のリンクを何度踏んでも増殖しない）。
+  const seedFurusatoEntry = (data) => {
+    let flagged = false;
+    try {
+      flagged = sessionStorage.getItem(FURUSATO_ENTRY_KEY) === '1';
+      sessionStorage.removeItem(FURUSATO_ENTRY_KEY);
+    } catch {}
+    if (!flagged) return data;
+    const hasAccount = data.accounts.some((a) => a.name === '立替金');
+    const hasTag = data.tags.some((t) => t.name === 'ふるさと納税');
+    if (hasAccount && hasTag) return data;
+    return {
+      ...data,
+      accounts: hasAccount ? data.accounts
+        : [...data.accounts, { id: uid(), code: nextCode(data.accounts, 'asset'), name: '立替金', type: 'asset' }],
+      tags: hasTag ? data.tags
+        : [...data.tags, { id: uid(), name: 'ふるさと納税', color: '#e0a020' }], // utils/format.js の TAG_COLORS と同じ色
+    };
+  };
 
   // ── Journals CRUD ──
   // opts.silent: 口座の開始残高のように「アプリが自動で作る仕訳」。簿記上は正しい仕訳だが、
