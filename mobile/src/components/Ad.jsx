@@ -22,6 +22,7 @@ try {
 }
 export const adsAvailable = () => Ads !== null;
 import { useTheme } from '../theme';
+import { useAdFree } from '../adFree';
 
 // 広告そのものを止める手段は置かない。
 //
@@ -72,6 +73,8 @@ const MAX_RETRY = 5;
 
 export default function AnchoredAd({ tier = 'free', placement = 'anchored' }) {
   const t = useTheme();
+  // 動画を見て「今日は広告を消す」にしている間は出さない（src/adFree.js）
+  const { active: adFree } = useAdFree();
   // 読み込みに失敗したら枠ごと畳む。空白が残るとタブバーが浮いて見える。
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -82,7 +85,7 @@ export default function AnchoredAd({ tier = 'free', placement = 'anchored' }) {
     return () => clearTimeout(timer);
   }, [failed, attempt]);
 
-  if (!Ads || !ADS_ENABLED || !AD_TIERS[tier] || failed) return null;
+  if (!Ads || !ADS_ENABLED || !AD_TIERS[tier] || failed || adFree) return null;
   const { BannerAd, BannerAdSize } = Ads;
   const p = PLACEMENTS[placement];
 

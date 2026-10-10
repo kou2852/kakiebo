@@ -1,7 +1,7 @@
 // 期日到来した自動取引（定期取引・クレカ返済）の集計と生成。
 // クレカは creditCardCycles に準拠。引落前のサイクルも対象に含め、due フラグで到来済みを区別する。
-import { ymd } from './format';
-import { todayYmd, creditCardCycles, isCreditCard } from './creditCard';
+import { ymd } from './format.js';
+import { todayYmd, creditCardCycles, isCreditCard } from './creditCard.js';
 
 /** 定期取引の次回日付を進める */
 export function advanceDate(dateStr, frequency) {

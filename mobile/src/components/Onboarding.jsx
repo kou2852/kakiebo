@@ -20,6 +20,7 @@ import { useAuth } from '../store/AuthProvider';
 import { CUSTOM_EXPENSE_ID, KINDS, MONTHLY_PRESETS } from '../store/onboardingPlan';
 import { faBal } from '../utils/format';
 import { KEYBOARD_DONE_ID } from './KeyboardDone';
+import { askPermissionOnce } from '../notifications';
 
 const ICONS = {
   cash: 'wallet-outline',
@@ -441,6 +442,45 @@ function Done({ summary }) {
   );
 }
 
+function Notify() {
+  const t = useTheme();
+  const rows = [
+    ['card-outline', 'カードの引き落とし', '引き落とし日の3日前に、カードの名前をお知らせします。'],
+    ['repeat-outline', '定期取引の予定日', '家賃など、予定日の3日前にお知らせします。'],
+    ['stats-chart-outline', '毎月のまとめ', '毎月1日に、先月の純資産と収支を確認できるとお知らせします。'],
+  ];
+  return (
+    <View style={{ gap: 24, marginTop: 16 }}>
+      <Title text={'大事な日を、\n通知でお知らせします'} sub="次へ進むと、通知を許可するか聞かれます。" />
+      <View style={[{ backgroundColor: t.bg1, borderRadius: 14, overflow: 'hidden' }, t.shadow]}>
+        {rows.map(([icon, head, sub], i) => (
+          <View key={head} style={{
+            flexDirection: 'row', alignItems: 'center', gap: 12, padding: 15,
+            borderTopWidth: i ? 1 : 0, borderTopColor: t.bd,
+          }}>
+            <View style={{
+              width: 34, height: 34, borderRadius: 17, backgroundColor: t.acb,
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Ionicons name={icon} size={19} color={t.ac} />
+            </View>
+            <View style={{ gap: 2, flex: 1 }}>
+              <Text style={{ color: t.tx, fontSize: 16.5, fontWeight: '700' }}>{head}</Text>
+              <Text style={{ color: t.tx3, fontSize: 13.5, lineHeight: 19 }}>{sub}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 4 }}>
+        <Ionicons name="lock-closed-outline" size={18} color={t.ac} />
+        <Text style={{ color: t.tx2, fontSize: 13.5, lineHeight: 20, flex: 1 }}>
+          通知に金額は入りません。通知の種類は、設定の「通知」であとから変えられます。
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 // ── 全体 ─────────────────────────────────────────────────
 
 export default function Onboarding() {
@@ -504,20 +544,23 @@ export default function Onboarding() {
     return () => sub.remove();
   }, [active, path, asking, index, back]);
 
-  const onFinish = useCallback(() => {
+  // 最後のページ。通知の許可を聞いてから、保存して終わる。許可されなくても進む（あとで設定から許可できる）。
+  const onFinish = useCallback(async () => {
+    await askPermissionOnce();
     finish().catch(() => Alert.alert('保存できませんでした', '通信は要りません。もう一度お試しください。'));
   }, [finish]);
 
   // ログイン画面（モーダル）が開いている間は覆いを外す。上に残っていると触れない。
   if (!active || path === '/connect') return null;
 
-  const last = step === 'done';
+  const last = step === 'notify';
+  const isDone = step === 'done';
   const body = step === 'welcome' ? <Welcome />
     : step === 'steps' ? <Steps />
       : step === 'pick' ? <Pick draft={draft} setDraft={setDraft} />
         : step === 'balance' ? <Balance draft={draft} setDraft={setDraft} />
           : step === 'monthly' ? <Monthly draft={draft} setDraft={setDraft} />
-            : <Done summary={summary} />;
+            : step === 'done' ? <Done summary={summary} /> : <Notify />;
 
   return (
     <>
@@ -536,7 +579,7 @@ export default function Onboarding() {
             <Ionicons name="chevron-back" size={26} color={t.tx} />
           </Pressable>
         ) : <View />}
-        {last ? null : (
+        {last || isDone ? null : (
           <Pressable onPress={onSkip} hitSlop={10} style={{ paddingVertical: 10 }}>
             <Text style={{ color: t.tx3, fontSize: 15, fontWeight: '600' }}>あとで</Text>
           </Pressable>
@@ -552,8 +595,8 @@ export default function Onboarding() {
       <View style={{ paddingHorizontal: 20, paddingTop: 12, gap: 18 }}>
         <Dots index={index} total={total} />
         <View style={{ gap: 12 }}>
-          {/* 最初と最後だけ「はじめる」。最初は登録を始める合図、最後は帳簿を使い始める合図。 */}
-          <Button label={last || step === 'welcome' ? 'はじめる' : '次へ'} onPress={last ? onFinish : next} disabled={saving} />
+          {/* 最初だけ「はじめる」（登録を始める合図）。最後の通知のページは「次へ」で許可を聞き、保存して帳簿へ進む。 */}
+          <Button label={step === 'welcome' ? 'はじめる' : '次へ'} onPress={last ? onFinish : next} disabled={saving} />
           {/* ログインはボタンの下。並べて大きく出すと、登録が要るように見える。 */}
           {/* ログイン済み（ログインしたが空のアカウントだった・新規登録した）ならログインは勧めない。 */}
           {step === 'welcome' && auth?.signedIn ? (
@@ -567,7 +610,7 @@ export default function Onboarding() {
               </Text>
             </Pressable>
           ) : null}
-          {last ? (
+          {isDone ? (
             <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>
               毎月の給料や家賃は、設定からいつでも登録できます
             </Text>

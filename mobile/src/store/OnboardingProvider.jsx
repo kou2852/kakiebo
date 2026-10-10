@@ -25,8 +25,8 @@ const SEEN_KEY = 'onboarding.seen';
  */
 export const forgetOnboarding = () => AsyncStorage.multiRemove([SEEN_KEY, CREATED_IDS_KEY]).catch(() => {});
 
-/** 画面の並び。A-3 まで来たら終わり。 */
-export const STEPS = ['welcome', 'steps', 'pick', 'balance', 'monthly', 'done'];
+/** 画面の並び。最後の 'notify'（通知のお知らせと許可）で「次へ」を押すと保存して終わる。 */
+export const STEPS = ['welcome', 'steps', 'pick', 'balance', 'monthly', 'done', 'notify'];
 
 /**
  * 最初に見せておく状態。
@@ -55,6 +55,8 @@ export function OnboardingProvider({ children }) {
   const [index, setIndex] = useState(0);
   const [draft, setDraft] = useState(initialDraft);
   const [saving, setSaving] = useState(false);
+  // 出すかどうかの判定が済んだか。通知の許可を、オンボーディングを飛ばした人にホームで求めるのに使う。
+  const [decidedState, setDecidedState] = useState(false);
 
   const dataset = useMemo(
     () => ({ accounts, journals, tags, allocs, wallets, presets, budgets, recurring, rules }),
@@ -72,10 +74,11 @@ export function OnboardingProvider({ children }) {
     decided.current = true;
     (async () => {
       let seen = null;
-      try { seen = await AsyncStorage.getItem(SEEN_KEY); } catch { seen = null; }      if (seen) return;
+      try { seen = await AsyncStorage.getItem(SEEN_KEY); } catch { seen = null; }      if (seen) { setDecidedState(true); return; }
       // 既に帳簿がある（＝入れ直し＋ログインで取り込んだ等）。聞き直さない。
-      if (hasUserData(dataset)) { await markSeen(); return; }
+      if (hasUserData(dataset)) { await markSeen(); setDecidedState(true); return; }
       setActive(true);
+      setDecidedState(true);
     })();
   }, [loading, dataset, markSeen]);
 
@@ -130,10 +133,10 @@ export function OnboardingProvider({ children }) {
   const summary = useMemo(() => summarize(draft), [draft]);
 
   const value = useMemo(() => ({
-    active, saving, draft, setDraft, summary,
+    active, decided: decidedState, saving, draft, setDraft, summary,
     step: STEPS[index], index, total: STEPS.length,
     next, back, skip, finish, checkAfterLogin,
-  }), [active, saving, draft, summary, index, next, back, skip, finish, checkAfterLogin]);
+  }), [active, decidedState, saving, draft, summary, index, next, back, skip, finish, checkAfterLogin]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

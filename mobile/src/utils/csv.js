@@ -48,7 +48,9 @@ export function normD(s) {
 /** 金額文字列を正の数値へ。空・不正は 0 */
 export function pAm(s) {
   if (!s || !s.trim()) return 0;
-  const n = parseFloat(s.replace(/[¥,\s　]/g, '').replace(/[^\d.\-]/g, ''));
+  // 全角の数字・「，」「．」「￥」「－」を半角にそろえてから読む。そろえないと「１，０００」が 0 になり、
+  // 反対側の金額だけが採られて、貸借の合わない行が気づかれずに通る。
+  const n = parseFloat(s.normalize('NFKC').replace(/[¥,\s　]/g, '').replace(/[^\d.\-]/g, ''));
   return isNaN(n) ? 0 : Math.abs(n);
 }
 
@@ -59,7 +61,14 @@ export function pAm(s) {
  */
 export function csvAmount(r) {
   const da = pAm(r[CC.dm]), ca = pAm(r[CC.cm]);
-  return { amount: da > 0 ? da : ca, da, ca, mismatch: da > 0 && ca > 0 && da !== ca };
+  // 数字が1つも読めない文字（「N/A」など）が入っているのに、反対側には金額がある行も、貸借が合わない行として扱う。
+  // 「-」「ー」だけのセルは、空欄のかわりに使われるので、読めなかったことにはしない。
+  const unreadable = (v) => {
+    const t = String(v ?? '').normalize('NFKC').trim();
+    return t !== '' && !/^[-−ー―–—]+$/.test(t) && !/\d/.test(t);
+  };
+  const bad = (unreadable(r[CC.dm]) && ca > 0) || (unreadable(r[CC.cm]) && da > 0);
+  return { amount: da > 0 ? da : ca, da, ca, mismatch: (da > 0 && ca > 0 && da !== ca) || bad };
 }
 
 /** 科目名 or コードから科目IDを解決。なければ null */

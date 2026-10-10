@@ -17,6 +17,8 @@ import { BUILD_STAMP } from '../../src/buildStamp';
 import { resetAll } from '../../src/db';
 import { forgetOnboarding } from '../../src/store/OnboardingProvider';
 import { codeCollisions } from '../../src/store/merge';
+import { rewardedReady } from '../../src/components/Rewarded';
+import { useAdFree } from '../../src/adFree';
 
 // 規約・ポリシーはアプリ内ブラウザで開く。
 //
@@ -34,6 +36,7 @@ export default function Settings() {
   const d = useData();
   const auth = useAuth();
   const theme = useThemeMode();
+  const adFree = useAdFree();
   const [skipDelete, setSkipDelete] = useState(false);
   useEffect(() => { getSkipDeleteConfirm().then(setSkipDelete); }, []);
 
@@ -75,7 +78,9 @@ export default function Settings() {
         },
         { label: '外観', value: theme.mode === 'auto' ? '端末に合わせる' : (theme.resolved === 'light' ? 'ライト' : 'ダーク'), onPress: go('/settings/appearance') },
         { label: 'アプリロック', onPress: go('/settings/security') },
-        { label: 'リマインダー', onPress: go('/settings/reminder') },
+        { label: '通知', onPress: go('/settings/reminder') },
+        // 動画広告を見ると、その日は広告を消せる。広告の枠を持たない端末・ビルドでは出さない。
+        ...(rewardedReady() ? [{ label: '広告', value: adFree.active ? '今日はオフ' : '', onPress: go('/settings/ads') }] : []),
         { label: 'ショートカット', onPress: go('/shortcuts') },
         // 削除の確認ダイアログで「次回から確認しない」にした場合の戻し口。タップで切り替える。
         {

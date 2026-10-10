@@ -13,6 +13,7 @@ import { useAuth } from '../store/AuthProvider';
 import { useData } from '../store/DataProvider';
 import { bump, isDue, shouldPreload } from '../utils/adPacing';
 import { maybeAskReview } from './ReviewAsk';
+import { isAdFreeNow } from '../adFree';
 
 let Ads = null;
 try { Ads = require('react-native-google-mobile-ads'); } catch { Ads = null; }
@@ -56,6 +57,8 @@ async function countEntry(guest) {
 async function showIfDue(guest) {
   if (!guest || !ad?.loaded) return false;
   try {
+    // 動画を見て「今日は広告を消す」にしている間は出さない。件数は進めたまま（切れたあと最初の番で出る）
+    if (await isAdFreeNow()) return false;
     if (!isDue(await readCount())) return false;
     await AsyncStorage.setItem(COUNT_KEY, '0');
     await ad.show();

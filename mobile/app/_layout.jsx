@@ -19,6 +19,7 @@ import { ThemeProvider } from '../src/store/ThemeProvider';
 import { ToastProvider } from '../src/store/ToastProvider';
 import KeyboardDone from '../src/components/KeyboardDone';
 import HelpTitle from '../src/components/HelpTitle';
+import NotificationSync from '../src/store/NotificationSync';
 import { TourProvider } from '../src/store/TourProvider';
 import Tour from '../src/components/Tour';
 import { OnboardingProvider } from '../src/store/OnboardingProvider';
@@ -135,7 +136,8 @@ function Nav() {
       <Stack.Screen name="settings/delete-account" options={{ title: 'アカウントの削除' }} />
       <Stack.Screen name="settings/appearance" options={{ title: '外観' }} />
       <Stack.Screen name="settings/security" options={{ title: 'アプリロック' }} />
-      <Stack.Screen name="settings/reminder" options={{ title: 'リマインダー' }} />
+      <Stack.Screen name="settings/reminder" options={{ title: '通知' }} />
+      <Stack.Screen name="settings/ads" options={{ title: '広告' }} />
       <Stack.Screen name="manage/index" options={{ title: '管理' }} />
       <Stack.Screen name="manage/accounts" options={{ title: '勘定科目' }} />
       <Stack.Screen name="manage/wallets" options={{ title: '口座・カード' }} />
@@ -181,6 +183,7 @@ export default function RootLayout() {
         <AuthProvider>
         <DataProvider>
           <OnboardingProvider>
+          <NotificationSync />
           <TourProvider>
             {/* オンボーディングは AppLock の内側に置く。外に出すとロック画面の上に出てしまう。 */}
             <AppLock>
