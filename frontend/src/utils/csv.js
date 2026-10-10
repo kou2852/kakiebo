@@ -50,6 +50,16 @@ export function pAm(s) {
   return isNaN(n) ? 0 : Math.abs(n);
 }
 
+/**
+ * 1行の取込金額。借方・貸方の両方に金額があるときは、一致していなければ mismatch。
+ * 以前は借方の金額だけを採って黙って取り込み、貸借の合わない行（画面入力なら弾く行）が通っていた。
+ * 片方だけが空の行は、あるほうの金額を使う（単式の書き出しなど）。
+ */
+export function csvAmount(r) {
+  const da = pAm(r[CC.dm]), ca = pAm(r[CC.cm]);
+  return { amount: da > 0 ? da : ca, da, ca, mismatch: da > 0 && ca > 0 && da !== ca };
+}
+
 /** 科目名 or コードから科目IDを解決。なければ null */
 export function resolveAccount(accounts, s) {
   s = (s || '').trim();

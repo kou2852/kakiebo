@@ -14,7 +14,7 @@ import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, ChipRow, Field, Input, Screen } from '../../src/components/ui';
 import { fa, uid } from '../../src/utils/format';
-import { CC, detectCsvFormat, normD, normalizeForeignCsv, pAm, parseCT, resolveAccount, rowsToCSV } from '../../src/utils/csv';
+import { CC, csvAmount, detectCsvFormat, normD, normalizeForeignCsv, parseCT, resolveAccount, rowsToCSV } from '../../src/utils/csv';
 import { applyMapping, guessByContent, guessMapping, loadMapping, looksHeaderless, rawRows, saveMapping } from '../../src/utils/csvMapping';
 import { useTourTarget } from '../../src/store/TourProvider';
 import { selectable } from '../../src/utils/hiddenAccounts';
@@ -57,7 +57,7 @@ export default function Csv() {
     const rows = parseCT(format === 'native' ? text : normalizeForeignCsv(text, format), true);
     if (!rows) return null;
     const items = toItems(rows, accounts);
-    return items.length ? { format, items, skipped: rows.length - items.length } : null;
+    return items.length ? { format, items, skipped: rows.length - items.length, mismatched: countMismatch(rows) } : null;
   }, [text, accounts]);
 
   const sig = useMemo(() => header.join('|').slice(0, 200), [header]);
@@ -87,7 +87,7 @@ export default function Csv() {
   const mapped = useMemo(() => {
     if (known || !map || map.date == null || map.amount == null) return null;
     const rows = applyMapping(dataRows, map, sign);
-    return { items: toItems(rows, accounts), skipped: dataRows.length - rows.length };
+    return { items: toItems(rows, accounts), skipped: dataRows.length - rows.length, mismatched: countMismatch(rows) };
     // dataRows は raw から導出される
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [known, map, sign, raw, accounts]);
@@ -220,6 +220,9 @@ export default function Csv() {
             <Text style={{ color: t.tx, fontSize: 15 }}>
               {preview.items.length} 件
               {preview.skipped > 0 ? <Text style={{ color: t.tx3 }}>（{preview.skipped} 行は対象外）</Text> : null}
+              {preview.mismatched > 0 ? (
+                <Text style={{ color: t.red }}>{'\n'}借方と貸方の金額が合わない {preview.mismatched} 行は取り込みません。</Text>
+              ) : null}
             </Text>
             {preview.items.slice(0, 5).map((it, i) => (
               <View key={i} style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -251,13 +254,19 @@ export default function Csv() {
   );
 }
 
+/** 借方と貸方の金額が一致しない行の数（取り込まない行として画面に出す） */
+function countMismatch(rows) {
+  return rows.filter((r) => csvAmount(r).mismatch).length;
+}
+
 /** 中間形式の行 [日付,借方名,借方額,貸方名,貸方額,摘要] を取込用の項目へ */
 function toItems(rows, accounts) {
   const items = [];
   rows.forEach((r) => {
     const date = normD(r[CC.d]);
-    const amount = pAm(r[CC.dm]) || pAm(r[CC.cm]);
-    if (!date || !amount) return;
+    const { amount, mismatch } = csvAmount(r);
+    // 借方と貸方の金額が合わない行は取り込まない（画面入力なら弾く行を、黙って借方の金額で通さない）
+    if (!date || !amount || mismatch) return;
     items.push({
       date,
       desc: r[CC.ds] || '',

@@ -2,7 +2,7 @@ import { useState, useRef, useMemo, useCallback } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../Common/Toast';
-import { CC, parseCT, normD, pAm, resolveAccount, readCsvFile, detectCsvFormat, normalizeForeignCsv } from '../../utils/csv';
+import { CC, parseCT, normD, pAm, csvAmount, resolveAccount, readCsvFile, detectCsvFormat, normalizeForeignCsv } from '../../utils/csv';
 import Modal from '../Common/Modal';
 
 // 明示ルールのみで分類（kakeibo.html の matchRule の優先ルール部分）
@@ -128,8 +128,7 @@ export default function CSVModal({ open, onClose, onMigrate }) {
       if (skip[i]) return;
       const ln = i + 2;
       const dt = normD(r[CC.d]);
-      const da = pAm(r[CC.dm]), ca = pAm(r[CC.cm]);
-      const am = da > 0 ? da : ca;
+      const { amount: am, da, ca, mismatch } = csvAmount(r);
       const ds = (r[CC.ds] || '').trim();
       const dri = drOverride[i] || resolveAccount(accounts, r[CC.da]);
       const cri = crOverride[i] || resolveAccount(accounts, r[CC.ca]);
@@ -137,6 +136,7 @@ export default function CSVModal({ open, onClose, onMigrate }) {
       if (!dri) { er.push(`行${ln}:借方`); return; }
       if (!cri) { er.push(`行${ln}:貸方`); return; }
       if (am <= 0) { er.push(`行${ln}:金額`); return; }
+      if (mismatch) { er.push(`行${ln}:貸借の金額が不一致（借方${da.toLocaleString()}・貸方${ca.toLocaleString()}）`); return; }
       nj.push({ date: dt, desc: ds, lines: [
         { accountId: dri, side: 'dr', amount: am, taxRate: 0 },
         { accountId: cri, side: 'cr', amount: am, taxRate: 0 },
@@ -282,14 +282,14 @@ export default function CSVModal({ open, onClose, onMigrate }) {
                   const dt = normD(r[CC.d]);
                   const dri = resolveAccount(accounts, r[CC.da]);
                   const cri = resolveAccount(accounts, r[CC.ca]);
-                  const da = pAm(r[CC.dm]), ca = pAm(r[CC.cm]);
-                  const am = da > 0 ? da : ca;
+                  const { amount: am, mismatch } = csvAmount(r);
                   const isDup = dupFlags[i];
                   const desc = (r[CC.ds] || '').trim();
                   const rule = (!dri || !cri) ? matchRule(rules, desc) : null;
                   const warn = [];
                   if (!dt) warn.push('日付');
                   if (am <= 0) warn.push('金額');
+                  if (mismatch) warn.push('貸借の金額が不一致');
                   const statusTxt = isDup ? '⚠重複' : rule && (!dri || !cri) ? '🤖ルール適用' : warn.length ? warn.join(' ') : 'OK';
                   const statusColor = isDup ? 'var(--ac)' : rule && (!dri || !cri) ? 'var(--blu)' : warn.length ? 'var(--red)' : 'var(--grn)';
                   return (
