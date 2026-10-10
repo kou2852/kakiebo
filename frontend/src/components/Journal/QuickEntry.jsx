@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, Fragment } from 'react';
 import { useData } from '../../contexts/DataContext';
 import { fa, today } from '../../utils/format';
 import { useToast } from '../Common/Toast';
@@ -95,31 +95,59 @@ export default function QuickEntry() {
     } catch { toast('記帳に失敗しました'); }
   };
 
-  // ── 構造化フォーム（借方/貸方） ──
+  // ── 構造化フォーム（借方/貸方・複数行） ──
+  // 初期は借方1行・貸方1行で、金額は両側で同じ（どちらに入れても揃う）。
+  // 「行を追加」で複合仕訳（借方か貸方が複数行）になり、行ごとに金額を持つ。借方合計＝貸方合計でないと記帳できない。
   const [date, setDate] = useState(today());
   const [desc, setDesc] = useState('');
-  const [drId, setDrId] = useState(() => accounts.find((a) => a.type === 'expense' && !a.hidden)?.id || '');
-  const [crId, setCrId] = useState(() => accounts.find((a) => a.type === 'asset' && !a.hidden)?.id || '');
-  const [amount, setAmount] = useState('');
+  const seq = useRef(0);
+  const mkRow = (accountId = '') => ({ k: ++seq.current, accountId, amount: '' });
+  const [drRows, setDrRows] = useState(() => [mkRow(accounts.find((a) => a.type === 'expense' && !a.hidden)?.id || '')]);
+  const [crRows, setCrRows] = useState(() => [mkRow(accounts.find((a) => a.type === 'asset' && !a.hidden)?.id || '')]);
   const [tagId, setTagId] = useState('');
 
-  const clearForm = () => { setDesc(''); setAmount(''); setTagId(''); };
+  const parseAmt = (v) => Math.round(parseFloat(String(v).replace(/[¥,，]/g, '')) || 0);
+  const multi = drRows.length > 1 || crRows.length > 1;
+  const drTotal = drRows.reduce((sum, r) => sum + parseAmt(r.amount), 0);
+  const crTotal = crRows.reduce((sum, r) => sum + parseAmt(r.amount), 0);
+  const diff = drTotal - crTotal;
+
+  const setRows = (side) => (side === 'dr' ? setDrRows : setCrRows);
+  const patchRow = (side, k, patch) => setRows(side)((rows) => rows.map((r) => (r.k === k ? { ...r, ...patch } : r)));
+  // 1行ずつのときは金額を両側で揃える。複数行のときは、その行だけ変える。
+  const setAmount = (side, k, v) => {
+    if (multi) patchRow(side, k, { amount: v });
+    else { setDrRows((rows) => rows.map((r) => ({ ...r, amount: v }))); setCrRows((rows) => rows.map((r) => ({ ...r, amount: v }))); }
+  };
+  const addRow = (side) => setRows(side)((rows) => [...rows, mkRow()]);
+  const removeRow = (side, k) => setRows(side)((rows) => (rows.length > 1 ? rows.filter((r) => r.k !== k) : rows));
+  // 差額を、その行に足す（反対側の合計に合わせる）
+  const fillDiff = (side, k) => {
+    const row = (side === 'dr' ? drRows : crRows).find((r) => r.k === k);
+    patchRow(side, k, { amount: String(parseAmt(row?.amount) + Math.abs(diff)) });
+  };
+
+  const clearForm = () => {
+    setDesc(''); setTagId('');
+    setDrRows((rows) => [{ ...rows[0], amount: '' }]);
+    setCrRows((rows) => [{ ...rows[0], amount: '' }]);
+  };
   const submitForm = async () => {
-    const amt = Math.round(parseFloat(String(amount).replace(/[¥,，]/g, '')) || 0);
-    if (!drId || !crId) { toast('借方・貸方の科目を選んでください'); return; }
-    if (amt <= 0) { toast('金額を入力してください'); return; }
+    const used = (rows) => rows.filter((r) => r.accountId || parseAmt(r.amount) > 0);
+    const dr = used(drRows), cr = used(crRows);
+    if (!dr.length || !cr.length) { toast('借方・貸方の科目を選んでください'); return; }
+    if ([...dr, ...cr].some((r) => !r.accountId)) { toast('金額を入れた行には科目を選んでください'); return; }
+    if ([...dr, ...cr].some((r) => parseAmt(r.amount) <= 0)) { toast('科目を選んだ行には金額を入力してください'); return; }
+    if (drTotal !== crTotal) { toast(`借方合計と貸方合計が一致しません（差額 ${fa(Math.abs(diff))}）`); return; }
     try {
-      // タグは両方の行に付ける。どちらが資産科目かで増減の向きが決まるので
+      // タグは全ての行に、その行の金額で付ける。どちらが資産科目かで増減の向きが決まるので
       // （支出=貸方の口座から減る / 収入=借方の口座へ増える / 振替=口座間で移る）
       // 集計側（computeTagBalances）が正しい1回分だけを採る。
-      const tagSplit = tagId ? { splits: [{ tagId, amount: amt }] } : {};
-      await addJournal({
-        date, desc,
-        lines: [
-          { accountId: drId, side: 'dr', amount: amt, taxRate: 0, ...tagSplit },
-          { accountId: crId, side: 'cr', amount: amt, taxRate: 0, ...tagSplit },
-        ],
-      });
+      const line = (side) => (r) => {
+        const amt = parseAmt(r.amount);
+        return { accountId: r.accountId, side, amount: amt, taxRate: 0, ...(tagId ? { splits: [{ tagId, amount: amt }] } : {}) };
+      };
+      await addJournal({ date, desc, lines: [...dr.map(line('dr')), ...cr.map(line('cr'))] });
       clearForm();
       toast('記帳しました');
     } catch { toast('記帳に失敗しました'); }
@@ -286,20 +314,47 @@ export default function QuickEntry() {
         </div>
 
         <div className="je-dc" data-tour="detail-entry">
-          <div style={boxStyle}>
-            <div style={{ ...sideLabel, color: 'var(--ac)' }}>借方 — DEBIT<InfoTip text="借方(かりかた)は左側＝お金の使い道や増えた財産、貸方(かしかた)は右側＝お金の出どころ。例: 現金で食費を払う→借方:食費／貸方:現金。" /></div>
-            <label className="fl">勘定科目</label><AcctSelect value={drId} onChange={setDrId} />
-            <label className="fl" style={{ marginTop: 6 }}>金額</label>
-            <input type="text" inputMode="numeric" className="fc" data-tour="detail-amount" value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value)} style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }} />
-          </div>
-          <div className="je-arrow">→</div>
-          <div style={boxStyle}>
-            <div style={{ ...sideLabel, color: 'var(--red)' }}>貸方 — CREDIT</div>
-            <label className="fl">勘定科目</label><AcctSelect value={crId} onChange={setCrId} />
-            <label className="fl" style={{ marginTop: 6 }}>金額</label>
-            <input type="text" inputMode="numeric" className="fc" value={amount} placeholder="0" onChange={(e) => setAmount(e.target.value)} style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }} />
-          </div>
+          {[['dr', '借方 — DEBIT', 'var(--ac)', drRows], ['cr', '貸方 — CREDIT', 'var(--red)', crRows]].map(([side, label, color, rows], si) => (
+            <Fragment key={side}>
+              {si === 1 && <div className="je-arrow">→</div>}
+              <div style={boxStyle}>
+                <div style={{ ...sideLabel, color }}>
+                  {label}
+                  {side === 'dr' && <InfoTip text="借方(かりかた)は左側＝お金の使い道や増えた財産、貸方(かしかた)は右側＝お金の出どころ。例: 現金で食費を払う→借方:食費／貸方:現金。" />}
+                </div>
+                {rows.map((r, i) => (
+                  <div key={r.k} style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingTop: i ? 8 : 0, borderTop: i ? '1px dashed var(--bd)' : 'none' }}>
+                    <label className="fl">勘定科目{rows.length > 1 ? ` ${i + 1}` : ''}</label>
+                    <AcctSelect value={r.accountId} onChange={(v) => patchRow(side, r.k, { accountId: v })} />
+                    <label className="fl" style={{ marginTop: 6 }}>金額</label>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <input type="text" inputMode="numeric" className="fc" {...(side === 'dr' && i === 0 ? { 'data-tour': 'detail-amount' } : {})}
+                        value={r.amount} placeholder="0" onChange={(e) => setAmount(side, r.k, e.target.value)}
+                        style={{ flex: 1, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }} />
+                      {multi && diff !== 0 && ((side === 'dr' && diff < 0) || (side === 'cr' && diff > 0)) && (
+                        <button type="button" className="btn btn-g btn-s" title="差額をこの行に入れる" onClick={() => fillDiff(side, r.k)}>差額 {fa(Math.abs(diff))}</button>
+                      )}
+                      {rows.length > 1 && (
+                        <button type="button" className="btn btn-g btn-s" title="この行を削除" aria-label="この行を削除" onClick={() => removeRow(side, r.k)}>×</button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                <button type="button" className="btn btn-g btn-s" style={{ alignSelf: 'flex-start', marginTop: 4 }} onClick={() => addRow(side)}>＋ 行を追加</button>
+              </div>
+            </Fragment>
+          ))}
         </div>
+
+        {multi && (
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12.5, alignItems: 'center' }}>
+            <span>借方合計 <b className="mono">{fa(drTotal)}</b></span>
+            <span>貸方合計 <b className="mono">{fa(crTotal)}</b></span>
+            <span style={{ color: diff === 0 ? 'var(--grn)' : 'var(--red)', fontWeight: 700 }}>
+              {diff === 0 ? '一致' : `差額 ${fa(Math.abs(diff))}（借方と貸方が一致しないと記帳できません）`}
+            </span>
+          </div>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderTop: '1px solid var(--bd)', paddingTop: 14, flexWrap: 'wrap' }}>
           <div data-tour="entry-tags" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
