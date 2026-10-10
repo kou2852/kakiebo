@@ -149,6 +149,9 @@ function PickerSheet({ visible, onClose, title, accounts, value, onPick, multipl
             );
           }}
         />
+        {/* ナビゲーションバーの分を一覧の外に空ける。一覧の余白にすると、スクロール中は行が
+            ナビバーのボタンの裏に透けて重なる。 */}
+        {Platform.OS === 'android' ? <View style={{ height: insets.bottom, backgroundColor: t.bg1 }} /> : null}
       </View>
     </Modal>
   );

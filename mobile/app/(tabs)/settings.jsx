@@ -2,7 +2,9 @@
 //
 // 管理（勘定科目・タグ等）もここに統合した。以前は「件数を出すカード」と
 // 「管理へ行くボタン」が別々で、同じものを2つの見た目で示していた。
+import { useEffect, useState } from 'react';
 import { Alert, Linking, Text, View } from 'react-native';
+import { getSkipDeleteConfirm, setSkipDeleteConfirm } from '../../src/store/deletePref';
 import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
 import * as Updates from 'expo-updates';
@@ -32,6 +34,8 @@ export default function Settings() {
   const d = useData();
   const auth = useAuth();
   const theme = useThemeMode();
+  const [skipDelete, setSkipDelete] = useState(false);
+  useEffect(() => { getSkipDeleteConfirm().then(setSkipDelete); }, []);
 
   const go = (href) => () => router.push(href);
   // 別IDなのに同じ勘定科目コードを持つ組の数。0 なら項目自体を出さない。
@@ -73,6 +77,13 @@ export default function Settings() {
         { label: 'アプリロック', onPress: go('/settings/security') },
         { label: 'リマインダー', onPress: go('/settings/reminder') },
         { label: 'ショートカット', onPress: go('/shortcuts') },
+        // 削除の確認ダイアログで「次回から確認しない」にした場合の戻し口。タップで切り替える。
+        {
+          label: '仕訳の削除時に確認',
+          sub: 'タップで切り替え',
+          value: skipDelete ? 'しない' : 'する',
+          onPress: async () => { await setSkipDeleteConfirm(!skipDelete); setSkipDelete(!skipDelete); },
+        },
       ]} />
 
       <MenuList title="帳簿の基礎" items={[

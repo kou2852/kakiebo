@@ -9,7 +9,7 @@
 // 誤タップを避けるため、タブバーとの間に区切り線を入れて領域を分けている。
 //
 // アプリID（app.json）とユニットID（下記）はどちらも本番のものが入っている。
-// テスト広告に切り替わるのは開発中（__DEV__）だけで、切り替える手段は他に無い。
+// テスト広告に切り替わるのは開発中（__DEV__）と、クローズドテスト中の Android だけ（USE_TEST_ADS）。
 import { useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
 // ネイティブモジュールが無い環境（Expo Go・広告を含まないビルド）では読み込みに失敗する。
@@ -32,8 +32,15 @@ import { useTheme } from '../theme';
 // 関わる重い条項で、善意でも審査を欺いたと読まれる。
 //
 // 審査に出すバイナリと、自分が試すバイナリを同じに保つ。
-// スクリーンショットも出荷ビルドで撮る。広告が写り込むこと自体は問題ない。
-export const ADS_ENABLED = true;
+// 唯一の例外はスクショ用。開発中（__DEV__）に EXPO_PUBLIC_HIDE_ADS=1 で起動したときだけ
+// 広告を出さない。ストア配布ビルドでは __DEV__ が偽なので、審査に出すバイナリの挙動は変わらない。
+export const ADS_ENABLED = !(__DEV__ && process.env.EXPO_PUBLIC_HIDE_ADS === '1');
+
+// クローズドテスト中の Android はテスト広告にする。テスターは全員 Android なので、
+// 本番広告を踏まれて無効なトラフィックと判定されるのを避ける。
+// ⚠ Google Play の製品版を出すときに false に戻す。
+const ANDROID_CLOSED_TEST = true;
+export const USE_TEST_ADS = __DEV__ || (ANDROID_CLOSED_TEST && Platform.OS === 'android');
 
 // 置き場所ごとの本番ユニットID（AdMob: kurofukubo iOS）と大きさ。
 // 置き場所ごとに分けているのは、どちらがどれだけ稼いでいるかを AdMob のレポートで見分けるため。
@@ -98,7 +105,7 @@ export default function AnchoredAd({ tier = 'free', placement = 'anchored' }) {
       <BannerAd
         // 取り直すたびに新しい要求として出し直す
         key={attempt}
-        unitId={__DEV__ ? Ads.TestIds[p.test] : (Platform.OS === 'android' ? p.androidUnit : p.unit)}
+        unitId={USE_TEST_ADS ? Ads.TestIds[p.test] : (Platform.OS === 'android' ? p.androidUnit : p.unit)}
         size={BannerAdSize[p.size]}
         // 非パーソナライズに固定する。IDFA を使わないので ATT の許可ダイアログが不要になり、
         // 「家計データを外部に出さない」という訴求と矛盾しない。単価は下がるが意図した選択。

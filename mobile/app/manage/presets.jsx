@@ -7,6 +7,7 @@ import { fa, uid } from '../../src/utils/format';
 import { useTourTarget } from '../../src/store/TourProvider';
 import { selectable } from '../../src/utils/hiddenAccounts';
 import { carryLine } from '../../src/utils/journalTags';
+import { useToast } from '../../src/store/ToastProvider';
 
 // 入力画面で1タップで呼び出す科目の組み合わせ。金額と日付は都度入力なので持たない。
 const TYPES = [
@@ -17,6 +18,7 @@ const TYPES = [
 export default function Presets() {
   const listRef = useTourTarget('preset-list');
   const t = useTheme();
+  const toast = useToast();
   const { presets, accounts, save, del } = useData();
   const [editing, setEditing] = useState(null);
 
@@ -59,6 +61,7 @@ export default function Presets() {
       ],
     });
     setEditing(null);
+    toast('保存しました');
   };
 
   const remove = (p) => Alert.alert('削除しますか？', p.name, [

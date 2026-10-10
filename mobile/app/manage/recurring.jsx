@@ -3,11 +3,13 @@ import { Alert, Text, TouchableOpacity, View } from 'react-native';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, ChipRow, Empty, Field, Input, Screen, sep } from '../../src/components/ui';
+import DateField from '../../src/components/DateField';
 import { fa, today, uid } from '../../src/utils/format';
 import { dueRecurring, generateRecurring } from '../../src/utils/autoGen';
 import { useTourTarget } from '../../src/store/TourProvider';
 import { selectable } from '../../src/utils/hiddenAccounts';
 import { carryLine } from '../../src/utils/journalTags';
+import { useToast } from '../../src/store/ToastProvider';
 
 const FREQ = [
   { value: 'monthly', label: '毎月' },
@@ -22,6 +24,7 @@ const TYPES = [
 export default function Recurring() {
   const listRef = useTourTarget('recurring-list');
   const t = useTheme();
+  const toast = useToast();
   const { recurring, journals, accounts, save, del, setAll } = useData();
   const [editing, setEditing] = useState(null);
 
@@ -81,6 +84,7 @@ export default function Recurring() {
       ],
     });
     setEditing(null);
+    toast('保存しました');
   };
 
   const remove = (r) => Alert.alert('削除しますか？', r.name, [
@@ -105,8 +109,7 @@ export default function Recurring() {
             <ChipRow options={FREQ} value={editing.frequency} onChange={set('frequency')} />
           </Field>
           <Field label="次回の予定日">
-            <Input value={editing.nextDate} onChangeText={set('nextDate')} placeholder="YYYY-MM-DD"
-              keyboardType="numbers-and-punctuation" />
+            <DateField value={editing.nextDate} onChangeText={set('nextDate')} />
           </Field>
           <Field label="摘要（任意・空なら名称を使う）">
             <Input value={editing.desc} onChangeText={set('desc')} />

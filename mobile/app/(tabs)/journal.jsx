@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, View } from 'react-native';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useData } from '../../src/store/DataProvider';
 import { Screen, Segmented } from '../../src/components/ui';
 import JournalForm from '../../src/components/JournalForm';
@@ -21,6 +22,25 @@ export default function JournalEntry() {
   // 保存のたびにフォームを初期状態へ戻す（続けて入力できるように）
   const [seq, setSeq] = useState(0);
 
+  // 仕訳帳のカレンダーから「この日に記帳する」で来たときの日付（?date=YYYY-MM-DD）。
+  // 受け取ったら URL からは消す。残すと、あとでタブを開き直したときも古い日付になる。
+  const params = useLocalSearchParams();
+  const router = useRouter();
+  const [presetDate, setPresetDate] = useState('');
+  const paramDate = /^\d{4}-\d{2}-\d{2}$/.test(String(params.date || '')) ? String(params.date) : '';
+  const [takenDate, setTakenDate] = useState('');
+  // 描画中に状態を合わせる（effect で setState すると描画が二重に走る）。
+  if (paramDate !== takenDate) {
+    setTakenDate(paramDate);
+    if (paramDate) {
+      setPresetDate(paramDate);
+      setSeq((n) => n + 1); // 入力途中のフォームを、その日付で作り直す
+    }
+  }
+  useEffect(() => { if (paramDate) router.setParams({ date: undefined }); }, [paramDate, router]);
+  // タブを離れたら日付の指定は捨てる（次に開いたときは今日から始める）
+  useFocusEffect(useCallback(() => () => setPresetDate(''), []));
+
   const done = (j) => {
     save('journals', j);
     entryAd.counted();
@@ -40,8 +60,8 @@ export default function JournalEntry() {
       )}
     >
       {mode === 'simple'
-        ? <JournalForm key={seq} onSubmit={done} />
-        : <SplitForm key={`s${seq}`} onSubmit={done} submitLabel="記帳する" />}
+        ? <JournalForm key={seq} date={presetDate} onSubmit={done} />
+        : <SplitForm key={`s${seq}`} date={presetDate} onSubmit={done} submitLabel="記帳する" />}
     </Screen>
   );
 }

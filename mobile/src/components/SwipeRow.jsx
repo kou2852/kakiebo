@@ -41,7 +41,7 @@ export default function SwipeRow({ actions, disabled, children }) {
     // ⚠ Capture（親から先に聞かれる側）で取る。バブリング側だけだと、中の行（TouchableOpacity）が
     //   先に応答者のまま離され、スライドがタップ扱いになって編集画面が開くことがあった（エミュレーターで再現）。
     onMoveShouldSetPanResponderCapture: (_, g) => !disabledRef.current && Math.abs(g.dx) > 8 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
-    onPanResponderGrant: () => {
+    onPanResponderGrant: () => { 
       // 別の行が開いていたら閉じる
       if (!openRef.current && current.close) current.close();
       x.stopAnimation();
@@ -61,7 +61,12 @@ export default function SwipeRow({ actions, disabled, children }) {
 
   return (
     <View style={{ overflow: 'hidden' }}>
-      <View style={{ position: 'absolute', top: 0, bottom: 0, right: 0, flexDirection: 'row' }}>
+      {/* ボタンは行がずれている間だけ見せる。行を押している間は行が半透明になるので、
+          出しっぱなしだと後ろのボタンが透けて見えた。 */}
+      <Animated.View style={{
+        position: 'absolute', top: 0, bottom: 0, right: 0, flexDirection: 'row',
+        opacity: x.interpolate({ inputRange: [-8, 0], outputRange: [1, 0], extrapolate: 'clamp' }),
+      }}>
         {actions.map((a) => (
           <TouchableOpacity
             key={a.label}
@@ -71,8 +76,9 @@ export default function SwipeRow({ actions, disabled, children }) {
             <Text style={{ color: a.textColor || t.acTx, fontSize: 15, fontWeight: '700' }}>{a.label}</Text>
           </TouchableOpacity>
         ))}
-      </View>
-      <Animated.View style={{ transform: [{ translateX: x }] }} {...pan.panHandlers}>
+      </Animated.View>
+      {/* 地を塗る。行の TouchableOpacity は押すと半透明になるが、その下はボタンでなくこの地になる。 */}
+      <Animated.View style={{ backgroundColor: t.bg1, transform: [{ translateX: x }] }} {...pan.panHandlers}>
         {children}
         {/* 開いている間は行のタップを受けず、閉じるだけにする */}
         {open ? (

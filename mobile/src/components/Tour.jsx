@@ -7,7 +7,8 @@
 // measureInWindow が返すアプリ窓の座標とずれ、指す位置が合わなくなる。
 // アプリと同じ窓に絶対配置すれば、測った座標をそのまま使える。
 import { useRef, useState } from 'react';
-import { Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { useTour } from '../store/TourProvider';
 import { TOURS } from '../tours';
@@ -24,6 +25,10 @@ const GAP = 12;     // 穴と吹き出しの間隔
 export default function Tour() {
   const t = useTheme();
   const { height: SH, width: SW } = useWindowDimensions();
+  // Android はエッジ・ツー・エッジで窓がナビゲーションバーの下まで来る。覆いをその上までにして、
+  // 吹き出しの「次へ」などがナビバーに重ならないようにする。
+  const insets = useSafeAreaInsets();
+  const navInset = Platform.OS === 'android' ? insets.bottom : 0;
   const tour = useTour();
   // この覆い自身の窓座標。対象と同じ関数で測り、差を取って覆いの中の位置にする。
   // 対象の measureInWindow をそのまま使うと 48dp ほど上へずれた（実測）。
@@ -140,7 +145,7 @@ export default function Tour() {
       // 穴の中も押せなくなる。「ここを押して」と示しているのに押せない状態だった。
       // 子（暗幕と吹き出し）は今までどおり触りを受ける。
       pointerEvents="box-none"
-      style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 9999, elevation: 24 }}
+      style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: navInset, zIndex: 9999, elevation: 24 }}
     >
       {gated ? (
         <>

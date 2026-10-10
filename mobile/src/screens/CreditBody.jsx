@@ -188,17 +188,17 @@ export default function CreditBody() {
               </Card>
             ) : null}
 
-            <Card title="サイクル一覧" style={{ paddingHorizontal: 0, paddingBottom: 0 }}>
+            <Card title="サイクル一覧" style={{ paddingBottom: 0 }}>
               {cycles.length === 0 ? (
                 <Empty text="対象のサイクルがありません" />
-              ) : cycles.map((cy) => {
+              ) : <View style={{ marginHorizontal: -13 }}>{cycles.map((cy) => {
                 const st = STATUS[cy.status];
                 const isOpen = open[`${c.id}:${cy.periodEnd}`];
                 return (
                   <View key={cy.periodEnd}>
                     <TouchableOpacity
                       onPress={() => setOpen((o) => ({ ...o, [`${c.id}:${cy.periodEnd}`]: !isOpen }))}
-                      style={[{ paddingVertical: 10, paddingHorizontal: 14, gap: 3 }, sep(t)]}
+                      style={[{ paddingVertical: 10, paddingHorizontal: 13, gap: 3 }, sep(t)]}
                     >
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                         <Text style={{ color: t.tx2, fontSize: 13.5 }}>{cy.periodStart} 〜 {cy.periodEnd}</Text>
@@ -214,7 +214,7 @@ export default function CreditBody() {
                     </TouchableOpacity>
 
                     {isOpen ? cy.items.map((it, i) => (
-                      <View key={i} style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, paddingHorizontal: 14, backgroundColor: t.bg0 }, sep(t)]}>
+                      <View key={i} style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, paddingHorizontal: 13, backgroundColor: t.bg0 }, sep(t)]}>
                         <Text style={{ color: t.tx3, fontSize: 13, width: 56 }}>{it.date.slice(5)}</Text>
                         <Text style={{ color: t.tx2, fontSize: 13.5, flex: 1 }} numberOfLines={1}>{it.desc || '(摘要なし)'}</Text>
                         <Text style={{ color: t.tx, fontSize: 13.5 }}>{fa(it.amount)}</Text>
@@ -222,7 +222,7 @@ export default function CreditBody() {
                     )) : null}
                   </View>
                 );
-              })}
+              })}</View>}
             </Card>
           </View>
         );

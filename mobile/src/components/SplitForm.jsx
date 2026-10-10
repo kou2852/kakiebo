@@ -11,6 +11,7 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { useData } from '../store/DataProvider';
 import { useTheme } from '../theme';
 import { Button, Card, ChipRow, Field, Input } from './ui';
+import DateField from './DateField';
 import AccountPicker from './AccountPicker';
 import { fa, fas, today, uid } from '../utils/format';
 import { selectable } from '../utils/hiddenAccounts';
@@ -32,12 +33,12 @@ export function toSplitForm(journal) {
   };
 }
 
-export default function SplitForm({ initial, onSubmit, submitLabel = '保存', onDelete }) {
+export default function SplitForm({ initial, date, onSubmit, submitLabel = '保存', onDelete }) {
   const t = useTheme();
   const { accounts, tags } = useData();
 
   const [f, setF] = useState(() => initial || {
-    date: today(), desc: '',
+    date: date || today(), desc: '',
     lines: [newLine('dr'), newLine('cr')],
   });
 
@@ -119,8 +120,7 @@ export default function SplitForm({ initial, onSubmit, submitLabel = '保存', o
     <>
       <Card>
         <Field label="日付">
-          <Input value={f.date} onChangeText={(v) => setF((p) => ({ ...p, date: v }))}
-            placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" />
+          <DateField value={f.date} onChangeText={(v) => setF((p) => ({ ...p, date: v }))} />
         </Field>
         <Field label="摘要">
           <Input value={f.desc} onChangeText={(v) => setF((p) => ({ ...p, desc: v }))} placeholder="給与 など" />

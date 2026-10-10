@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, SectionList, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, ChipRow, Field, Input, Screen, sep } from '../../src/components/ui';
@@ -12,6 +12,7 @@ import { nextCode } from '../../src/utils/accountCode';
 import { useTourTarget } from '../../src/store/TourProvider';
 import { isHidden, selectable } from '../../src/utils/hiddenAccounts';
 import SwipeRow from '../../src/components/SwipeRow';
+import { useToast } from '../../src/store/ToastProvider';
 
 const TYPE_OPTS = Object.entries(ACCOUNT_TYPES).map(([value, label]) => ({ value, label }));
 
@@ -19,6 +20,7 @@ export default function Accounts() {
   const listRef = useTourTarget('account-list');
   const addRef = useTourTarget('account-add');
   const t = useTheme();
+  const toast = useToast();
   const { accounts, journals, commitAll, del } = useData();
   const [editing, setEditing] = useState(null); // { id?, name, code, type }
   const [showHidden, setShowHidden] = useState(false);
@@ -116,6 +118,7 @@ export default function Accounts() {
     }
     commitAll(intents);
     setEditing(null);
+    toast('保存しました');
   };
 
   const remove = (a) => {
@@ -222,14 +225,22 @@ export default function Accounts() {
     );
   }
 
-  const hiddenRows = accounts.filter(isHidden).sort((a, b) => (a.code > b.code ? 1 : -1));
-  const row = (a) => (
-    <SwipeRow key={a.id} actions={[isHidden(a)
+  const byCode = (x, y) => (x.code > y.code ? 1 : -1);
+  const hiddenRows = accounts.filter(isHidden).sort(byCode);
+
+  // 角丸は区分ごとのまとまり（先頭と末尾の行）だけに付ける。SectionList は行を別々に描くので、行側で作る。
+  const row = (a, index, count) => (
+    <View style={{
+      backgroundColor: t.bg1, overflow: 'hidden',
+      borderTopLeftRadius: index === 0 ? 14 : 0, borderTopRightRadius: index === 0 ? 14 : 0,
+      borderBottomLeftRadius: index === count - 1 ? 14 : 0, borderBottomRightRadius: index === count - 1 ? 14 : 0,
+    }}>
+    <SwipeRow actions={[isHidden(a)
       ? { label: '表示', onPress: () => setHiddenNow(a, false) }
       : { label: '非表示', color: t.tx2, textColor: t.bg1, onPress: () => setHiddenNow(a, true) }]}>
     <TouchableOpacity onPress={() => setEditing({ ...a })} onLongPress={() => remove(a)}
       // 背景を塗る。塗らないと、スライド中に後ろのボタンが透けて見える
-      style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 9, backgroundColor: t.bg1 }, sep(t)]}>
+      style={[{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 9, paddingHorizontal: 14, backgroundColor: t.bg1 }, sep(t)]}>
       <View style={{ flex: 1 }}>
         <Text style={{ color: isHidden(a) ? t.tx3 : t.tx, fontSize: 15 }}>{a.name}</Text>
         <Text style={{ color: t.tx3, fontSize: 13 }}>{a.code}{a.sys ? ' · 既定' : ''}{isHidden(a) ? ' · 非表示' : ''}</Text>
@@ -237,38 +248,52 @@ export default function Accounts() {
       <Text style={{ color: t.tx2, fontSize: 15 }}>{faBal(accountBalance(a.id, accounts, balances))}</Text>
     </TouchableOpacity>
     </SwipeRow>
+    </View>
   );
 
+  // 区分（資産・負債…）ごとの見出しは、スクロールしても上に貼り付ける。
+  // 科目が多いと、いまどの区分を見ているのかが分からなくなっていた。
+  // 非表示の科目も最後の区分として持ち、見出しの行で開閉する（件数を出す。ウェブ版と同じ）。
+  const sections = TYPE_OPTS
+    .map(({ value, label }) => ({ key: value, title: label, data: accounts.filter((a) => a.type === value && !isHidden(a)).sort(byCode) }))
+    .filter((sec) => sec.data.length);
+  if (hiddenRows.length) {
+    sections.push({ key: 'hidden', title: '非表示の科目（' + hiddenRows.length + '件）', isHiddenSection: true, data: showHidden ? hiddenRows : [] });
+  }
+
   return (
-    <Screen>
+    <Screen scroll={false}>
       <View ref={addRef} collapsable={false}>
         <Button label="勘定科目を追加" onPress={startNew} />
       </View>
-      {/* 一覧は種別ごとに分かれているので、囲みは最初の塊だけに付ける。
-          ツアーは「科目は自由に足せる」と伝えるのが目的で、全部を囲む必要はない。 */}
-      {TYPE_OPTS.map(({ value, label }, typeIndex) => {
-        const rows = accounts.filter((a) => a.type === value && !isHidden(a)).sort((a, b) => (a.code > b.code ? 1 : -1));
-        if (!rows.length) return null;
-        return (
-          <View key={value} ref={typeIndex === 0 ? listRef : undefined} collapsable={false}>
-          <Card title={label}>
-            {rows.map(row)}
-          </Card>
-          </View>
-        );
-      })}
-      {/* 非表示の科目は最後に畳む。件数を出し、開くとコード順に一覧できる（ウェブ版と同じ）。 */}
-      {hiddenRows.length ? (
-        <Card>
-          <TouchableOpacity onPress={() => setShowHidden((v) => !v)} accessibilityRole="button"
-            style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
-            <Text style={{ color: t.tx2, fontSize: 15, fontWeight: '600' }}>非表示の科目（{hiddenRows.length}件）</Text>
-            <Text style={{ color: t.tx3, fontSize: 15 }}>{showHidden ? '閉じる' : '開く'}</Text>
-          </TouchableOpacity>
-          {showHidden ? hiddenRows.map(row) : null}
-        </Card>
-      ) : null}
-      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>タップで編集・左へスライドで非表示（表示に戻す）・長押しで削除</Text>
+      {/* ツアーは「科目は自由に足せる」と伝えるのが目的。一覧の領域をまるごと指す。 */}
+      <View ref={listRef} collapsable={false} style={{ flex: 1 }}>
+        <SectionList
+          sections={sections}
+          keyExtractor={(a) => a.id}
+          stickySectionHeadersEnabled
+          showsVerticalScrollIndicator={false}
+          renderSectionHeader={({ section }) => (section.isHiddenSection ? (
+            <TouchableOpacity onPress={() => setShowHidden((v) => !v)} accessibilityRole="button"
+              style={{ flexDirection: 'row', justifyContent: 'space-between', backgroundColor: t.bg0, paddingVertical: 9, paddingHorizontal: 3 }}>
+              <Text style={{ color: t.tx2, fontSize: 14.5, fontWeight: '700' }}>{section.title}</Text>
+              <Text style={{ color: t.tx3, fontSize: 14.5 }}>{showHidden ? '閉じる' : '開く'}</Text>
+            </TouchableOpacity>
+          ) : (
+            // 貼り付いた見出しの下を行が通るので、地の色で塗る（透けると文字が重なる）
+            <View style={{ backgroundColor: t.bg0, paddingVertical: 9, paddingHorizontal: 3 }}>
+              <Text style={{ color: t.tx3, fontSize: 14, fontWeight: '700', letterSpacing: 0.3 }}>{section.title}</Text>
+            </View>
+          ))}
+          renderItem={({ item, index, section }) => row(item, index, section.data.length)}
+          renderSectionFooter={() => <View style={{ height: 6 }} />}
+          ListFooterComponent={
+            <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center', paddingVertical: 12 }}>
+              タップで編集・左へスライドで非表示（表示に戻す）・長押しで削除
+            </Text>
+          }
+        />
+      </View>
     </Screen>
   );
 }

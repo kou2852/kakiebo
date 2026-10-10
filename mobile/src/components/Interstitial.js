@@ -8,7 +8,7 @@
 // 編集・CSV 取り込み・定期取引の自動記帳・開始残高は、自分で1件ずつ付けた記帳ではないので数えない。
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import { ADS_ENABLED } from './Ad';
+import { ADS_ENABLED, USE_TEST_ADS } from './Ad';
 import { useAuth } from '../store/AuthProvider';
 import { useData } from '../store/DataProvider';
 import { bump, isDue, shouldPreload } from '../utils/adPacing';
@@ -27,7 +27,7 @@ let ad = null;
 function preload() {
   if (!Ads || !ADS_ENABLED || ad) return;
   const { InterstitialAd, AdEventType, TestIds } = Ads;
-  const a = InterstitialAd.createForAdRequest(__DEV__ ? TestIds.INTERSTITIAL : PROD_UNIT_ID, {
+  const a = InterstitialAd.createForAdRequest(USE_TEST_ADS ? TestIds.INTERSTITIAL : PROD_UNIT_ID, {
     // バナーと同じく非パーソナライズに固定する（ATT の許可ダイアログを出さない）
     requestNonPersonalizedAdsOnly: true,
   });

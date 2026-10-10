@@ -6,6 +6,7 @@ import { Text, View } from 'react-native';
 import { useData } from '../store/DataProvider';
 import { useTheme } from '../theme';
 import { Button, Card, ChipRow, Field, Input } from './ui';
+import DateField from './DateField';
 import AccountPicker from './AccountPicker';
 import { today, uid } from '../utils/format';
 import { selectable } from '../utils/hiddenAccounts';
@@ -37,12 +38,12 @@ export function toForm(journal, accounts) {
   };
 }
 
-export default function JournalForm({ initial, onSubmit, submitLabel = '保存', onDelete }) {
+export default function JournalForm({ initial, date, onSubmit, submitLabel = '保存', onDelete }) {
   const t = useTheme();
   const { accounts, tags, presets } = useData();
 
   const [f, setF] = useState(() => initial || {
-    type: 'out', date: today(), desc: '', amount: '', drId: '', crId: '', tagId: '',
+    type: 'out', date: date || today(), desc: '', amount: '', drId: '', crId: '', tagId: '',
   });
   const set = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
 
@@ -110,7 +111,7 @@ export default function JournalForm({ initial, onSubmit, submitLabel = '保存',
             style={{ fontSize: 28, fontWeight: '800', textAlign: 'right' }} />
         </Field>
         <Field label="日付">
-          <Input value={f.date} onChangeText={set('date')} placeholder="YYYY-MM-DD" keyboardType="numbers-and-punctuation" />
+          <DateField value={f.date} onChangeText={set('date')} />
         </Field>
         <Field label="摘要">
           <Input value={f.desc} onChangeText={set('desc')} placeholder="コンビニ など" />

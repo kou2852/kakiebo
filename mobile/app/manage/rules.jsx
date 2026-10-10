@@ -9,9 +9,11 @@ import { useTheme } from '../../src/theme';
 import { Button, Card, ChipRow, Empty, Field, Input, Screen, sep } from '../../src/components/ui';
 import { uid } from '../../src/utils/format';
 import { selectable } from '../../src/utils/hiddenAccounts';
+import { useToast } from '../../src/store/ToastProvider';
 
 export default function Rules() {
   const t = useTheme();
+  const toast = useToast();
   const { rules, accounts, journals, save, del } = useData();
   const [editing, setEditing] = useState(null);
 
@@ -53,6 +55,7 @@ export default function Rules() {
       crAccountId: editing.crAccountId,
     });
     setEditing(null);
+    toast('保存しました');
   };
 
   const remove = (r) => Alert.alert('削除しますか？', r.keyword, [

@@ -16,6 +16,9 @@ import { initAds } from '../src/ads';
 import { recordInstall } from '../src/components/ReviewAsk';
 import { useTheme, useThemeMode } from '../src/theme';
 import { ThemeProvider } from '../src/store/ThemeProvider';
+import { ToastProvider } from '../src/store/ToastProvider';
+import KeyboardDone from '../src/components/KeyboardDone';
+import HelpTitle from '../src/components/HelpTitle';
 import { TourProvider } from '../src/store/TourProvider';
 import Tour from '../src/components/Tour';
 import { OnboardingProvider } from '../src/store/OnboardingProvider';
@@ -96,8 +99,10 @@ function Nav() {
   useQuickActionRouting(presets);
   return (
     <Stack
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerStyle: { backgroundColor: t.bg1 },
+        // 画面名の右に「？」。タップするとその画面の説明（src/screenHelp.js）
+        headerTitle: ({ children }) => <HelpTitle route={route.name} title={children} />,
         headerTintColor: t.tx,
         headerTitleStyle: { fontWeight: '700' },
         contentStyle: { backgroundColor: t.bg0 },
@@ -118,7 +123,7 @@ function Nav() {
             </Pressable>
           ) : null),
         } : {}),
-      }}
+      })}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="connect" options={{ title: 'アカウント接続', presentation: 'modal' }} />
@@ -133,7 +138,7 @@ function Nav() {
       <Stack.Screen name="settings/reminder" options={{ title: 'リマインダー' }} />
       <Stack.Screen name="manage/index" options={{ title: '管理' }} />
       <Stack.Screen name="manage/accounts" options={{ title: '勘定科目' }} />
-      <Stack.Screen name="manage/wallets" options={{ title: '口座' }} />
+      <Stack.Screen name="manage/wallets" options={{ title: '口座・カード' }} />
       <Stack.Screen name="manage/tags" options={{ title: 'タグ' }} />
       <Stack.Screen name="manage/presets" options={{ title: 'プリセット' }} />
       <Stack.Screen name="manage/recurring" options={{ title: '定期取引' }} />
@@ -172,6 +177,7 @@ export default function RootLayout() {
     <StartupBoundary>
     <SafeAreaProvider>
       <ThemeProvider>
+        <ToastProvider>
         <AuthProvider>
         <DataProvider>
           <OnboardingProvider>
@@ -186,8 +192,10 @@ export default function RootLayout() {
           </OnboardingProvider>
           <KdfBridge />
           <ThemedStatusBar />
+          <KeyboardDone />
         </DataProvider>
         </AuthProvider>
+        </ToastProvider>
       </ThemeProvider>
     </SafeAreaProvider>
     </StartupBoundary>

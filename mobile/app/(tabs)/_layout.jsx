@@ -1,7 +1,8 @@
-import { TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme';
+import HelpTitle from '../../src/components/HelpTitle';
 import TabBar from '../../src/components/TabBar';
 import { useOnboarding } from '../../src/store/OnboardingProvider';
 import { useUpdates } from '../../src/updates';
@@ -12,12 +13,28 @@ function UpdatesBell() {
   const router = useRouter();
   const { unread } = useUpdates();
   return (
-    <TouchableOpacity onPress={() => router.push('/updates')} style={{ paddingHorizontal: 16, paddingVertical: 6 }}
+    <TouchableOpacity onPress={() => router.push('/updates')} style={{ paddingLeft: 8, paddingRight: 16, paddingVertical: 6 }}
       accessibilityLabel={unread ? '更新情報（新しいお知らせあり）' : '更新情報'}>
       <Ionicons name="notifications-outline" size={25} color={t.tx} />
       {unread ? (
         <View style={{ position: 'absolute', top: 8, right: 18, width: 9, height: 9, borderRadius: 5, backgroundColor: t.red, borderWidth: 1.5, borderColor: t.bg1 }} />
       ) : null}
+    </TouchableOpacity>
+  );
+}
+
+// ホーム右上、ベルの左に置く「使い方」。設定を経由せず、設定の「使い方」と同じページ（/guide）を直接開く。
+// 戻るとダッシュボードに戻る（スタックでダッシュボードの上に積むため）。
+function GuideButton() {
+  const t = useTheme();
+  const router = useRouter();
+  return (
+    <TouchableOpacity onPress={() => router.push('/guide')} accessibilityRole="button" accessibilityLabel="使い方"
+      style={{
+        marginLeft: 8, marginRight: 2, paddingVertical: 5, paddingHorizontal: 12,
+        borderRadius: 14, borderWidth: 1, borderColor: t.ac,
+      }}>
+      <Text style={{ color: t.ac, fontSize: 14, fontWeight: '700' }}>使い方</Text>
     </TouchableOpacity>
   );
 }
@@ -30,14 +47,21 @@ export default function TabsLayout() {
     <View style={{ flex: 1 }}>
       <Tabs
         tabBar={(props) => <TabBar {...props} />}
-        screenOptions={{
+        screenOptions={({ route }) => ({
           headerStyle: { backgroundColor: t.bg1 },
+          // 画面名の右に「？」。タップするとその画面の説明（src/screenHelp.js）
+          headerTitle: ({ children }) => <HelpTitle route={route.name} title={children} />,
           headerTintColor: t.tx,
           headerTitleStyle: { fontWeight: '700' },
           sceneStyle: { backgroundColor: t.bg0 },
-        }}
+        })}
       >
-        <Tabs.Screen name="index"    options={{ title: 'ダッシュボード', tabBarLabel: 'ホーム', headerRight: () => <UpdatesBell /> }} />
+        <Tabs.Screen name="index"    options={{ title: 'ダッシュボード', tabBarLabel: 'ホーム', headerRight: () => (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <GuideButton />
+            <UpdatesBell />
+          </View>
+        ) }} />
         <Tabs.Screen name="ledger"   options={{ title: '仕訳帳', tabBarLabel: '仕訳帳' }} />
         {/* 記帳は中央のボタンから開く。タブには出さない（役割が重複するため） */}
         {/* レシート撮影は右上のアイコンから。入力欄の上にボタンを置くと、毎回それを越えて入力することになる */}

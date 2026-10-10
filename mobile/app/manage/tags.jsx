@@ -5,6 +5,7 @@ import { useTheme } from '../../src/theme';
 import { Button, Card, Empty, Field, Input, Screen, sep } from '../../src/components/ui';
 import { uid } from '../../src/utils/format';
 import { useTourTarget } from '../../src/store/TourProvider';
+import { useToast } from '../../src/store/ToastProvider';
 
 // Web 版 utils/format.js の TAG_COLORS と同じ並び
 const COLORS = ['#0d9488', '#14b8a6', '#10b981', '#5eb0e8', '#8b5cf6', '#f08a3c',
@@ -13,6 +14,7 @@ const COLORS = ['#0d9488', '#14b8a6', '#10b981', '#5eb0e8', '#8b5cf6', '#f08a3c'
 export default function Tags() {
   const listRef = useTourTarget('tag-list');
   const t = useTheme();
+  const toast = useToast();
   const { tags, journals, save, del } = useData();
   const [editing, setEditing] = useState(null);
 
@@ -31,6 +33,7 @@ export default function Tags() {
     // 元のタグの項目を引き継ぐ。ウェブで入れた備考（note）を保存で消さないため。
     save('tags', { ...tags.find((g) => g.id === editing.id), id: editing.id || uid(), name, color: editing.color });
     setEditing(null);
+    toast('保存しました');
   };
 
   if (editing) {

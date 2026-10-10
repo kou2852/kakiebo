@@ -14,6 +14,7 @@ import { Button, Card, ChipRow, Empty, Input, Screen } from '../../src/component
 import { fa, faBal, fas, today, uid } from '../../src/utils/format';
 import { accountBalance, calcBalances, isInvestmentAsset } from '../../src/utils/bookkeeping';
 import { selectable } from '../../src/utils/hiddenAccounts';
+import { useToast } from '../../src/store/ToastProvider';
 
 const MODES = [
   { value: 'cash', label: '実査（残高照合）' },
@@ -24,6 +25,7 @@ const PREFIX = { cash: '残高調整', valuation: '評価替え' };
 
 export default function Reconcile() {
   const t = useTheme();
+  const toast = useToast();
   const { accounts, journals, save } = useData();
 
   const [mode, setMode] = useState('cash');
@@ -78,6 +80,7 @@ export default function Reconcile() {
           onPress: () => {
             save('journals', { id: uid(), date: today(), desc: `${PREFIX[mode]}: ${account.name}`, lines });
             setActual((s) => ({ ...s, [account.id]: '' }));
+            toast('記帳しました');
           },
         },
       ]

@@ -1,6 +1,6 @@
 // 記帳リマインダー。端末内のローカル通知で、サーバーは介さない。
 import { useEffect, useState } from 'react';
-import { Alert, Text } from 'react-native';
+import { Alert, Platform, Text } from 'react-native';
 import { useTheme } from '../../src/theme';
 import { Card, ChipRow, Screen } from '../../src/components/ui';
 import { getReminder, setReminder } from '../../src/notifications';
@@ -21,7 +21,7 @@ export default function Reminder() {
   const choose = async (v) => {
     const next = v === time ? '' : v;
     if (!(await setReminder(next || null))) {
-      Alert.alert('通知が許可されていません', 'iOS の設定 → 通知 から kurofukubo の通知を許可してください。');
+      Alert.alert('通知が許可されていません', (Platform.OS === 'ios' ? 'iOS の設定 → 通知' : '端末の設定 → アプリ → kurofukubo → 通知') + ' から kurofukubo の通知を許可してください。');
       return;
     }
     setTime(next);

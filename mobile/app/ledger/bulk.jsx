@@ -8,6 +8,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, ChipRow, Field, Input, Screen } from '../../src/components/ui';
+import DateField from '../../src/components/DateField';
 import { selectable } from '../../src/utils/hiddenAccounts';
 
 export default function BulkEdit() {
@@ -68,7 +69,7 @@ export default function BulkEdit() {
 
       <Card title="変更する内容">
         <Field label="日付">
-          <Input value={date} onChangeText={setDate} placeholder="変更しない" keyboardType="numbers-and-punctuation" />
+          <DateField value={date} onChangeText={setDate} placeholder="変更しない" />
         </Field>
         <Field label="摘要">
           <Input value={desc} onChangeText={setDesc} placeholder="変更しない" />

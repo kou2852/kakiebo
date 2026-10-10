@@ -2,23 +2,89 @@
 //
 // 枠線ではなく影で階層を作る。枠線でカードを囲うと画面が箱だらけに見え、
 // どれも同じ強さになって主役（純資産）が埋もれる。
-import { Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Dimensions, Keyboard, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
+import { KEYBOARD_BAR_H, KEYBOARD_DONE_ID } from './KeyboardDone';
 
 /**
  * @param stickyTop     スクロールしても上に貼り付く領域（切替タブなど）
  * @param stickyBottom  下に貼り付く領域（一括操作など）
  * @param refresh       useSyncRefresh() の戻り値。渡すと下に引っ張って同期できる
  */
+// Android はエッジ・ツー・エッジ（android/gradle.properties の edgeToEdgeEnabled）のため、
+// adjustResize が効かずキーボードが画面に重なるだけになる。下の欄が隠れて入力できなくなるので、
+// 画面の下端にキーボードが重なっている分だけ下に余白を足し、隠れた欄もスクロールで出せるようにする。
+// タブバーなど画面の外側にある領域はキーボードに隠れるだけなので、その分は引く。
+// measureInWindow の座標はステータスバーの下が原点で、キーボードの座標（screenY）は画面の上端が原点。
+// 食い違う分（insets.top）を揃えないと、欄が半分隠れたままになる。
+function useAndroidKeyboardOverlap(ref) {
+  const insets = useSafeAreaInsets();
+  const [h, setH] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return undefined;
+    const a = Keyboard.addListener('keyboardDidShow', (e) => {
+      const top = e.endCoordinates?.screenY;
+      if (!ref.current || top == null) return;
+      ref.current.measureInWindow((x, y, w, ht) => setH(Math.max(0, Math.round(y + ht - (top - insets.top)))));
+    });
+    const b = Keyboard.addListener('keyboardDidHide', () => setH(0));
+    return () => { a.remove(); b.remove(); };
+  }, [ref, insets.top]);
+  return h;
+}
+
+// Android のエッジ・ツー・エッジでは、タブバーの無い画面（スタックで開く画面）の最下部が
+// ナビゲーションバーの下に潜り、最後の行までスクロールしても隠れたままになる。
+// タブ内の画面はタブバーが自前で余白を持つので、実際にナビバーへ重なっている分だけ足す。
+function useAndroidNavOverlap(ref) {
+  const insets = useSafeAreaInsets();
+  const [h, setH] = useState(0);
+  const measure = () => {
+    if (Platform.OS !== 'android' || !ref.current) return;
+    ref.current.measureInWindow((x, y, w, ht) => {
+      const navTop = Dimensions.get('screen').height - insets.bottom;
+      setH(Math.max(0, Math.min(insets.bottom, Math.round(y + insets.top + ht - navTop))));
+    });
+  };
+  return [h, measure];
+}
+
 export function Screen({ children, scroll = true, stickyTop, stickyBottom, refresh }) {
   const t = useTheme();
-  const bg = { flex: 1, backgroundColor: t.bg0 };
+  const rootRef = useRef(null);
+  const kb = useAndroidKeyboardOverlap(rootRef);
+  const [nav, measureNav] = useAndroidNavOverlap(rootRef);
+  const scrollRef = useRef(null);
+  const offsetRef = useRef(0);
+  // キーボードが出たとき、入力中の欄がキーボードの下に隠れていれば、見える位置までスクロールする。
+  // 余白を足しただけでは、欄はスクロールしないと出てこず、スクロールするとキーボードが閉じてしまう。
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !kb) return undefined;
+    const id = setTimeout(() => {
+      const input = TextInput.State?.currentlyFocusedInput?.();
+      if (!input || !rootRef.current) return;
+      rootRef.current.measureInWindow((rx, ry, rw, rh) => {
+        input.measureInWindow((ix, iy, iw, ih) => {
+          const visibleBottom = ry + rh - kb;
+          const delta = iy + ih + 16 + KEYBOARD_BAR_H - visibleBottom;
+          if (delta > 0) scrollRef.current?.scrollTo({ y: offsetRef.current + delta, animated: true });
+        });
+      });
+    }, 250);
+    return () => clearTimeout(id);
+  }, [kb]);
+  const bg = { flex: 1, backgroundColor: t.bg0, paddingBottom: kb };
 
   const body = scroll
     ? (
       <ScrollView
+        ref={scrollRef}
+        onScroll={(e) => { offsetRef.current = e.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={16}
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 13, paddingBottom: 40, gap: 11 }}
+        contentContainerStyle={{ padding: 13, paddingBottom: 40 + (kb || stickyBottom ? 0 : nav), gap: 11 }}
         refreshControl={refresh?.control}
         // 下へ引くとキーボードも一緒に下がる（iOS）。Android は引いた時点で閉じる
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
@@ -27,12 +93,12 @@ export function Screen({ children, scroll = true, stickyTop, stickyBottom, refre
         {children}
       </ScrollView>
     )
-    : <View style={{ flex: 1, padding: 13, gap: 11 }}>{children}</View>;
+    : <View style={{ flex: 1, padding: 13, paddingBottom: 13 + (kb || stickyBottom ? 0 : nav), gap: 11 }}>{children}</View>;
 
-  if (!stickyTop && !stickyBottom) return <View style={bg}>{body}</View>;
+  if (!stickyTop && !stickyBottom) return <View ref={rootRef} collapsable={false} style={bg} onLayout={measureNav}>{body}</View>;
 
   return (
-    <View style={bg}>
+    <View ref={rootRef} collapsable={false} style={bg} onLayout={measureNav}>
       {stickyTop ? (
         <View style={{ paddingHorizontal: 13, paddingTop: 10, paddingBottom: 8, backgroundColor: t.bg0 }}>
           {stickyTop}
@@ -40,7 +106,7 @@ export function Screen({ children, scroll = true, stickyTop, stickyBottom, refre
       ) : null}
       {body}
       {stickyBottom ? (
-        <View style={[{ paddingHorizontal: 13, paddingTop: 9, paddingBottom: 11, backgroundColor: t.bg1, borderTopWidth: 1, borderTopColor: t.bd }]}>
+        <View style={[{ paddingHorizontal: 13, paddingTop: 9, paddingBottom: 11 + (kb ? 0 : nav), backgroundColor: t.bg1, borderTopWidth: 1, borderTopColor: t.bd }]}>
           {stickyBottom}
         </View>
       ) : null}
@@ -139,6 +205,8 @@ export function Input(props) {
   return (
     <TextInput
       placeholderTextColor={t.tx3}
+      // iOS: キーボードの上に「閉じる」のバーを付ける（KeyboardDone.jsx）
+      inputAccessoryViewID={KEYBOARD_DONE_ID}
       {...props}
       style={[{
         backgroundColor: t.bg3, borderWidth: 1, borderColor: t.bd,

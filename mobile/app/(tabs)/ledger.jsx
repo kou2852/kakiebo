@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Alert, FlatList, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useData } from '../../src/store/DataProvider';
 import { useSyncRefresh } from '../../src/store/useSyncRefresh';
@@ -9,10 +9,20 @@ import PeriodBar, { usePeriod } from '../../src/components/PeriodBar';
 import BottomSheet from '../../src/components/BottomSheet';
 import SwipeRow from '../../src/components/SwipeRow';
 import AccountPicker from '../../src/components/AccountPicker';
+import DeleteConfirm from '../../src/components/DeleteConfirm';
+import { getSkipDeleteConfirm, setSkipDeleteConfirm } from '../../src/store/deletePref';
 import { fa, ymd } from '../../src/utils/format';
 import { filterByPeriod } from '../../src/utils/bookkeeping';
 
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
+
+/** マスが狭いので、1万円以上は千円単位（k）、100万円以上は百万円単位（M）にする。 */
+const short = (n) => {
+  const v = Math.abs(n);
+  if (v >= 1000000) return `${(v / 1000000).toFixed(1)}M`;
+  if (v >= 10000) return `${Math.round(v / 1000)}k`;
+  return String(v);
+};
 
 /** 月グリッド。日をタップしても表は動かさず、その日の一覧はモーダルで出す。 */
 function MonthGrid({ month, setMonth, journals, accounts, onSelect }) {
@@ -21,12 +31,23 @@ function MonthGrid({ month, setMonth, journals, accounts, onSelect }) {
   const { cells, label, byDay } = useMemo(() => {
     const first = new Date(month.getFullYear(), month.getMonth(), 1);
     const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
-    const expenseIds = new Set(accounts.filter((a) => a.type === 'expense').map((a) => a.id));
+    const typeOf = Object.fromEntries(accounts.map((a) => [a.id, a.type]));
 
+    // 日ごとに収入と支出を別々に集計する。収入だけの日も出せるように、支出だけにはしない。
+    // 収入は貸方−借方、支出は借方−貸方（返金などで逆向きに動いた分も差し引く）。
     const sums = {};
     journals.forEach((j) => {
-      const n = j.lines.reduce((s, l) => s + (l.side === 'dr' && expenseIds.has(l.accountId) ? l.amount : 0), 0);
-      if (n) sums[j.date] = (sums[j.date] || 0) + n;
+      let inc = 0;
+      let exp = 0;
+      j.lines.forEach((l) => {
+        const sign = l.side === 'dr' ? 1 : -1;
+        if (typeOf[l.accountId] === 'expense') exp += sign * l.amount;
+        else if (typeOf[l.accountId] === 'income') inc -= sign * l.amount;
+      });
+      if (!inc && !exp) return;
+      const d = sums[j.date] || (sums[j.date] = { inc: 0, exp: 0 });
+      d.inc += inc;
+      d.exp += exp;
     });
 
     const out = Array(first.getDay()).fill(null); // 月初までの空きマス
@@ -57,14 +78,14 @@ function MonthGrid({ month, setMonth, journals, accounts, onSelect }) {
 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
         {cells.map((date, i) => {
-          if (!date) return <View key={`e${i}`} style={{ width: '14.28%', height: 52 }} />;
+          if (!date) return <View key={`e${i}`} style={{ width: '14.28%', height: 66 }} />;
           const amount = byDay[date];
           const isToday = date === todayStr;
           return (
             <TouchableOpacity
               key={date}
               onPress={() => onSelect(date)}
-              style={{ width: '14.28%', height: 52, alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: '14.28%', height: 66, alignItems: 'center', paddingTop: 3 }}
             >
               <View style={{
                 width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center',
@@ -74,10 +95,12 @@ function MonthGrid({ month, setMonth, journals, accounts, onSelect }) {
                   {Number(date.slice(8, 10))}
                 </Text>
               </View>
-              {amount ? (
-                <Text style={{ color: t.tx2, fontSize: 12.5 }} numberOfLines={1}>
-                  {amount >= 10000 ? `${Math.round(amount / 1000)}k` : amount}
-                </Text>
+              {/* 収入と支出を2行で出す。色だけに頼らないよう符号も付ける。 */}
+              {amount?.inc ? (
+                <Text style={{ color: t.grn, fontSize: 11.5, fontWeight: '600' }} numberOfLines={1}>+{short(amount.inc)}</Text>
+              ) : null}
+              {amount?.exp ? (
+                <Text style={{ color: t.red, fontSize: 11.5, fontWeight: '600' }} numberOfLines={1}>-{short(amount.exp)}</Text>
               ) : null}
             </TouchableOpacity>
           );
@@ -123,11 +146,18 @@ export default function Ledger() {
     [journals, dayOpen]
   );
 
-  const confirmDelete = (j) =>
-    Alert.alert('この仕訳を削除しますか？', `${j.date}  ${j.desc || '(摘要なし)'}`, [
-      { text: 'キャンセル', style: 'cancel' },
-      { text: '削除', style: 'destructive', onPress: () => del('journals', j.id) },
-    ]);
+  // 削除の確認。「次回から確認しない」にしている端末では、確認を出さずにそのまま消す。
+  const [delTarget, setDelTarget] = useState(null);
+  const confirmDelete = async (j) => {
+    if (await getSkipDeleteConfirm()) return del('journals', j.id);
+    return setDelTarget(j);
+  };
+  const doDelete = async (skip) => {
+    const j = delTarget;
+    setDelTarget(null);
+    if (skip) await setSkipDeleteConfirm(true);
+    if (j) del('journals', j.id);
+  };
 
   const renderRow = (item, inModal) => {
     const drs = item.lines.filter((l) => l.side === 'dr');
@@ -136,10 +166,12 @@ export default function Ledger() {
     const selectable = picking && !inModal;
     const go = (path) => { setDayOpen(null); router.push(path); };
     return (
-      // 左へスライドで「編集」「コピー」。まとめて選んでいる間は選択の邪魔になるので出さない。
+      // 左へスライドで「編集」「コピー」「削除」。まとめて選んでいる間は選択の邪魔になるので出さない。
       <SwipeRow disabled={selectable} actions={[
         { label: '編集', color: t.acb, textColor: t.ac, onPress: () => go(`/journal/${item.id}`) },
         { label: 'コピー', onPress: () => go(`/journal/${item.id}?copy=1`) },
+        // 取り消せない操作なので赤い塗りで目立たせる。押すと確認が出る。
+        { label: '削除', color: t.red, textColor: '#ffffff', onPress: () => confirmDelete(item) },
       ]}>
       <TouchableOpacity
         onPress={() => {
@@ -229,7 +261,7 @@ export default function Ledger() {
           ListFooterComponent={
             rows.length ? (
               <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center', padding: 16 }}>
-                タップで編集・左へスライドでコピー・長押しで削除
+                タップで編集・左へスライドでコピー・削除・長押しで削除
               </Text>
             ) : null
           }
@@ -272,9 +304,11 @@ export default function Ledger() {
         />
         <View style={{ padding: 13, borderTopWidth: 1, borderTopColor: t.bd }}>
           <Button label="この日に記帳する"
-            onPress={() => { const d = dayOpen; setDayOpen(null); router.push(`/add?date=${d}`); }} />
+            onPress={() => { const d = dayOpen; setDayOpen(null); router.navigate({ pathname: '/journal', params: { date: d } }); }} />
         </View>
       </BottomSheet>
+
+      <DeleteConfirm target={delTarget} onCancel={() => setDelTarget(null)} onConfirm={doDelete} />
     </View>
   );
 }

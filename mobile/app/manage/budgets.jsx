@@ -6,10 +6,12 @@ import { Button, Card, Empty, Input, Screen } from '../../src/components/ui';
 import { fa, ymd, today } from '../../src/utils/format';
 import { accountBalance, calcBalances, filterByPeriod } from '../../src/utils/bookkeeping';
 import { isHidden, mergeBudgets } from '../../src/utils/hiddenAccounts';
+import { useToast } from '../../src/store/ToastProvider';
 
 // 予算は { accountId, amount } で id を持たないため、コレクションごと差し替える。
 export default function Budgets() {
   const t = useTheme();
+  const toast = useToast();
   const { budgets, accounts, journals, setAll } = useData();
 
   const expenses = useMemo(() => accounts.filter((a) => a.type === 'expense' && !isHidden(a)), [accounts]);
@@ -66,7 +68,7 @@ export default function Budgets() {
           );
         })}
       </Card>
-      <Button label="保存" onPress={commit} />
+      <Button label="保存" onPress={() => { commit(); toast('保存しました'); }} />
       <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>0 にすると予算なしになります</Text>
     </Screen>
   );

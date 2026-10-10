@@ -6,9 +6,11 @@ import { useTheme } from '../../src/theme';
 import { Button, Card, Empty, Input, Screen } from '../../src/components/ui';
 import { faBal } from '../../src/utils/format';
 import { tagAllocation } from '../../src/utils/bookkeeping';
+import { useToast } from '../../src/store/ToastProvider';
 
 export default function Allocations() {
   const t = useTheme();
+  const toast = useToast();
   const { accounts, journals, tags, allocs, wallets, setAll } = useData();
 
   const rows = useMemo(
@@ -66,7 +68,7 @@ export default function Allocations() {
         );
       })}
 
-      <Button label="保存" onPress={commit} />
+      <Button label="保存" onPress={() => { commit(); toast('保存しました'); }} />
       <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
         配分は残高を動かしません。「この口座のうち、いくらを何に取っておくか」という目安です。
       </Text>
