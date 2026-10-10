@@ -1,7 +1,7 @@
 // 動画（リワード）広告。ユーザーが自分で押したときだけ出し、最後まで見たらその日の広告を消す（src/adFree.js）。
 //
 // 出すのは「広告を消す」を押したときだけ。勝手に出さない。非パーソナライズに固定する（ATT の許可を求めない）。
-// ユニットID は AdMob で作ってここへ入れる。入れるまでは、開発中とクローズドテスト中のテスト広告でだけ動き、
+// ユニットID（下の PROD_UNIT）が空のときは、開発中とクローズドテスト中のテスト広告でだけ動き、
 // ストア配布ビルドではこの機能自体を出さない（rewardedReady が偽）。
 import { Platform } from 'react-native';
 import { ADS_ENABLED, USE_TEST_ADS, adsAvailable } from './Ad';
@@ -10,8 +10,12 @@ import { grantAdFree } from '../adFree';
 let Ads = null;
 try { Ads = require('react-native-google-mobile-ads'); } catch { Ads = null; }
 
-// 本番のユニットID（AdMob で「リワード」を作って入れる）。まだ作っていないので null。
-const PROD_UNIT = { ios: null, android: null };
+// 本番のユニットID（AdMob「動画を見て今日は広告を消す（リワード）」。2026-10-11 に iOS・Android を同時に作成）。
+// iOS と Android は機能を合わせるため、必ず両方を入れる（片方だけ null にしない）。
+const PROD_UNIT = {
+  ios: 'ca-app-pub-1494837719359912/1351873942',
+  android: 'ca-app-pub-1494837719359912/2126823002',
+};
 
 const LOAD_TIMEOUT_MS = 20 * 1000;
 const unitFor = () => PROD_UNIT[Platform.OS === 'android' ? 'android' : 'ios'];
