@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Dimensions, Keyboard, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
-import { KEYBOARD_BAR_H, KEYBOARD_DONE_ID } from './KeyboardDone';
+import { KEYBOARD_BAR_H } from './KeyboardDone';
 
 /**
  * @param stickyTop     スクロールしても上に貼り付く領域（切替タブなど）
@@ -205,8 +205,6 @@ export function Input(props) {
   return (
     <TextInput
       placeholderTextColor={t.tx3}
-      // iOS: キーボードの上に「閉じる」のバーを付ける（KeyboardDone.jsx）
-      inputAccessoryViewID={KEYBOARD_DONE_ID}
       {...props}
       style={[{
         backgroundColor: t.bg3, borderWidth: 1, borderColor: t.bd,

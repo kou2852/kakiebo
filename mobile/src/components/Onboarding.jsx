@@ -19,7 +19,6 @@ import { useOnboarding } from '../store/OnboardingProvider';
 import { useAuth } from '../store/AuthProvider';
 import { CUSTOM_EXPENSE_ID, KINDS, MONTHLY_PRESETS } from '../store/onboardingPlan';
 import { faBal } from '../utils/format';
-import { KEYBOARD_DONE_ID } from './KeyboardDone';
 import { askPermissionOnce } from '../notifications';
 
 const ICONS = {
@@ -137,7 +136,6 @@ function Money({ value, onChange }) {
         onFocus={() => setOn(true)}
         onBlur={() => setOn(false)}
         keyboardType="number-pad"
-        inputAccessoryViewID={KEYBOARD_DONE_ID}
         placeholder="0"
         placeholderTextColor={t.tx3}
         style={{
@@ -342,7 +340,7 @@ function Monthly({ draft, setDraft }) {
                   とたん固定文字に変わり、直せなくなる。「自分で入力したものか」で決める。 */}
               {m.custom ? (
                 <TextInput value={m.name} onChangeText={(v) => update(i, { name: v })}
-                  placeholder="名前（例: 携帯電話）" placeholderTextColor={t.tx3} inputAccessoryViewID={KEYBOARD_DONE_ID}
+                  placeholder="名前（例: 携帯電話）" placeholderTextColor={t.tx3}
                   style={{ flex: 1, color: t.tx, fontSize: 16, fontWeight: '700', paddingVertical: 2 }} />
               ) : (
                 <Text style={{ color: t.tx, fontSize: 16, fontWeight: '700', flex: 1 }}>{m.name}</Text>
@@ -363,7 +361,7 @@ function Monthly({ draft, setDraft }) {
                   <TextInput
                     value={String(m.day ?? '')}
                     onChangeText={(v) => update(i, { day: Number(v.replace(/[^0-9]/g, '').slice(0, 2)) || '' })}
-                    keyboardType="number-pad" inputAccessoryViewID={KEYBOARD_DONE_ID}
+                    keyboardType="number-pad"
                     style={{ color: t.tx, fontSize: 17, paddingVertical: 11, paddingHorizontal: 4, minWidth: 34, textAlign: 'right' }} />
                   <Text style={{ color: t.tx, fontSize: 17 }}>日</Text>
                 </View>
