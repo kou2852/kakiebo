@@ -4,6 +4,7 @@
 // 「レシートが出ない現金払い」は、その場で入れられなければ記録されずに終わる。
 // アプリを開いて画面を辿る手数が、記録されるかどうかを分ける。
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 // Expo Go には入っていない。無い環境では項目を作らないだけにする。
 let QuickActions = null;
@@ -12,8 +13,16 @@ try { QuickActions = require('expo-quick-actions'); } catch { QuickActions = nul
 // iOS が表示できるのは4件まで。撮影を1枠使い、残りをプリセットに割り当てる。
 const MAX_PRESETS = 3;
 
-// 種別に応じた SF Symbol。プリセットごとに選ばせるほどの情報量ではないので自動で決める。
-const iconFor = (preset) => (preset.type === 'in' ? 'symbol:tray.and.arrow.down' : 'symbol:cart');
+// 種別に応じたアイコン。プリセットごとに選ばせるほどの情報量ではないので自動で決める。
+// iOS は SF Symbol。Android は SF Symbol を読めないので、ビルドに入れた画像（app.json の androidIcons）の名前を渡す。
+// 画像はビルドに入るため、名前を増やすときはネイティブの再ビルドが要る。
+const ICONS = {
+  in: { ios: 'symbol:tray.and.arrow.down', android: 'shortcut_in' },
+  out: { ios: 'symbol:cart', android: 'shortcut_out' },
+  scan: { ios: 'symbol:camera', android: 'shortcut_scan' },
+};
+const platformIcon = (kind) => ICONS[kind][Platform.OS === 'android' ? 'android' : 'ios'];
+const iconFor = (preset) => platformIcon(preset.type === 'in' ? 'in' : 'out');
 
 /** プリセットの内容から、そのまま記帳画面を開く URL を作る。 */
 export function presetUrl(preset) {
@@ -53,7 +62,7 @@ export function useQuickActionRouting(presets = []) {
         },
       };
     });
-    items.push({ id: 'scan', title: 'レシートを撮る', icon: 'symbol:camera', params: { href: '/scan' } });
+    items.push({ id: 'scan', title: 'レシートを撮る', icon: platformIcon('scan'), params: { href: '/scan' } });
     QuickActions.setItems(items).catch(() => { /* 対応していない端末では何もしない */ });
   }, [presets]);
 }

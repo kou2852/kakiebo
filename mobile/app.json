@@ -125,7 +125,11 @@
       [
         "expo-quick-actions",
         {
-          "androidIcons": {},
+          "androidIcons": {
+            "shortcut_in": "./assets/shortcuts/shortcut_in.png",
+            "shortcut_out": "./assets/shortcuts/shortcut_out.png",
+            "shortcut_scan": "./assets/shortcuts/shortcut_scan.png"
+          },
           "iosActions": [
             {
               "id": "quick",
