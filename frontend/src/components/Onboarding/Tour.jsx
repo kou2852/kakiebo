@@ -16,8 +16,11 @@ export const TOURS = {
         title: '① あなたの口座を1つ登録', body: '種別を選んで、名前と残高を入れるだけで登録できます。残高は任意です。登録せずに「次へ」から進んでも問題ありません。' },
       { key: 'networth', target: '[data-tour="networth"]', page: 'dashboard',
         title: '② これがあなたの純資産', body: '資産−負債の“正味”。いま登録した口座の残高がここに反映されています。記帳するほど自動で更新されます 📈' },
+      // 記帳ゲート：ここで実際に支出を1件記帳してもらう。口座追加だけで終わらせず、記帳の手応えまで体験させる。
+      { key: 'first-journal', target: '[data-tour="simple-amount"]', page: 'journal', awaitJournal: true, forceMode: 'simple',
+        title: '③ 支出を1件記帳してみる', body: '支出/収入/振替を選んで、費目・金額・支払い方法を選ぶだけ。ハイライトされた金額欄に入力して「記帳する」を押してみましょう。' },
       { key: 'done', center: true, title: '準備OK！🎉',
-        body: '次は仕訳入力の使い方を一通り見るか、クレカ払いの記帳を体験してみましょう。詳しい使い方は左の「はじめかた」からいつでも見られます。',
+        body: '記帳できました。次は仕訳入力の使い方を一通り見るか、クレカ払いの記帳を体験してみましょう。詳しい使い方は左の「はじめかた」からいつでも見られます。',
         actions: [
           { label: '📖 仕訳入力を詳しく見る', tour: 'journalDetail' },
           { label: '💳 クレカ記帳を体験', tour: 'credit' },
