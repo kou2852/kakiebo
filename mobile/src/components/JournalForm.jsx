@@ -11,6 +11,7 @@ import AccountPicker from './AccountPicker';
 import { today, uid } from '../utils/format';
 import { selectable } from '../utils/hiddenAccounts';
 import { carryLine } from '../utils/journalTags';
+import { isMultiPreset } from './SplitForm';
 
 const TYPES = [
   { value: 'out', label: '支出', dr: ['expense'], cr: ['asset', 'liability'] },
@@ -38,7 +39,7 @@ export function toForm(journal, accounts) {
   };
 }
 
-export default function JournalForm({ initial, date, onSubmit, submitLabel = '保存', onDelete }) {
+export default function JournalForm({ initial, date, onSubmit, submitLabel = '保存', onDelete, onMultiPreset }) {
   const t = useTheme();
   const { accounts, tags, presets } = useData();
 
@@ -60,9 +61,11 @@ export default function JournalForm({ initial, date, onSubmit, submitLabel = '�
   const ok = n > 0 && dr && cr && dr !== cr && /^\d{4}-\d{2}-\d{2}$/.test(f.date);
 
   // プリセットは科目の組み合わせを一発で入れる。既定の金額があればそれも入れる。
+  // 明細が複数あるプリセットはこのフォームでは表せないので、複合仕訳の入力へ渡す（onMultiPreset）。
   const applyPreset = (id) => {
     const p = presets.find((x) => x.id === id);
     if (!p) return;
+    if (onMultiPreset && isMultiPreset(p)) { onMultiPreset(p); return; }
     const d = p.lines.find((l) => l.side === 'dr');
     const c = p.lines.find((l) => l.side === 'cr');
     const fixed = d?.amount || 0;

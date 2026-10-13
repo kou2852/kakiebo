@@ -37,6 +37,9 @@ const IOS_UPDATE = IOS_APP.live && IOS_APP.date ? [{
 //   'app' を含めた記事は、ビルド時に dist/updates.json へ書き出され、モバイルアプリのベルが取りに来る
 //   （vite.config.js）。アプリに同梱しないので、アプリの更新を待たずに届く。
 // minApp: この版より前のアプリには出さない（その版で入った機能の案内に使う）。
+// platforms: アプリで出す OS（['ios'] / ['android']）。省略すると両方。1.0.4 以降のアプリだけが読むので、
+//   使うときは minApp も '1.0.4' 以上にする（古いアプリは platforms を無視して両方に出す）。
+// link.ios / link.android: OS ごとのリンク先（1.0.4 以降のアプリ）。無ければ link.href。
 export const APP_UPDATES = [
   {
     id: '2026-10-12-app-1.0.3',

@@ -20,6 +20,7 @@ import { ToastProvider } from '../src/store/ToastProvider';
 import KeyboardDone from '../src/components/KeyboardDone';
 import HelpTitle from '../src/components/HelpTitle';
 import NotificationSync from '../src/store/NotificationSync';
+import UpdatePrompt from '../src/components/UpdatePrompt';
 import { TourProvider } from '../src/store/TourProvider';
 import Tour from '../src/components/Tour';
 import { OnboardingProvider } from '../src/store/OnboardingProvider';
@@ -135,6 +136,7 @@ function Nav() {
       <Stack.Screen name="settings/sync" options={{ title: 'アカウントと同期' }} />
       <Stack.Screen name="settings/delete-account" options={{ title: 'アカウントの削除' }} />
       <Stack.Screen name="settings/appearance" options={{ title: '外観' }} />
+      <Stack.Screen name="settings/home" options={{ title: 'ホームの表示' }} />
       <Stack.Screen name="settings/security" options={{ title: 'アプリロック' }} />
       <Stack.Screen name="settings/reminder" options={{ title: '通知' }} />
       <Stack.Screen name="settings/ads" options={{ title: '広告' }} />
@@ -147,6 +149,7 @@ function Nav() {
       <Stack.Screen name="manage/budgets" options={{ title: '予算' }} />
       <Stack.Screen name="manage/allocations" options={{ title: 'タグ配分' }} />
       <Stack.Screen name="manage/csv" options={{ title: 'CSV' }} />
+      <Stack.Screen name="manage/csv-presets" options={{ title: '保存した割り当て' }} />
       <Stack.Screen name="manage/reconcile" options={{ title: '実査・評価替え' }} />
       <Stack.Screen name="manage/rules" options={{ title: '自動仕訳ルール' }} />
       <Stack.Screen name="manage/encryption" options={{ title: '暗号化' }} />
@@ -189,6 +192,7 @@ export default function RootLayout() {
             <AppLock>
               <Nav />
               <Onboarding />
+              <UpdatePrompt />
             </AppLock>
             <Tour />
           </TourProvider>

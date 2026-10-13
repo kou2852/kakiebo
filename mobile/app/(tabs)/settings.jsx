@@ -77,6 +77,7 @@ export default function Settings() {
           onPress: go('/settings/sync'),
         },
         { label: '外観', value: theme.mode === 'auto' ? '端末に合わせる' : (theme.resolved === 'light' ? 'ライト' : 'ダーク'), onPress: go('/settings/appearance') },
+        { label: 'ホームの表示', onPress: go('/settings/home') },
         { label: 'アプリロック', onPress: go('/settings/security') },
         { label: '通知', onPress: go('/settings/reminder') },
         // 動画広告を見ると、その日は広告を消せる。広告の枠を持たない端末・ビルドでは出さない。

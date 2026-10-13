@@ -4,7 +4,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useData } from '../../src/store/DataProvider';
 import { Screen, Segmented } from '../../src/components/ui';
 import JournalForm from '../../src/components/JournalForm';
-import SplitForm from '../../src/components/SplitForm';
+import SplitForm, { presetToSplitForm } from '../../src/components/SplitForm';
 import { fa } from '../../src/utils/format';
 import { useTourTarget } from '../../src/store/TourProvider';
 import { useEntryAd } from '../../src/components/Interstitial';
@@ -18,7 +18,10 @@ export default function JournalEntry() {
   const kindRef = useTourTarget('entry-kind');
   const { save } = useData();
   const entryAd = useEntryAd();
-  const [mode, setMode] = useState('simple');
+  const [mode, setModeRaw] = useState('simple');
+  // 明細が複数あるプリセットを選んだときの、複合仕訳の初期値
+  const [splitInitial, setSplitInitial] = useState(null);
+  const setMode = (m) => { setSplitInitial(null); setModeRaw(m); };
   // 保存のたびにフォームを初期状態へ戻す（続けて入力できるように）
   const [seq, setSeq] = useState(0);
 
@@ -44,6 +47,7 @@ export default function JournalEntry() {
   const done = (j) => {
     save('journals', j);
     entryAd.counted();
+    setSplitInitial(null);
     setSeq((n) => n + 1);
     const total = j.lines.filter((l) => l.side === 'dr').reduce((s, l) => s + l.amount, 0);
     Alert.alert('保存しました', `${j.date}  ${fa(total)}`, [{ text: 'OK', onPress: entryAd.closed }]);
@@ -60,8 +64,15 @@ export default function JournalEntry() {
       )}
     >
       {mode === 'simple'
-        ? <JournalForm key={seq} date={presetDate} onSubmit={done} />
-        : <SplitForm key={`s${seq}`} date={presetDate} onSubmit={done} submitLabel="記帳する" />}
+        ? (
+          <JournalForm key={seq} date={presetDate} onSubmit={done}
+            onMultiPreset={(p) => {
+              setSplitInitial(presetToSplitForm(p, presetDate));
+              setModeRaw('split');
+              setSeq((n) => n + 1);
+            }} />
+        )
+        : <SplitForm key={`s${seq}`} initial={splitInitial} date={presetDate} onSubmit={done} submitLabel="記帳する" />}
     </Screen>
   );
 }

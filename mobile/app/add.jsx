@@ -13,6 +13,7 @@ import { useTheme } from '../src/theme';
 import { Card, Screen } from '../src/components/ui';
 import QuickEntryBar from '../src/components/QuickEntryBar';
 import JournalForm from '../src/components/JournalForm';
+import SplitForm, { isMultiPreset, presetToSplitForm } from '../src/components/SplitForm';
 import { fa, today } from '../src/utils/format';
 import { useEntryAd } from '../src/components/Interstitial';
 
@@ -27,11 +28,12 @@ export default function Add() {
 
   // preset 指定があれば、その科目の組み合わせを初期値にする。
   // ショートカット側で「自販機」とだけ書いておけば、金額を入れるだけで済む。
+  const preset = useMemo(() => (params.preset
+    ? presets.find((p) => p.name === params.preset || p.name.includes(params.preset))
+    : null), [params.preset, presets]);
+
   const initial = useMemo(() => {
     const byName = (n) => accounts.find((a) => a.name === n) || accounts.find((a) => a.name.includes(n));
-    const preset = params.preset
-      ? presets.find((p) => p.name === params.preset || p.name.includes(params.preset))
-      : null;
 
     const presetAmount = preset?.lines.find((l) => l.side === 'dr')?.amount || 0;
     const amount = amountParam || (presetAmount > 0 ? String(presetAmount) : '');
@@ -51,7 +53,7 @@ export default function Add() {
       crId: cr || '',
       tagId: '',
     };
-  }, [params, accounts, presets, amountParam]);
+  }, [params, accounts, preset, amountParam]);
 
   const done = (j) => {
     entryAd.counted();
@@ -68,6 +70,22 @@ export default function Add() {
         <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
           ショートカットから開かれています。内容を確認して記帳してください。
         </Text>
+      </Screen>
+    );
+  }
+
+  // 明細が複数あるプリセット（給与を2つの口座へ、など）は複合仕訳の形で開く。金額が空の行はここで入れる
+  if (preset && isMultiPreset(preset)) {
+    return (
+      <Screen>
+        <Card>
+          <Text style={{ color: t.tx2, fontSize: 14 }}>ショートカットから開かれています。金額を確認して記帳してください。</Text>
+        </Card>
+        <SplitForm
+          initial={presetToSplitForm(preset, String(params.date || today()))}
+          submitLabel="記帳する"
+          onSubmit={(j) => { save('journals', j); done(j); }}
+        />
       </Screen>
     );
   }

@@ -108,7 +108,7 @@ export default function CreditBody() {
         const rangeStart = cycles.length ? cycles[cycles.length - 1].periodStart : period.start;
         const rangeEnd = cycles.length ? cycles[0].periodEnd : period.end;
         const cats = creditUsageByCategory(c, journals, accounts, rangeStart, rangeEnd)
-          .map((x, i) => ({ label: x.name, value: x.value, color: PIE_COLORS[i % PIE_COLORS.length] }));
+          .map((x, i) => ({ label: x.name, value: x.value, color: (t.pie || PIE_COLORS)[i % (t.pie || PIE_COLORS).length] }));
 
         const cardPending = pending.filter((x) => x.card.id === c.id);
         const due = cardPending.filter((x) => x.due);

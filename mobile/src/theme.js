@@ -7,6 +7,7 @@
 // 家計簿では「増えた/減った」が読めれば足り、色を増やすほど数字が読みにくくなる。
 import { createContext, useContext } from 'react';
 import { useColorScheme } from 'react-native';
+import { ACCENTS, pieColors } from './utils/themeAccents';
 
 export const light = {
   ac: '#0f7a6c', acDeep: '#0b6055', acb: '#e6f2f0', acTx: '#ffffff',
@@ -60,11 +61,22 @@ export const dark = {
   },
 };
 
-// 内訳の配色。ティールから離れすぎない範囲で並べ、隣り合う色が混同されないようにする。
-export const PIE_COLORS = [
-  '#0f7a6c', '#2f9e8d', '#57b8a8', '#82cdc0', '#3f7cad', '#7c6bb0',
-  '#d98324', '#cf4436', '#a8563f', '#5b9e6a', '#8ab8a0', '#b0a58c',
-];
+// テーマカラー（2026-10-13 追加）。ライト・ダークとは別に選べる、アクセントの色だけの差し替え。
+// 変えるのはボタン・選択中・ヒーローカードなどのアクセントだけで、地・文字・増減の色（grn / red）は変えない。
+// 増減の色まで変えると「プラスが何色か」が配色ごとに変わって読み違えるため。
+// 赤・橙に寄った色はマイナス（red）や警告と紛れるので入れない。
+// どの色も、ボタンの文字（acTx）とヒーローの白文字、カード上のリンク文字（ac）が
+// WCAG AA（4.5:1）を満たすようにしてある（検証 utils/themeContrast.check.mjs）。
+export { ACCENTS };
+
+/** 配色（ライト・ダーク）にテーマカラーを重ねたもの */
+export function paletteFor(resolved, accent) {
+  return { ...PALETTES[resolved], ...(ACCENTS[accent] || ACCENTS.teal)[resolved], pie: pieColors(accent) };
+}
+
+// 内訳（円グラフ）の配色。テーマカラーごとに変わる（utils/themeAccents.js の pieColors）。
+// 色はパレットの pie で受け取る（useTheme().pie）。ここはティールの並び。
+export const PIE_COLORS = pieColors('teal');
 
 // 配色の設定は ThemeProvider が持つ。Provider を通さずに useTheme を呼んでも
 // 落ちないよう、その場合は端末設定にフォールバックする。
@@ -87,6 +99,8 @@ export function useThemeMode() {
     mode: 'auto',
     resolved: scheme === 'light' ? 'light' : 'dark',
     setMode: () => {},
+    accent: 'teal',
+    setAccent: () => {},
     palette: scheme === 'light' ? light : dark,
   };
 }

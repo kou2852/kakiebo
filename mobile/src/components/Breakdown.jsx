@@ -29,7 +29,9 @@ export default function Breakdown({ items, max = 6, pie = false, centerSub, empt
     : head;
 
   // 色は円グラフと凡例で必ず同じにする。片方だけずれると読み違える。
-  const colored = shown.map((x, i) => ({ ...x, color: x.color || PIE_COLORS[i % PIE_COLORS.length] }));
+  // テーマカラーごとの並び（無ければティール）
+  const ramp = t.pie || PIE_COLORS;
+  const colored = shown.map((x, i) => ({ ...x, color: x.color || ramp[i % ramp.length] }));
 
   return (
     <View style={{ gap: 9 }}>

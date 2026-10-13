@@ -2,8 +2,8 @@
 //
 // 主役は純資産。濃いヒーローカード＋推移の折れ線を最上部に置き、それ以外は白いカードに落とす。
 // 資産管理がテーマなので、いくら使ったかより「いま資産がいくらで、増えているか」が先に来る。
-import { useMemo } from 'react';
-import { Text, View } from 'react-native';
+import { Fragment, useMemo } from 'react';
+import { Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
@@ -17,7 +17,8 @@ import {
   isCashAccount, investmentSummary, monthlyTrend, netWorthTrend,
 } from '../../src/utils/bookkeeping';
 import { dueRecurring, pendingCC } from '../../src/utils/autoGen';
-import { useTourTarget } from '../../src/store/TourProvider';
+import { useTour, useTourTarget } from '../../src/store/TourProvider';
+import { useHomeLayout } from '../../src/store/homeLayout';
 import { useOnboarding } from '../../src/store/OnboardingProvider';
 import Ad from '../../src/components/Ad';
 
@@ -29,6 +30,9 @@ export default function Dashboard() {
   const t = useTheme();
   const router = useRouter();
   const onboarding = useOnboarding();
+  const tour = useTour();
+  // 出す項目と並び（設定の「ホームの表示」。端末ごと）
+  const layout = useHomeLayout();
   const { loading, accounts, journals, budgets, recurring, wallets } = useData();
 
   // 収支は「期間中」、純資産と口座残高は「期間末の時点」（2026-09-15 決定）。
@@ -134,124 +138,146 @@ export default function Dashboard() {
   const td = today();
   const projected = m.asOf > td;
 
+  // カードの部品。並びと出す・出さないは layout（設定の「ホームの表示」）で決まる。
+  // 対象が無いカード（未記帳・予算など）は、出す設定でも出ない（これまでと同じ）。
+  const blocks = {
+    networth: () => (
+      <>
+        <View ref={netWorthRef} collapsable={false}>
+        <Hero
+          label={`純資産（${m.asOf === td ? '今日' : projected ? `${m.asOf} 見込み` : m.asOf}）`}
+          value={faBal(m.netWorth)}
+          negative={m.netWorth < 0}
+          sub={hasTrend ? `前月比 ${fas(delta)}（${rate >= 0 ? '+' : ''}${rate.toFixed(1)}%）` : undefined}
+        >
+          {hasTrend ? (
+            <View style={{ marginTop: 6 }}>
+              <Sparkline data={worth.map((w) => ({ label: w.label, value: w.net }))}
+                color={t.heroTx} labelColor={t.heroSub} />
+            </View>
+          ) : null}
+        </Hero>
+        </View>
+      </>
+    ),
+    pending: () => (dueCards.length || dueRec.length ? (
+          <Card title="未記帳の自動取引">
+            {dueCards.length ? (
+              <Text style={{ color: t.red, fontSize: 15 }}>
+                カードの引き落とし {dueCards.length} 件（{fa(dueCards.reduce((s, x) => s + x.cycle.usage, 0))}）
+              </Text>
+            ) : null}
+            {dueRec.length ? (
+              <Text style={{ color: t.tx2, fontSize: 15 }}>定期取引 {dueRec.length} 件</Text>
+            ) : null}
+            <Text style={{ color: t.tx3, fontSize: 13 }}>記帳しないと残高が実態とずれます。</Text>
+            {dueCards.length ? <Button label="クレジットを開く" onPress={() => router.push('/credit')} /> : null}
+            {dueRec.length ? <Button label="定期取引を開く" variant="ghost" onPress={() => router.push('/manage/recurring')} /> : null}
+          </Card>
+        ) : null),
+    period: () => (
+      <>
+        <View ref={periodRef} collapsable={false}>
+          <PeriodBar period={period} />
+        </View>
+      </>
+    ),
+    flow: () => (
+      <>
+        <Card title={`${period.label}の収支`}>
+          <KpiRow>
+            <Kpi label="収入" value={fa(m.income)} color={t.grn} />
+            <Kpi label="支出" value={fa(m.expense)} color={t.red} />
+            <Kpi label="収支" value={fas(m.balance)} color={m.balance >= 0 ? t.grn : t.red} />
+          </KpiRow>
+        </Card>
+      </>
+    ),
+    breakdown: () => (
+      <>
+        <Card title="支出内訳">
+          <Breakdown pie centerSub={`${period.label}の支出`}
+            items={m.expenses.map((x) => ({ label: x.name, value: x.amount }))}
+            emptyText="この期間の支出はまだありません" />
+        </Card>
+      </>
+    ),
+    accounts: () => (byAccount.length ? (
+          <Card title="口座の残高">
+            {byAccount.map((x) => (
+              <View key={x.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 }}>
+                  <View style={{
+                    width: 7, height: 7, borderRadius: 4,
+                    backgroundColor: x.type === 'asset' ? t.ac : t.red,
+                  }} />
+                  <Text style={{ color: t.tx2, fontSize: 14 }} numberOfLines={1}>{x.name}</Text>
+                </View>
+                <Text style={{ color: t.tx, fontSize: 14.5, fontWeight: '600' }}>{faBal(x.amount)}</Text>
+              </View>
+            ))}
+            <Text style={{ color: t.tx3, fontSize: 13 }}>
+              {m.asOf === td ? '今日時点の残高です。'
+                : projected ? `${m.asOf} 時点の見込みです。今日より先の日付の仕訳も含みます。`
+                : `${m.asOf} 時点の残高です。`}
+            </Text>
+          </Card>
+        ) : null),
+    trend: () => (trend.some((x) => x.expense > 0) ? (
+          <Card title="支出の推移（6か月）">
+            <Bars data={trend.map((x) => ({ label: x.label, value: x.expense }))} color={t.red} />
+          </Card>
+        ) : null),
+    budget: () => (budget.rows.length ? (
+          <Card title={budget.months === 1 ? '予算の消化' : `予算の消化（月予算 × ${budget.months}ヶ月）`}>
+            {budget.rows.map((b) => {
+              const pct = Math.min((b.used / b.budget) * 100, 100);
+              const over = b.used > b.budget;
+              return (
+                <View key={b.name} style={{ gap: 4 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ color: t.tx2, fontSize: 14 }}>{b.name}</Text>
+                    <Text style={{ color: over ? t.red : t.tx2, fontSize: 14 }}>{fa(b.used)} / {fa(b.budget)}</Text>
+                  </View>
+                  <View style={{ height: 5, borderRadius: 3, backgroundColor: t.bg3, overflow: 'hidden' }}>
+                    <View style={{ width: `${pct}%`, height: '100%', backgroundColor: over ? t.red : t.ac }} />
+                  </View>
+                </View>
+              );
+            })}
+          </Card>
+        ) : null),
+    investments: () => (investments.length ? (
+          <Card title="投資資産">
+            {investments.map((r) => (
+              <View key={r.account.id} style={{ gap: 2 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ color: t.tx2, fontSize: 14 }}>{r.account.name}</Text>
+                  <Text style={{ color: t.tx, fontSize: 15, fontWeight: '700' }}>{faBal(r.value)}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ color: t.tx3, fontSize: 13 }}>元本 {faBal(r.principal)}</Text>
+                  <Text style={{ color: r.gain >= 0 ? t.grn : t.red, fontSize: 13 }}>
+                    {fas(r.gain)}（{(r.rate * 100).toFixed(1)}%）
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </Card>
+        ) : null),
+  };
+  // ツアーが純資産を指している間は、消していても出す（指す先が無いと案内が宙に浮く）
+  const forced = tour?.step?.target === 'networth' ? 'networth' : null;
+
   return (
     <Screen>
-      <View ref={netWorthRef} collapsable={false}>
-      <Hero
-        label={`純資産（${m.asOf === td ? '今日' : projected ? `${m.asOf} 見込み` : m.asOf}）`}
-        value={faBal(m.netWorth)}
-        negative={m.netWorth < 0}
-        sub={hasTrend ? `前月比 ${fas(delta)}（${rate >= 0 ? '+' : ''}${rate.toFixed(1)}%）` : undefined}
-      >
-        {hasTrend ? (
-          <View style={{ marginTop: 6 }}>
-            <Sparkline data={worth.map((w) => ({ label: w.label, value: w.net }))}
-              color={t.heroTx} labelColor={t.heroSub} />
-          </View>
-        ) : null}
-      </Hero>
-      </View>
+      {layout.filter((x) => x.on || x.id === forced).map((x) => (
+        <Fragment key={x.id}>{blocks[x.id]?.()}</Fragment>
+      ))}
 
-      {dueCards.length || dueRec.length ? (
-        <Card title="未記帳の自動取引">
-          {dueCards.length ? (
-            <Text style={{ color: t.red, fontSize: 15 }}>
-              カードの引き落とし {dueCards.length} 件（{fa(dueCards.reduce((s, x) => s + x.cycle.usage, 0))}）
-            </Text>
-          ) : null}
-          {dueRec.length ? (
-            <Text style={{ color: t.tx2, fontSize: 15 }}>定期取引 {dueRec.length} 件</Text>
-          ) : null}
-          <Text style={{ color: t.tx3, fontSize: 13 }}>記帳しないと残高が実態とずれます。</Text>
-          {dueCards.length ? <Button label="クレジットを開く" onPress={() => router.push('/credit')} /> : null}
-          {dueRec.length ? <Button label="定期取引を開く" variant="ghost" onPress={() => router.push('/manage/recurring')} /> : null}
-        </Card>
-      ) : null}
-
-      <View ref={periodRef} collapsable={false}>
-        <PeriodBar period={period} />
-      </View>
-
-      <Card title={`${period.label}の収支`}>
-        <KpiRow>
-          <Kpi label="収入" value={fa(m.income)} color={t.grn} />
-          <Kpi label="支出" value={fa(m.expense)} color={t.red} />
-          <Kpi label="収支" value={fas(m.balance)} color={m.balance >= 0 ? t.grn : t.red} />
-        </KpiRow>
-      </Card>
-
-      <Card title="支出内訳">
-        <Breakdown pie centerSub={`${period.label}の支出`}
-          items={m.expenses.map((x) => ({ label: x.name, value: x.amount }))}
-          emptyText="この期間の支出はまだありません" />
-      </Card>
-
-      {byAccount.length ? (
-        <Card title="口座の残高">
-          {byAccount.map((x) => (
-            <View key={x.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 }}>
-                <View style={{
-                  width: 7, height: 7, borderRadius: 4,
-                  backgroundColor: x.type === 'asset' ? t.ac : t.red,
-                }} />
-                <Text style={{ color: t.tx2, fontSize: 14 }} numberOfLines={1}>{x.name}</Text>
-              </View>
-              <Text style={{ color: t.tx, fontSize: 14.5, fontWeight: '600' }}>{faBal(x.amount)}</Text>
-            </View>
-          ))}
-          <Text style={{ color: t.tx3, fontSize: 13 }}>
-            {m.asOf === td ? '今日時点の残高です。'
-              : projected ? `${m.asOf} 時点の見込みです。今日より先の日付の仕訳も含みます。`
-              : `${m.asOf} 時点の残高です。`}
-          </Text>
-        </Card>
-      ) : null}
-
-      {trend.some((x) => x.expense > 0) ? (
-        <Card title="支出の推移（6か月）">
-          <Bars data={trend.map((x) => ({ label: x.label, value: x.expense }))} color={t.red} />
-        </Card>
-      ) : null}
-
-      {budget.rows.length ? (
-        <Card title={budget.months === 1 ? '予算の消化' : `予算の消化（月予算 × ${budget.months}ヶ月）`}>
-          {budget.rows.map((b) => {
-            const pct = Math.min((b.used / b.budget) * 100, 100);
-            const over = b.used > b.budget;
-            return (
-              <View key={b.name} style={{ gap: 4 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <Text style={{ color: t.tx2, fontSize: 14 }}>{b.name}</Text>
-                  <Text style={{ color: over ? t.red : t.tx2, fontSize: 14 }}>{fa(b.used)} / {fa(b.budget)}</Text>
-                </View>
-                <View style={{ height: 5, borderRadius: 3, backgroundColor: t.bg3, overflow: 'hidden' }}>
-                  <View style={{ width: `${pct}%`, height: '100%', backgroundColor: over ? t.red : t.ac }} />
-                </View>
-              </View>
-            );
-          })}
-        </Card>
-      ) : null}
-
-      {investments.length ? (
-        <Card title="投資資産">
-          {investments.map((r) => (
-            <View key={r.account.id} style={{ gap: 2 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ color: t.tx2, fontSize: 14 }}>{r.account.name}</Text>
-                <Text style={{ color: t.tx, fontSize: 15, fontWeight: '700' }}>{faBal(r.value)}</Text>
-              </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ color: t.tx3, fontSize: 13 }}>元本 {faBal(r.principal)}</Text>
-                <Text style={{ color: r.gain >= 0 ? t.grn : t.red, fontSize: 13 }}>
-                  {fas(r.gain)}（{(r.rate * 100).toFixed(1)}%）
-                </Text>
-              </View>
-            </View>
-          ))}
-        </Card>
-      ) : null}
+      <TouchableOpacity onPress={() => router.push('/settings/home')} style={{ alignSelf: 'center', padding: 8 }}>
+        <Text style={{ color: t.ac, fontSize: 14, fontWeight: '600' }}>ホームの表示を編集</Text>
+      </TouchableOpacity>
 
       {/* 一番下の広告。オンボーディング中は覆いの下に隠れるので読み込まない（TabBar と同じ理由） */}
       {onboarding?.active ? null : <Ad placement="homeBottom" />}

@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, PanResponder, Text, View } from 'react-native';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
-import { Card, Empty, Screen, UnderlineTabs } from '../../src/components/ui';
+import { Card, Empty, Screen, Segmented, UnderlineTabs } from '../../src/components/ui';
 import PeriodBar, { usePeriod } from '../../src/components/PeriodBar';
 import Breakdown from '../../src/components/Breakdown';
 import CreditBody from '../../src/screens/CreditBody';
@@ -15,15 +15,22 @@ import { useOnboarding } from '../../src/store/OnboardingProvider';
 import Ad from '../../src/components/Ad';
 
 const MODES = [
-  { value: 'bs', label: '貸借対照表' },
-  { value: 'pl', label: '損益計算書' },
-  { value: 'cf', label: 'キャッシュフロー' },
+  { value: 'fs', label: '財務諸表' },
   { value: 'cc', label: 'カード' },
 ];
+// 財務諸表のタブの中は、横にスライドして BS → PL → CF と移る。期間指定は3つで共有する。
+const PAGES = [
+  { value: 'bs', label: '貸借対照表' },
+  { value: 'pl', label: '損益計算書' },
+  { value: 'cf', label: 'CF計算書' },
+];
+// これより大きく横に動かしたら次のページへ
+const SWIPE_PX = 60;
 
 export default function Reports() {
   const tabsRef = useTourTarget('report-tabs');
-  const [mode, setMode] = useState('bs');
+  const [mode, setMode] = useState('fs');
+  const [page, setPage] = useState(0);
   const onboarding = useOnboarding();
   const { accounts, journals } = useData();
 
@@ -59,17 +66,65 @@ export default function Reports() {
       <View ref={tabsRef} collapsable={false}>
         <UnderlineTabs options={MODES} value={mode} onChange={setMode} />
       </View>
-      {mode === 'cc' ? null : <PeriodBar period={period} />}
-
-      {mode === 'bs' ? <BS r={r} end={period.end} />
-        : mode === 'pl' ? <PL r={r} />
-        : mode === 'cf' ? <CF cf={r.cf} accounts={accounts} />
-        : <CreditBody />}
+      {mode === 'cc' ? <CreditBody /> : (
+        <>
+          <PeriodBar period={period} />
+          {/* 3つのうちどこにいるかの見出し。タップでも移れる */}
+          <Segmented options={PAGES.map((p, i) => ({ value: i, label: p.label }))} value={page} onChange={setPage} />
+          <Pager page={page} setPage={setPage}>
+            {page === 0 ? <BS r={r} end={period.end} />
+              : page === 1 ? <PL r={r} />
+              : <CF cf={r.cf} accounts={accounts} />}
+          </Pager>
+        </>
+      )}
 
       {/* 一番下の広告。4つのどのタブでも同じ位置に出る。
           オンボーディング中は覆いの下に隠れるので読み込まない（ホームと同じ理由） */}
       {onboarding?.active ? null : <Ad placement="reportsBottom" />}
     </Screen>
+  );
+}
+
+/** 横にスライドしてページを移る。縦のスクロールは画面に任せる。端のページから外へは動かさない。 */
+function Pager({ page, setPage, children }) {
+  const [x] = useState(() => new Animated.Value(0));
+  const width = useRef(360);
+  // PanResponder は作り直さないので、最新のページは ref 経由で見る
+  const pageRef = useRef(page);
+  useEffect(() => { pageRef.current = page; }, [page]);
+
+  // ref を読むのはジェスチャの発生時だけで、レンダー中には走らない（SwipeRow と同じ誤検出）。
+  // eslint-disable-next-line react-hooks/refs
+  const [pan] = useState(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 14 && Math.abs(g.dx) > Math.abs(g.dy) * 1.8,
+    onPanResponderMove: (_, g) => {
+      const p = pageRef.current;
+      // 端のページでは外側へ少しだけ動かす（それ以上は進めないと分かるように）
+      const edge = (p === 0 && g.dx > 0) || (p === PAGES.length - 1 && g.dx < 0);
+      x.setValue(edge ? g.dx / 4 : g.dx);
+    },
+    onPanResponderRelease: (_, g) => {
+      const p = pageRef.current;
+      let dir = g.dx <= -SWIPE_PX || g.vx < -0.5 ? 1 : g.dx >= SWIPE_PX || g.vx > 0.5 ? -1 : 0;
+      if (p + dir < 0 || p + dir >= PAGES.length) dir = 0;
+      if (!dir) {
+        Animated.spring(x, { toValue: 0, useNativeDriver: true, bounciness: 0, speed: 20 }).start();
+        return;
+      }
+      Animated.timing(x, { toValue: -dir * width.current, duration: 140, useNativeDriver: true }).start(() => {
+        setPage(p + dir);
+        x.setValue(dir * width.current);
+        Animated.timing(x, { toValue: 0, duration: 160, useNativeDriver: true }).start();
+      });
+    },
+    onPanResponderTerminate: () => Animated.spring(x, { toValue: 0, useNativeDriver: true }).start(),
+  }));
+
+  return (
+    <View onLayout={(e) => { width.current = e.nativeEvent.layout.width; }} {...pan.panHandlers}>
+      <Animated.View style={{ gap: 12, transform: [{ translateX: x }] }}>{children}</Animated.View>
+    </View>
   );
 }
 
@@ -80,12 +135,7 @@ function BS({ r, end }) {
   return (
     <>
       <Text style={{ color: t.tx3, fontSize: 13 }}>{end === '2999-12-31' ? '今日時点' : `${end} 時点`}</Text>
-      <Section title="資産" rows={r.asset} total={r.assetT} totalLabel="資産合計" />
-      {r.asset.length ? (
-        <Card title="資産の構成">
-          <Breakdown pie centerSub="資産合計" items={r.asset.map((x) => ({ label: x.name, value: x.amount }))} />
-        </Card>
-      ) : null}
+      <Section title="資産" rows={r.asset} total={r.assetT} totalLabel="資産合計" chart="資産合計" />
       <Section title="負債" rows={r.liab} total={r.liabT} totalLabel="負債合計" />
       <Section title="純資産" rows={r.eq} total={r.eqT} totalLabel="純資産合計" />
       <Card title="差引純資産">
@@ -108,12 +158,7 @@ function PL({ r }) {
   return (
     <>
       <Section title="収益" rows={r.inc} total={r.incT} totalLabel="収益合計" />
-      <Section title="費用" rows={r.exp} total={r.expT} totalLabel="費用合計" />
-      {r.exp.length ? (
-        <Card title="費用の内訳">
-          <Breakdown pie centerSub="費用合計" items={r.exp.map((x) => ({ label: x.name, value: x.amount }))} />
-        </Card>
-      ) : null}
+      <Section title="費用" rows={r.exp} total={r.expT} totalLabel="費用合計" chart="費用合計" />
       <Card title="当期損益">
         <Text style={{ color: r.incT - r.expT >= 0 ? t.grn : t.red, fontSize: 26, fontWeight: '800' }}>
           {faBal(r.incT - r.expT)}
@@ -157,12 +202,20 @@ function CF({ cf, accounts }) {
   );
 }
 
-function Section({ title, rows, total, totalLabel }) {
+/** chart を渡すと、表の上に構成の円グラフを出す（中央の小見出しが chart の文字）。
+ * 円グラフの凡例に全科目と金額・割合が並ぶので、科目の表は重ねて出さない。
+ * ただしマイナスの科目（返金が上回った費用など）は円グラフに載らないので、そのときは表も出す。 */
+function Section({ title, rows, total, totalLabel, chart }) {
   const t = useTheme();
   if (!rows.length) return null;
+  const legendOnly = !!chart && rows.every((x) => x.amount > 0);
   return (
     <Card title={title}>
-      {rows.map((r) => (
+      {chart ? (
+        <Breakdown pie centerSub={chart} max={legendOnly ? rows.length : undefined}
+          items={rows.map((x) => ({ label: x.name, value: x.amount }))} />
+      ) : null}
+      {legendOnly ? null : rows.map((r) => (
         <View key={r.id} style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
           <Text style={{ color: t.tx2, fontSize: 15, flex: 1 }} numberOfLines={1}>
             {r.name}

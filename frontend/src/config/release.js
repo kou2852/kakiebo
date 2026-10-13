@@ -38,3 +38,15 @@ export const IOS_APP = {
 // 「9月25日」のような表示用の文字列。
 const [, m, d] = IOS_APP.releaseOn.split('-');
 export const IOS_RELEASE_LABEL = `${Number(m)}月${Number(d)}日`;
+
+// ストアに出ているアプリの最新版。アプリは起動後にこれと自分の版を比べ、古ければ「アップデート」の
+// ポップアップを出す（強制しない。「あとで」で閉じられる）。updates.json の latest に書き出す（vite.config.js）。
+//
+// ⚠ version を上げるのは、そのストアで新しい版が**公開されたのを確かめてから**。審査中・段階配信の途中で
+//    上げると、まだ更新できない人に「アップデートしてください」と出てしまう。
+// ⚠ ポップアップを出すのは 1.0.4 以降のアプリ（それより前のアプリはこの項目を読まない）。
+// Android はクローズドテスト中。Google Play のページはテスターにしか開けない（テスター以外は「見つかりません」）。
+export const APP_LATEST = {
+  ios: { version: '1.0.2', url: IOS_APP.url },
+  android: { version: '1.0.3', url: 'https://play.google.com/store/apps/details?id=com.kurofukubo.app' },
+};

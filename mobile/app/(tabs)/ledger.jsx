@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { FlatList, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, FlatList, PanResponder, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useData } from '../../src/store/DataProvider';
 import { useSyncRefresh } from '../../src/store/useSyncRefresh';
@@ -15,6 +15,10 @@ import { fa, ymd } from '../../src/utils/format';
 import { filterByPeriod } from '../../src/utils/bookkeeping';
 
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
+// 1マスの高さ。日付の丸（26）と収入・支出の2行が収まる最小限
+const CELL_H = 58;
+// これより大きく横に動かしたら月を送る
+const SWIPE_PX = 50;
 
 /** マスが狭いので、1万円以上は千円単位（k）、100万円以上は百万円単位（M）にする。 */
 const short = (n) => {
@@ -24,9 +28,38 @@ const short = (n) => {
   return String(v);
 };
 
-/** 月グリッド。日をタップしても表は動かさず、その日の一覧はモーダルで出す。 */
+/** 月グリッド。日をタップしても表は動かさず、その日の一覧はモーダルで出す。
+ * 横にスライドすると月を送る（左へ＝翌月、右へ＝前月）。‹ › のボタンも残す。 */
 function MonthGrid({ month, setMonth, journals, accounts, onSelect }) {
   const t = useTheme();
+  const [x] = useState(() => new Animated.Value(0));
+  const width = useRef(360);
+  // PanResponder は作り直さないので、最新の月は ref 経由で見る
+  const monthRef = useRef(month);
+  useEffect(() => { monthRef.current = month; }, [month]);
+
+  // ref を読むのはジェスチャの発生時だけで、レンダー中には走らない（SwipeRow と同じ誤検出）。
+  // eslint-disable-next-line react-hooks/refs
+  const [pan] = useState(() => PanResponder.create({
+    // 横に動いたときだけ取る。縦のスクロールと日付のタップは邪魔しない。
+    onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+    onPanResponderMove: (_, g) => x.setValue(g.dx),
+    onPanResponderRelease: (_, g) => {
+      const dir = g.dx <= -SWIPE_PX || g.vx < -0.5 ? 1 : g.dx >= SWIPE_PX || g.vx > 0.5 ? -1 : 0;
+      if (!dir) {
+        Animated.spring(x, { toValue: 0, useNativeDriver: true, bounciness: 0, speed: 20 }).start();
+        return;
+      }
+      // 今の月を送り出し、反対側から次の月を入れる
+      Animated.timing(x, { toValue: -dir * width.current, duration: 140, useNativeDriver: true }).start(() => {
+        const m = monthRef.current;
+        setMonth(new Date(m.getFullYear(), m.getMonth() + dir, 1));
+        x.setValue(dir * width.current);
+        Animated.timing(x, { toValue: 0, duration: 160, useNativeDriver: true }).start();
+      });
+    },
+    onPanResponderTerminate: () => Animated.spring(x, { toValue: 0, useNativeDriver: true }).start(),
+  }));
 
   const { cells, label, byDay } = useMemo(() => {
     const first = new Date(month.getFullYear(), month.getMonth(), 1);
@@ -59,7 +92,8 @@ function MonthGrid({ month, setMonth, journals, accounts, onSelect }) {
   const todayStr = ymd(new Date());
 
   return (
-    <View style={[{ backgroundColor: t.bg1, padding: 12, gap: 8, borderRadius: 14, margin: 13 }, t.shadow]}>
+    <View style={[{ backgroundColor: t.bg1, padding: 12, gap: 6, borderRadius: 14, margin: 13, overflow: 'hidden' }, t.shadow]}
+      onLayout={(e) => { width.current = e.nativeEvent.layout.width; }} {...pan.panHandlers}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <TouchableOpacity onPress={() => shift(-1)} style={{ padding: 8 }}>
           <Text style={{ color: t.ac, fontSize: 18, fontWeight: '700' }}>‹</Text>
@@ -76,16 +110,16 @@ function MonthGrid({ month, setMonth, journals, accounts, onSelect }) {
         ))}
       </View>
 
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+      <Animated.View style={{ flexDirection: 'row', flexWrap: 'wrap', transform: [{ translateX: x }] }}>
         {cells.map((date, i) => {
-          if (!date) return <View key={`e${i}`} style={{ width: '14.28%', height: 66 }} />;
+          if (!date) return <View key={`e${i}`} style={{ width: '14.28%', height: CELL_H }} />;
           const amount = byDay[date];
           const isToday = date === todayStr;
           return (
             <TouchableOpacity
               key={date}
               onPress={() => onSelect(date)}
-              style={{ width: '14.28%', height: 66, alignItems: 'center', paddingTop: 3 }}
+              style={{ width: '14.28%', height: CELL_H, alignItems: 'center', paddingTop: 1 }}
             >
               <View style={{
                 width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center',
@@ -105,7 +139,7 @@ function MonthGrid({ month, setMonth, journals, accounts, onSelect }) {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </Animated.View>
     </View>
   );
 }

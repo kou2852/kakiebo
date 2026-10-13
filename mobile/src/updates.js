@@ -6,6 +6,7 @@
 // 取れなかったときは前回の記事を出す（電波がないところでも読める）。
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
 const URL = 'https://app.kurofukubo.com/updates.json';
@@ -21,14 +22,24 @@ const older = (a, b) => {
   return false;
 };
 
-const appVersion = Constants.expoConfig?.version || '0';
-// この版より新しいアプリ向けの記事（その版で入った機能の案内）は出さない
+// ストアの版と同じ（OTA は同じ版のアプリにしか届かないので、OTA で変わることはない）
+export const appVersion = Constants.expoConfig?.version || '0';
+// この版より新しいアプリ向けの記事（その版で入った機能の案内）は出さない。
+// platforms があれば、その OS の端末にだけ出す。リンクは OS ごとの行き先（link.ios / link.android）を優先する。
+// ⚠ platforms と OS ごとのリンクは 1.0.4 から読む。それより前のアプリは platforms を見ずに両方の OS に出すので、
+//    出し分けたい記事は minApp を 1.0.4 以上にする。
 const forThisApp = (items) => (Array.isArray(items) ? items : [])
   .filter((u) => u && u.id && u.title && Array.isArray(u.items))
-  .filter((u) => !u.minApp || !older(appVersion, u.minApp));
+  .filter((u) => !u.minApp || !older(appVersion, u.minApp))
+  .filter((u) => !Array.isArray(u.platforms) || u.platforms.includes(Platform.OS))
+  .map((u) => {
+    const href = u.link?.[Platform.OS] || u.link?.href;
+    return u.link ? { ...u, link: href ? { ...u.link, href } : undefined } : u;
+  });
 
 // ベルと一覧で同じ状態を見る。どちらかで変わったら両方を描き直す。
-const state = { items: null, seen: null, failed: false };
+// latest: ストアに出ている最新版（この端末の OS の分。{ version, url }）。アップデートのポップアップが見る（UpdatePrompt.jsx）
+const state = { items: null, seen: null, failed: false, latest: null };
 const listeners = new Set();
 const emit = () => listeners.forEach((fn) => fn({ ...state }));
 let started = false;
@@ -47,6 +58,7 @@ async function start() {
     if (!res.ok) throw new Error(String(res.status));
     const body = await res.json();
     state.items = forThisApp(body?.items);
+    state.latest = body?.latest?.[Platform.OS] || null;
     state.failed = false;
     AsyncStorage.setItem(CACHE_KEY, JSON.stringify(body?.items || [])).catch(() => {});
   } catch {
@@ -66,6 +78,7 @@ export function useUpdates() {
   return {
     items: s.items,
     failed: s.failed,
+    latest: s.latest,
     unread: !!latest && s.seen !== latest,
     // 一覧を開いたら既読にする（Web 版と同じく、先頭の記事の id で見る）
     markSeen: () => {

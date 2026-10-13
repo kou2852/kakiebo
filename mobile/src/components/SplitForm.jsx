@@ -33,6 +33,27 @@ export function toSplitForm(journal) {
   };
 }
 
+/** 借方か貸方のどちらかが2行以上あるプリセット（給与を2つの口座へ分けて入れる、など）。簡易フォームでは表せない */
+export const isMultiPreset = (p) =>
+  (p?.lines || []).filter((l) => l.side === 'dr').length > 1 || (p?.lines || []).filter((l) => l.side === 'cr').length > 1;
+
+/** プリセットから記帳の初期値を作る。金額が0（都度入力）の行は空欄のまま出し、ここで入れてもらう。
+ * 貸借が合っているかは記帳の保存時に確かめる（プリセットの保存時には見ない）。 */
+export function presetToSplitForm(preset, date) {
+  const conv = (l) => ({
+    key: uid(), accountId: l.accountId, side: l.side,
+    amount: Number(l.amount) > 0 ? String(l.amount) : '', tagId: l.tagId || '', orig: l,
+  });
+  return {
+    date: date || today(),
+    desc: preset.desc || '',
+    lines: [
+      ...preset.lines.filter((l) => l.side === 'dr').map(conv),
+      ...preset.lines.filter((l) => l.side === 'cr').map(conv),
+    ],
+  };
+}
+
 export default function SplitForm({ initial, date, onSubmit, submitLabel = '保存', onDelete }) {
   const t = useTheme();
   const { accounts, tags } = useData();
