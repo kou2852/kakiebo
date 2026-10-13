@@ -1,5 +1,5 @@
 import { v4 as uuid } from 'uuid';
-import { putGroupedItem } from '../lib/db.js';
+import { FEEDBACK_TABLE, opsPut } from '../lib/opsTables.js';
 import { parseBody, created, noContent, badRequest, setRequestOrigin } from '../middleware/apiHelper.js';
 
 const MAX_REQUEST_BYTES = 4096;
@@ -29,7 +29,9 @@ export async function handler(event) {
 
   const timestamp = new Date().toISOString();
   const id = uuid();
-  await putGroupedItem('FEEDBACK', `FEEDBACK#${timestamp}#${id}`, {
+  // ご意見専用のテーブル（家計データとは別）。2026-10 までの分は家計データのテーブルの PK=FEEDBACK にある
+  await opsPut(FEEDBACK_TABLE, {
+    PK: 'FEEDBACK', SK: `FEEDBACK#${timestamp}#${id}`,
     body: feedbackBody,
     timestamp,
     // どこから送られたか。'lp' は未登録の人からの問い合わせなので返信手段が無い点に注意。

@@ -2,6 +2,8 @@ import { v4 as uuid } from 'uuid';
 import { CognitoIdentityProviderClient, AdminDeleteUserCommand } from '@aws-sdk/client-cognito-identity-provider';
 import { getItem, putItem, putItemWithRev, getRev, bumpRev, isRevConflict, touchLastSeen, queryByPrefix, queryAll, batchPut, batchDelete } from '../lib/db.js';
 import { getUserId, parseBody, ok, created, noContent, badRequest, unauthorized, conflict, serverError, tooLong } from '../middleware/apiHelper.js';
+import { DELETE_REASON_TABLE, INQUIRY_TABLE, opsDelete, opsPut, opsQuery } from '../lib/opsTables.js';
+import { mergeThreads } from './inquiries.js';
 
 const cognito = new CognitoIdentityProviderClient({});
 
@@ -317,12 +319,29 @@ export async function handler(event) {
 
   // ── アカウント削除（全データ削除 + Cognitoユーザー削除）──
   if (path === '/api/account' && method === 'DELETE') {
-    // 任意の退会理由。家計データではない自由記述のみ＝CloudWatch Logsに残すだけで外部送信はしない。
+    // 任意の退会理由。家計データではない自由記述のみ。外部送信はしない。
+    // 退会理由のテーブルに残す（誰の退会かは持たない）。ログの行は、管理画面が新しいテーブルへ移り終えるまで残す。
     // データ削除前に記録する（削除後はユーザーに紐づく情報が残らないため）。
     const body = parseBody(event);
     if (body?.reason && typeof body.reason === 'string' && body.reason.trim()) {
-      console.log('ACCOUNT_DELETE_REASON', JSON.stringify({ reason: body.reason.trim().slice(0, 500) }));
+      const reason = body.reason.trim().slice(0, 500);
+      console.log('ACCOUNT_DELETE_REASON', JSON.stringify({ reason }));
+      const at = new Date().toISOString();
+      await opsPut(DELETE_REASON_TABLE, { PK: 'REASON', SK: `REASON#${at}#${uuid()}`, reason, at });
     }
+
+    // 問い合わせは退会しても残す（2026-10-12 指示）。ただし本人の印（sub）は外し、PK=DELETED に移す。
+    // 移行前の問い合わせは家計データのテーブルにあり、このあと家計データと一緒に消えるので、先に写しておく。
+    // 写せなかったら退会を止める（消えたあとでは取り戻せない）。
+    const pk = `USER#${userId}`;
+    const [fresh, legacy] = await Promise.all([opsQuery(INQUIRY_TABLE, pk, 'INQUIRY#'), queryByPrefix(userId, 'INQUIRY#')]);
+    const strip2 = ({ PK, SK, ...rest }) => rest;
+    const threads = mergeThreads(fresh.map(strip2), legacy.map(strip2));
+    const deletedAt = new Date().toISOString();
+    for (const t of threads) {
+      await opsPut(INQUIRY_TABLE, { ...t, PK: 'DELETED', SK: `INQUIRY#${t.id}`, deletedAt });
+    }
+    for (const t of fresh) await opsDelete(INQUIRY_TABLE, pk, t.SK);
 
     // 1. このユーザーの DynamoDB 全アイテムを削除
     const all = await queryAll(userId);

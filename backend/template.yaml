@@ -10,6 +10,10 @@ Globals:
     Environment:
       Variables:
         TABLE_NAME: !Ref KakeiboTable
+        # 家計データとは別に持つ運営用の記録（src/lib/opsTables.js）
+        INQUIRY_TABLE: !Ref InquiryTable
+        FEEDBACK_TABLE: !Ref FeedbackTable
+        DELETE_REASON_TABLE: !Ref DeleteReasonTable
         # LP からも叩くルート（問い合わせ）があるため、CORS だけは複数オリジンを許可する。
         # AllowedOrigin 単体は Cognito の CallbackURLs にも使うので、そちらは1つのまま。
         ALLOWED_ORIGIN: !If [HasLpOrigin, !Sub "${AllowedOrigin},${LpOrigin}", !Ref AllowedOrigin]
@@ -260,6 +264,73 @@ Resources:
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
 
+  # ── 運営用の記録（家計データとは別のテーブル。2026-10-12 指示）──
+  # 家計データのテーブルは「利用者ごとに丸ごと消せる」ことが前提なので、退会しても残すものは分ける。
+  # どれも家計データ（仕訳・残高）は持たない。
+  #
+  # 問い合わせ: PK=USER#<sub>（退会後は DELETED。sub を外して残す）／SK=INQUIRY#<ISO日時>#<uuid>
+  InquiryTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub kakeibo-inquiries-${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  # ご意見（アプリ内アンケート・LP の問い合わせフォーム）: PK=FEEDBACK／SK=FEEDBACK#<ISO日時>#<uuid>。匿名
+  FeedbackTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub kakeibo-feedback-${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  # 退会理由（任意）: PK=REASON／SK=REASON#<ISO日時>#<uuid>。誰の退会かは持たない
+  DeleteReasonTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub kakeibo-delete-reasons-${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
   # ── API Gateway ──
   KakeiboApi:
     Type: AWS::Serverless::Api
@@ -440,8 +511,11 @@ Resources:
             Method: OPTIONS
             Auth: { Authorizer: NONE }
       Policies:
+        # 移行が済むまでは、元のテーブルの問い合わせも読む（inquiries.js）
         - DynamoDBCrudPolicy:
             TableName: !Ref KakeiboTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InquiryTable
 
   FeedbackFunction:
     Type: AWS::Serverless::Function
@@ -465,7 +539,7 @@ Resources:
             Auth: { Authorizer: NONE }
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: !Ref KakeiboTable
+            TableName: !Ref FeedbackTable
 
   SettingsFunction:
     Type: AWS::Serverless::Function
@@ -670,6 +744,11 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref KakeiboTable
+        # 退会時に、問い合わせを sub を外して残し、退会理由を記録する
+        - DynamoDBCrudPolicy:
+            TableName: !Ref InquiryTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DeleteReasonTable
         - Statement:
             - Effect: Allow
               Action: cognito-idp:AdminDeleteUser
