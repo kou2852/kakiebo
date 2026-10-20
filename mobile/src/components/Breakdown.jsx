@@ -5,7 +5,8 @@
 // 帯は縦の場所を取らないので、シートの中など狭いところで使う。
 import { Text, View } from 'react-native';
 import { useTheme, PIE_COLORS } from '../theme';
-import { fa } from '../utils/format';
+import { fa as faRaw } from '../utils/format';
+import { MASK } from '../store/hideAmounts';
 import PieChart from './PieChart';
 import { Empty } from './ui';
 
@@ -14,8 +15,10 @@ import { Empty } from './ui';
  * @param max   一覧に出す件数。超えた分は「その他」にまとめる
  * @param pie   true なら円グラフ、false なら積み上げ帯
  */
-export default function Breakdown({ items, max = 6, pie = false, centerSub, emptyText = 'データがありません' }) {
+// hide: 金額を伏せ字にする（ホームの「金額を隠す」。割合は出したまま）
+export default function Breakdown({ items, max = 6, pie = false, centerSub, emptyText = 'データがありません', hide = false }) {
   const t = useTheme();
+  const fa = hide ? () => MASK : faRaw;
 
   const rows = [...(items || [])].filter((x) => x.value > 0).sort((a, b) => b.value - a.value);
   const total = rows.reduce((s, x) => s + x.value, 0);

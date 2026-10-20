@@ -6,7 +6,7 @@
 // 保存はユーザーが押す。URLスキームは Web ページやメールのリンクからも叩けるため、
 // 自動保存にすると誤タップで帳簿が汚れる。事前入力までに留めて、確定は必ず人が行う。
 import { useMemo } from 'react';
-import { Alert, Text } from 'react-native';
+import { Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useData } from '../src/store/DataProvider';
 import { useTheme } from '../src/theme';
@@ -55,11 +55,12 @@ export default function Add() {
     };
   }, [params, accounts, preset, amountParam]);
 
-  const done = (j) => {
-    entryAd.counted();
-    Alert.alert('記帳しました', `${j.date}  ${fa(j.lines[0].amount)}`, [
-      { text: 'OK', onPress: () => { router.replace('/'); entryAd.closed(); } },
-    ]);
+  const done = async (j) => {
+    await entryAd.finish({
+      title: '記帳しました',
+      message: `${j.date}  ${fa(j.lines[0].amount)}`,
+      onClose: () => router.replace('/'),
+    });
   };
 
   // text= が来ていれば一行入力に流す。ショートカットの「テキストを尋ねる」と相性がよい。

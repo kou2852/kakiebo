@@ -25,7 +25,8 @@ export const DEFAULT_SETTINGS = {
 };
 
 // 通知の行き先（タップしたときに開く画面）
-export const ROUTES = { reminder: '/journal', card: '/credit', weekly: '/', monthly: '/reports', recurring: '/manage/recurring' };
+// 毎月のまとめは「先月」の話なので、レポートを先月で開く（2026-10-15。それまでは今月で開いていた）
+export const ROUTES = { reminder: '/journal', card: '/credit', weekly: '/', monthly: '/reports?period=lastm', recurring: '/manage/recurring' };
 
 const REMINDER_DAYS = 14;   // 記帳漏れは先の14日分を持つ（開かない日が続いても届くように）
 const LEAD_DAYS = 3;        // 引き落とし・予定日の3日前

@@ -10,19 +10,22 @@ import { useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { useData } from '../store/DataProvider';
 import { useTheme } from '../theme';
-import { Button, Card, ChipRow, Field, Input } from './ui';
+import { Button, Card, Field, Input } from './ui';
 import DateField from './DateField';
 import AccountPicker from './AccountPicker';
 import { fa, fas, today, uid } from '../utils/format';
 import { selectable } from '../utils/hiddenAccounts';
-import { carryLine } from '../utils/journalTags';
+import {
+  carryLine, presetLineSplits, ratioRows, rowsToSplits, splitsToRows, tagRowsProblem,
+} from '../utils/journalTags';
+import TagSplitPicker from './TagSplitPicker';
 
-const newLine = (side) => ({ key: uid(), accountId: '', side, amount: '' });
+const newLine = (side) => ({ key: uid(), accountId: '', side, amount: '', tagRows: [] });
 
 /** 既存の仕訳を編集用の形へ。行の並びは借方→貸方に揃える。 */
 export function toSplitForm(journal) {
-  // orig は保存時に、入力欄に無い項目（複数タグの配分など）を引き継ぐための元の行
-  const conv = (l) => ({ key: uid(), accountId: l.accountId, side: l.side, amount: String(l.amount), tagId: l.tagId || '', orig: l });
+  // orig は保存時に、入力欄に無い項目（税率など）を引き継ぐための元の行
+  const conv = (l) => ({ key: uid(), accountId: l.accountId, side: l.side, amount: String(l.amount), tagRows: splitsToRows(l), orig: l });
   return {
     date: journal.date,
     desc: journal.desc || '',
@@ -40,10 +43,17 @@ export const isMultiPreset = (p) =>
 /** プリセットから記帳の初期値を作る。金額が0（都度入力）の行は空欄のまま出し、ここで入れてもらう。
  * 貸借が合っているかは記帳の保存時に確かめる（プリセットの保存時には見ない）。 */
 export function presetToSplitForm(preset, date) {
-  const conv = (l) => ({
-    key: uid(), accountId: l.accountId, side: l.side,
-    amount: Number(l.amount) > 0 ? String(l.amount) : '', tagId: l.tagId || '', orig: l,
-  });
+  const conv = (l) => {
+    // プリセットのタグ。金額を決めていない行の複数タグは比率なので、入れた金額に合わせて分ける
+    const ps = presetLineSplits(l);
+    const fixed = Number(l.amount) > 0;
+    const tags = ps.length >= 2 && !fixed ? { tagRows: [], tagRatio: ps }
+      : { tagRows: ps.length === 1 ? [{ tagId: ps[0].tagId, amount: '' }] : ps.map((x) => ({ tagId: x.tagId, amount: String(x.amount) })) };
+    return {
+      key: uid(), accountId: l.accountId, side: l.side,
+      amount: fixed ? String(l.amount) : '', ...tags, orig: l,
+    };
+  };
   return {
     date: date || today(),
     desc: preset.desc || '',
@@ -54,7 +64,7 @@ export function presetToSplitForm(preset, date) {
   };
 }
 
-export default function SplitForm({ initial, date, onSubmit, submitLabel = '保存', onDelete }) {
+export default function SplitForm({ initial, date, onSubmit, submitLabel = '保存', onDelete, dateLabel = '日付', descLabel = '摘要', canSubmit = true }) {
   const t = useTheme();
   const { accounts, tags } = useData();
 
@@ -69,8 +79,12 @@ export default function SplitForm({ initial, date, onSubmit, submitLabel = '保�
   const crTotal = f.lines.filter((l) => l.side === 'cr').reduce((s, l) => s + num(l.amount), 0);
   const diff = drTotal - crTotal;
 
+  // 行のタグ欄。金額を決めていないプリセットの複数タグは比率で持ち、入れた金額に合わせて分ける
+  const rowsOf = (l) => (l.tagRatio ? ratioRows(l.tagRatio, num(l.amount)) : (l.tagRows || []));
+
   const filled = f.lines.filter((l) => l.accountId && num(l.amount) > 0);
-  const ok = diff === 0 && drTotal > 0
+  const tagOk = filled.every((l) => !tagRowsProblem(rowsOf(l)));
+  const ok = diff === 0 && drTotal > 0 && tagOk
     && filled.some((l) => l.side === 'dr') && filled.some((l) => l.side === 'cr')
     && /^\d{4}-\d{2}-\d{2}$/.test(f.date);
 
@@ -89,8 +103,10 @@ export default function SplitForm({ initial, date, onSubmit, submitLabel = '保�
     lines: filled.map((l) => {
       const out = carryLine(l.orig, { accountId: l.accountId, side: l.side, amount: num(l.amount) });
       if (out.taxRate === undefined) out.taxRate = 0;
-      // 配分の無い行はタグ欄が正。外したら外す。
-      if (!out.splits?.length) { if (l.tagId) out.tagId = l.tagId; else delete out.tagId; }
+      // タグはウェブと同じ splits の形で持つ。⚠ 行の tagId には入れない（タグごとの残りに入らない）
+      delete out.tagId;
+      const splits = rowsToSplits(rowsOf(l), num(l.amount));
+      if (splits.length) out.splits = splits; else delete out.splits;
       return out;
     }),
   });
@@ -122,13 +138,9 @@ export default function SplitForm({ initial, date, onSubmit, submitLabel = '保�
                 </TouchableOpacity>
               ) : null}
             </View>
-            {l.orig?.splits?.length ? (
-              <Text style={{ color: t.tx3, fontSize: 13 }}>複数のタグ（ウェブ版で編集できます。保存しても消えません）</Text>
-            ) : tags.length ? (
-              <ChipRow
-                options={[{ value: '', label: 'タグなし' }, ...tags.map((g) => ({ value: g.id, label: g.name }))]}
-                value={l.tagId || ''} onChange={(v) => setLine(l.key, { tagId: v })}
-              />
+            {tags.length ? (
+              <TagSplitPicker tags={tags} rows={rowsOf(l)} amount={num(l.amount)}
+                onChange={(v) => setLine(l.key, { tagRows: v, tagRatio: null })} />
             ) : null}
           </View>
         ))}
@@ -140,10 +152,10 @@ export default function SplitForm({ initial, date, onSubmit, submitLabel = '保�
   return (
     <>
       <Card>
-        <Field label="日付">
+        <Field label={dateLabel}>
           <DateField value={f.date} onChangeText={(v) => setF((p) => ({ ...p, date: v }))} />
         </Field>
-        <Field label="摘要">
+        <Field label={descLabel}>
           <Input value={f.desc} onChangeText={(v) => setF((p) => ({ ...p, desc: v }))} placeholder="給与 など" />
         </Field>
       </Card>
@@ -173,7 +185,7 @@ export default function SplitForm({ initial, date, onSubmit, submitLabel = '保�
         ) : null}
       </Card>
 
-      <Button label={submitLabel} onPress={submit} disabled={!ok} />
+      <Button label={submitLabel} onPress={submit} disabled={!ok || !canSubmit} />
       {onDelete ? <Button label="この仕訳を削除" variant="ghost" onPress={onDelete} /> : null}
     </>
   );

@@ -5,13 +5,15 @@
 // 帳簿に残り続けるので、締めサイクルごとに利用額・引落予定日・引落済みかを1画面で追えないと
 // 未払残高が実態と合っているか判断できない。レポート内の一覧では足りず、専用画面が要る。
 import { useMemo, useState } from 'react';
-import { Alert, Dimensions, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, Dimensions, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useData } from '../store/DataProvider';
 import { useTheme, PIE_COLORS } from '../theme';
 import { Button, Card, Empty, sep } from '../components/ui';
+import { useTourTarget } from '../store/TourProvider';
 import PeriodBar, { usePeriod } from '../components/PeriodBar';
 import Breakdown from '../components/Breakdown';
+import PageDots from '../components/PageDots';
 import { fa, uid } from '../utils/format';
 import { accountBalance, calcBalances } from '../utils/bookkeeping';
 import { creditCardCycles, creditUsageByCategory, isCreditCard, todayYmd } from '../utils/creditCard';
@@ -32,13 +34,17 @@ export default function CreditBody() {
   // 既定は「今年」。カードは締めと引落が月をまたぐので、今月だけ見ても全体が掴めない。
   const period = usePeriod('year');
   const [open, setOpen] = useState({}); // サイクルの明細を開いているか
-  const [page, setPage] = useState(0);   // 横スライドで見ているカード
+  // 横スライドの位置。ページの点の形と色をこれに合わせて動かす（PageDots）
+  const [scrollX] = useState(() => new Animated.Value(0));
   // Screen の左右パディング(13)を引いた幅を1ページとし、ページ間に余白を挟む。
   // 余白が無いと隣のカードと地続きに見え、どこまでが同じカードか分からない。
   const GAP = 14;
   const pageW = Dimensions.get('window').width - 26;
 
   const cards = useMemo(() => accounts.filter(isCreditCard), [accounts]);
+  // ツアーは1枚目のカード本体（締め・引落の条件と未払残高）を指す。画面全体だと画面より高くなり指せない
+  const cardRef = useTourTarget('credit-card');
+  const settleRef = useTourTarget('credit-settle');
   const balances = useMemo(() => calcBalances(journals, accounts), [journals, accounts]);
   const pending = useMemo(() => pendingCC(accounts, journals), [accounts, journals]);
   const today = todayYmd();
@@ -60,13 +66,16 @@ export default function CreditBody() {
 
   if (!cards.length) {
     return (
+      // カードが無いときも、ツアーの指す先（credit-card）にする。無いと「カードを押す」の段が進まず、画面が止まる（実機）
+      <View ref={cardRef} collapsable={false}>
       <Card title="クレジットカードが未設定です">
           <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 22 }}>
-            負債の勘定科目に「締め日・引落日・引落口座」を設定すると、利用と引き落としのサイクルが
+            口座・カードの画面でカードを押し、「締め日・引落日・引落口座」を入れると、利用と引き落としのサイクルが
             ここにまとまります。
           </Text>
-        <Button label="勘定科目へ" onPress={() => router.push('/manage/accounts')} />
+        <Button label="口座・カードへ" onPress={() => router.push('/manage/wallets')} />
       </Card>
+      </View>
     );
   }
 
@@ -74,27 +83,19 @@ export default function CreditBody() {
     <>
       <PeriodBar period={period} />
 
-      {cards.length > 1 ? (
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, paddingBottom: 2 }}>
-          {cards.map((c, i) => (
-            <View key={c.id} style={{
-              width: i === page ? 18 : 6, height: 6, borderRadius: 3,
-              backgroundColor: i === page ? t.ac : t.bd2,
-            }} />
-          ))}
-        </View>
-      ) : null}
+      <PageDots count={cards.length} x={scrollX} step={pageW + GAP} style={{ paddingBottom: 2 }} />
 
-      <ScrollView
+      <Animated.ScrollView
         horizontal pagingEnabled showsHorizontalScrollIndicator={false}
         // 1枚ずつ止める。カードごとに情報がまとまっているので、途中で切れると読めない。
-        onMomentumScrollEnd={(e) => setPage(Math.round(e.nativeEvent.contentOffset.x / (pageW + GAP)))}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: false })}
+        scrollEventThrottle={16}
         style={{ marginHorizontal: -13 }}
         contentContainerStyle={{ paddingHorizontal: 13 }}
         snapToInterval={pageW + GAP}
         decelerationRate="fast"
       >
-      {cards.map((c) => {
+      {cards.map((c, ci) => {
         const all = creditCardCycles(c, journals, accounts);
         // 期間の絞り込みは「引落日」で行う。利用日で切ると、締め済みで引落待ちの分が
         // 期間外に消えてしまい、次にいくら出ていくのか分からなくなる。
@@ -117,7 +118,7 @@ export default function CreditBody() {
         return (
           <View key={c.id} style={{ width: pageW, gap: 9, marginRight: GAP }}>
             {/* カード本体。締め・引落の条件と未払残高を1枚に収める */}
-            <View style={{ borderRadius: 16, padding: 15, backgroundColor: '#26314e' }}>
+            <View ref={ci === 0 ? cardRef : undefined} collapsable={false} style={{ borderRadius: 16, padding: 15, backgroundColor: '#26314e' }}>
               <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }} numberOfLines={1}>{c.name}</Text>
               <Text style={{ color: 'rgba(255,255,255,.65)', fontSize: 13, marginTop: 3 }}>
                 {c.ccClose}日締 → {(c.ccDelay || 1) > 1 ? '翌々月' : '翌月'}{c.ccDay}日引落
@@ -147,12 +148,14 @@ export default function CreditBody() {
             </Card>
 
             {cardPending.length ? (
+              <View ref={ci === 0 ? settleRef : undefined} collapsable={false}>
               <Button
                 label={due.length
                   ? `引落日が来た ${due.length} 件を記帳`
                   : `引落前の ${cardPending.length} 件を先に記帳`}
                 onPress={() => settle(due.length ? due : cardPending, c.name)}
               />
+              </View>
             ) : null}
             {cardPending.length > due.length && due.length ? (
               <Button label={`引落前も含めて ${cardPending.length} 件を記帳`} variant="ghost"
@@ -227,7 +230,7 @@ export default function CreditBody() {
           </View>
         );
       })}
-      </ScrollView>
+      </Animated.ScrollView>
     </>
   );
 }

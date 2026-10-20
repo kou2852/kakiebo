@@ -163,12 +163,13 @@ export default function Scan() {
               tagId: '',
             }}
             submitLabel="記帳する"
-            onSubmit={(j) => {
+            onSubmit={async (j) => {
               save('journals', j);
-              entryAd.counted();
-              Alert.alert('記帳しました', `${j.date}  ${fa(j.lines[0].amount)}`, [
-                { text: 'OK', onPress: () => { router.back(); entryAd.closed(); } },
-              ]);
+              await entryAd.finish({
+                title: '記帳しました',
+                message: `${j.date}  ${fa(j.lines[0].amount)}`,
+                onClose: () => router.back(),
+              });
             }}
           />
         </>

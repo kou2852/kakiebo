@@ -12,6 +12,8 @@ import { readOnboardingIds } from './onboardingMark';
 import { clearDek, loadDek, saveDek } from '../crypto/dekStore';
 import { useAuth } from './AuthProvider';
 import { rollbackNextDate } from '../utils/autoGen';
+import { useListOrder } from './listOrder';
+import { applyOrder } from '../utils/listOrder';
 
 const Ctx = createContext(null);
 export const useData = () => useContext(Ctx);
@@ -24,6 +26,8 @@ export function DataProvider({ children }) {
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState(null); // { at, notes } | { error }
   const rev = useRef(0);
+  // 一覧の並び（端末ごと）。画面が受け取る tags・wallets・presets・rules・recurring は、この並びで返す
+  const order = useListOrder();
 
   const refreshPending = useCallback(async () => setPendingCount((await listPending()).length), []);
 
@@ -221,14 +225,22 @@ export function DataProvider({ children }) {
     forgetDek,
   }), [commit, commitAll, replaceAll, sync, rememberDek, forgetDek, dataset]);
 
-  const value = useMemo(() => ({
-    loading: dataset === null,
-    pendingCount, syncing, lastSync,
-    unlocked: !!dek,
-    dek, // 暗号化の管理画面が再ラップに使う。サーバーへは送らない。
-    ...(dataset || emptyDataset()),
-    ...api,
-  }), [dataset, pendingCount, syncing, lastSync, dek, api]);
+  const value = useMemo(() => {
+    const ds = dataset || emptyDataset();
+    return {
+      loading: dataset === null,
+      pendingCount, syncing, lastSync,
+      unlocked: !!dek,
+      dek, // 暗号化の管理画面が再ラップに使う。サーバーへは送らない。
+      ...ds,
+      tags: applyOrder(ds.tags, order.tags),
+      wallets: applyOrder(ds.wallets, order.wallets),
+      presets: applyOrder(ds.presets, order.presets),
+      rules: applyOrder(ds.rules, order.rules),
+      recurring: applyOrder(ds.recurring, order.recurring),
+      ...api,
+    };
+  }, [dataset, pendingCount, syncing, lastSync, dek, api, order]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

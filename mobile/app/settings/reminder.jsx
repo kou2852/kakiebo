@@ -93,7 +93,7 @@ export default function Notifications() {
           </>
         ) : null}
         {(s.cardBefore || s.cardDay) && !cards.length ? (
-          <Text style={note}>引き落としの設定があるカードがありません。「口座・カード」でカードを追加し、締め日・引落日・引落口座を入れてください。</Text>
+          <Text style={note}>引き落としの設定があるカードがありません。「口座・カード」でカードを押し（無ければ追加し）、締め日・引落日・引落口座を入れてください。</Text>
         ) : null}
         <Text style={note}>
           朝9時に「○○の引き落とし日（10/27）の3日前です。」のようにお知らせします。同じ日に引き落とされるカードが複数あれば、1通にまとめます。金額は書きません。

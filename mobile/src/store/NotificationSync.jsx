@@ -13,7 +13,7 @@ import { askPermissionOnce, onSettingsChange, syncNotifications } from '../notif
 
 const DEBOUNCE_MS = 1500;
 // 通知から開いてよい行き先。通知の中身（data）を信用して任意の画面へ飛ばさない。
-const ROUTES = new Set(['/', '/journal', '/credit', '/reports', '/manage/recurring']);
+const ROUTES = new Set(['/', '/journal', '/credit', '/reports', '/reports?period=lastm', '/manage/recurring']);
 
 export default function NotificationSync() {
   const router = useRouter();
@@ -36,7 +36,8 @@ export default function NotificationSync() {
   // 求めたかどうかは端末に残る（askPermissionOnce）ので、すでに求めた人には何も起きない。
   const path = usePathname();
   const onboarding = useOnboarding();
-  const ready = !loading && !!onboarding?.decided && !onboarding?.active;
+  // ホームのモーダル（HomeIntro）を出している間は待つ。閉じてから聞く（8-2）
+  const ready = !loading && !!onboarding?.decided && !onboarding?.active && !onboarding?.intro;
   const onDashboard = path === '/';
   useEffect(() => {
     if (!ready || !onDashboard) return undefined;

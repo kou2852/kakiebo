@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useData } from '../../src/store/DataProvider';
 import { Screen, Segmented } from '../../src/components/ui';
 import JournalForm from '../../src/components/JournalForm';
 import SplitForm, { presetToSplitForm } from '../../src/components/SplitForm';
 import { fa } from '../../src/utils/format';
-import { useTourTarget } from '../../src/store/TourProvider';
+import { useTour } from '../../src/store/TourProvider';
 import { useEntryAd } from '../../src/components/Interstitial';
 
 const MODES = [
@@ -15,13 +14,19 @@ const MODES = [
 ];
 
 export default function JournalEntry() {
-  const kindRef = useTourTarget('entry-kind');
   const { save } = useData();
   const entryAd = useEntryAd();
   const [mode, setModeRaw] = useState('simple');
   // 明細が複数あるプリセットを選んだときの、複合仕訳の初期値
   const [splitInitial, setSplitInitial] = useState(null);
   const setMode = (m) => { setSplitInitial(null); setModeRaw(m); };
+  // 記帳のツアーは簡易の画面（支出・収入・振替と費目・支払方法）を指す。複合仕訳を開いたままだと指す先が無い
+  const tourId = useTour()?.tourId;
+  const [seenTour, setSeenTour] = useState(tourId);
+  if (tourId !== seenTour) {
+    setSeenTour(tourId);
+    if (tourId === 'journal') setMode('simple');
+  }
   // 保存のたびにフォームを初期状態へ戻す（続けて入力できるように）
   const [seq, setSeq] = useState(0);
 
@@ -44,13 +49,12 @@ export default function JournalEntry() {
   // タブを離れたら日付の指定は捨てる（次に開いたときは今日から始める）
   useFocusEffect(useCallback(() => () => setPresetDate(''), []));
 
-  const done = (j) => {
+  const done = async (j) => {
     save('journals', j);
-    entryAd.counted();
     setSplitInitial(null);
     setSeq((n) => n + 1);
     const total = j.lines.filter((l) => l.side === 'dr').reduce((s, l) => s + l.amount, 0);
-    Alert.alert('保存しました', `${j.date}  ${fa(total)}`, [{ text: 'OK', onPress: entryAd.closed }]);
+    await entryAd.finish({ title: '保存しました', message: `${j.date}  ${fa(total)}` });
   };
 
   return (
@@ -58,9 +62,7 @@ export default function JournalEntry() {
       // 入力が縦に長いので、切替はスクロールしても上に残す。
       // 下まで入力してから形式を変えたくなったときに、戻る手間をなくす。
       stickyTop={(
-        <View ref={kindRef} collapsable={false}>
-          <Segmented options={MODES} value={mode} onChange={setMode} />
-        </View>
+        <Segmented options={MODES} value={mode} onChange={setMode} />
       )}
     >
       {mode === 'simple'

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Alert, SectionList, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { useMemo, useRef, useState } from 'react';
+import { Alert, ScrollView, SectionList, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, ChipRow, Field, Input, Screen, sep } from '../../src/components/ui';
@@ -8,11 +8,17 @@ import { EQUITY_ID } from '../../src/utils/accountCode';
 import { upsert } from '../../src/db/intents';
 import { lastClosingDate } from '../../src/utils/creditCard';
 import { accountBalance, calcBalances } from '../../src/utils/bookkeeping';
-import { nextCode } from '../../src/utils/accountCode';
+import { nextCode, nextInvestmentCode } from '../../src/utils/accountCode';
+import { isInvestmentAsset } from '../../src/utils/bookkeeping';
 import { useTourTarget } from '../../src/store/TourProvider';
 import { isHidden, selectable } from '../../src/utils/hiddenAccounts';
 import SwipeRow from '../../src/components/SwipeRow';
 import { useToast } from '../../src/store/ToastProvider';
+import { canHaveOpening, hasOpening, openingJournal } from '../../src/utils/openingBalance';
+import LaterOpening from '../../src/components/LaterOpening';
+import ReorderList, { ReorderToggle } from '../../src/components/ReorderList';
+import { setListOrder, useListOrder } from '../../src/store/listOrder';
+import { applyAccountOrder } from '../../src/utils/listOrder';
 
 const TYPE_OPTS = Object.entries(ACCOUNT_TYPES).map(([value, label]) => ({ value, label }));
 
@@ -24,6 +30,15 @@ export default function Accounts() {
   const { accounts, journals, commitAll, del } = useData();
   const [editing, setEditing] = useState(null); // { id?, name, code, type }
   const [showHidden, setShowHidden] = useState(false);
+  // 並び替え（区分の中で、端末ごとに保存する）
+  const [sorting, setSorting] = useState(false);
+  const order = useListOrder();
+  const sortScroll = useRef(null);
+  const sortOffset = useRef(0);
+  const [sortScroller] = useState(() => ({
+    scrollBy: (dy) => sortScroll.current?.scrollTo({ y: Math.max(0, sortOffset.current + dy), animated: false }),
+    getOffset: () => sortOffset.current,
+  }));
 
   const balances = useMemo(() => calcBalances(journals, accounts), [journals, accounts]);
   const used = useMemo(() => {
@@ -41,6 +56,9 @@ export default function Accounts() {
   // 新規のときだけ出す。既存科目の残高合わせは「実査・評価替え」で差額を記帳する
   // （こちらで足すと、開いて保存するたびに二重に積み上がる）。
   const showOpening = (e) => !e.id && (e.type === 'asset' || e.type === 'liability');
+  // 既にある科目でも、開始残高をまだ入れていなければ、あとから入れられる（2026-10-15 決定）。
+  // 入れたあとは欄が消える（開いて保存するたびに積み上がらない）。
+  const showLaterOpening = (e) => !!e.id && canHaveOpening(e) && !hasOpening(e.id, journals);
   // 口座（支払い手段）を作れるのも資産と負債だけ。wallets.jsx と同じ条件。
   const showWallet = (e) => !e.id && (e.type === 'asset' || e.type === 'liability');
 
@@ -112,6 +130,15 @@ export default function Accounts() {
       intents.push(upsert('journals', { id: uid(), date, desc: `開始残高（${name}）`, lines }));
     }
 
+    // あとから入れる開始残高（資産はいまの残高との差、負債は入れた額。utils/openingBalance.js）
+    if (showLaterOpening(editing)) {
+      const j = openingJournal({
+        account: { ...prev, id, name, type: editing.type, ...cc }, input: editing.opening,
+        journals, accounts, todayStr: today(), newId: uid,
+      });
+      if (j) intents.push(upsert('journals', j));
+    }
+
     // ⑨ 科目と一緒に口座も作る。口座画面から科目を作る導線は wallets.jsx 側にある。
     if (showWallet(editing) && editing.wallet) {
       intents.push(upsert('wallets', { id: uid(), name: (editing.walletName || '').trim() || name, accountId: id }));
@@ -141,6 +168,17 @@ export default function Accounts() {
             <ChipRow options={TYPE_OPTS} value={editing.type}
               onChange={(v) => setEditing((e) => ({ ...e, type: v, code: nextCode(accounts, v, e.id) }))} />
           </Field>
+          {editing.type === 'asset' ? (
+            <Field label="種類">
+              {/* 現在のコードと名前から決まる（コードを直接書き換えても追従する）。選ぶとコードを付け替える（2026-10-19） */}
+              <ChipRow
+                options={[{ value: 'cash', label: '預金・現金など' }, { value: 'invest', label: '投資（ホームの投資資産に出る）' }]}
+                value={isInvestmentAsset({ type: 'asset', code: editing.code, name: editing.name }) ? 'invest' : 'cash'}
+                onChange={(v) => setEditing((e) => ({
+                  ...e, code: v === 'invest' ? nextInvestmentCode(accounts) : nextCode(accounts, 'asset', e.id),
+                }))} />
+            </Field>
+          ) : null}
           <Field label="コード">
             <Input value={editing.code} onChangeText={(v) => setEditing((e) => ({ ...e, code: v }))} keyboardType="number-pad" />
           </Field>
@@ -160,6 +198,11 @@ export default function Accounts() {
                 onChangeText={(v) => setEditing((e) => ({ ...e, opening: v }))} placeholder="例: 100000" />
             </Field>
           </Card>
+        ) : null}
+
+        {showLaterOpening(editing) ? (
+          <LaterOpening type={editing.type} value={editing.opening}
+            onChange={(v) => setEditing((e) => ({ ...e, opening: v }))} />
         ) : null}
 
         {/* ⑨ 科目と一緒に口座（支払い手段）も作る */}
@@ -255,10 +298,50 @@ export default function Accounts() {
   // 科目が多いと、いまどの区分を見ているのかが分からなくなっていた。
   // 非表示の科目も最後の区分として持ち、見出しの行で開閉する（件数を出す。ウェブ版と同じ）。
   const sections = TYPE_OPTS
-    .map(({ value, label }) => ({ key: value, title: label, data: accounts.filter((a) => a.type === value && !isHidden(a)).sort(byCode) }))
+    .map(({ value, label }) => ({ key: value, title: label, data: applyAccountOrder(accounts.filter((a) => a.type === value && !isHidden(a)), order.accounts) }))
     .filter((sec) => sec.data.length);
   if (hiddenRows.length) {
     sections.push({ key: 'hidden', title: '非表示の科目（' + hiddenRows.length + '件）', isHiddenSection: true, data: showHidden ? hiddenRows : [] });
+  }
+
+  if (sorting) {
+    return (
+      <Screen scroll={false}>
+        <ReorderToggle active onPress={() => setSorting(false)} />
+        <ScrollView
+          ref={sortScroll}
+          onScroll={(e) => { sortOffset.current = e.nativeEvent.contentOffset.y; }}
+          scrollEventThrottle={16}
+          showsVerticalScrollIndicator={false}
+          style={{ flex: 1 }}
+        >
+          {sections.filter((sec) => !sec.isHiddenSection).map((sec) => (
+            <View key={sec.key} style={{ marginBottom: 12 }}>
+              <Text style={{ color: t.tx3, fontSize: 14, fontWeight: '700', letterSpacing: 0.3, paddingVertical: 9, paddingHorizontal: 3 }}>{sec.title}</Text>
+              <View style={{ borderRadius: 14, overflow: 'hidden', backgroundColor: t.bg1 }}>
+                <ReorderList
+                  items={sec.data}
+                  scroller={sortScroller}
+                  onChange={(ids) => setListOrder('accounts', ids)}
+                  renderRow={(a) => (
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 9, paddingHorizontal: 14 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: t.tx, fontSize: 15 }}>{a.name}</Text>
+                        <Text style={{ color: t.tx3, fontSize: 13 }}>{a.code}{a.sys ? ' · 既定' : ''}</Text>
+                      </View>
+                      <Text style={{ color: t.tx2, fontSize: 15 }}>{faBal(accountBalance(a.id, accounts, balances))}</Text>
+                    </View>
+                  )}
+                />
+              </View>
+            </View>
+          ))}
+          <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center', paddingVertical: 12 }}>
+            ≡ をドラッグして、区分の中で並び替えます。終わったら「完了」を押します（非表示の科目は動きません）
+          </Text>
+        </ScrollView>
+      </Screen>
+    );
   }
 
   return (
@@ -266,6 +349,7 @@ export default function Accounts() {
       <View ref={addRef} collapsable={false}>
         <Button label="勘定科目を追加" onPress={startNew} />
       </View>
+      <ReorderToggle active={false} onPress={() => setSorting(true)} count={accounts.length} />
       {/* ツアーは「科目は自由に足せる」と伝えるのが目的。一覧の領域をまるごと指す。 */}
       <View ref={listRef} collapsable={false} style={{ flex: 1 }}>
         <SectionList

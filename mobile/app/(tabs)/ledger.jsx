@@ -4,15 +4,23 @@ import { useRouter } from 'expo-router';
 import { useData } from '../../src/store/DataProvider';
 import { useSyncRefresh } from '../../src/store/useSyncRefresh';
 import { useTheme } from '../../src/theme';
-import { Button, Empty, Segmented, sep } from '../../src/components/ui';
+import { Button, Card, Empty, Segmented, sep } from '../../src/components/ui';
 import PeriodBar, { usePeriod } from '../../src/components/PeriodBar';
 import BottomSheet from '../../src/components/BottomSheet';
 import SwipeRow from '../../src/components/SwipeRow';
 import AccountPicker from '../../src/components/AccountPicker';
 import DeleteConfirm from '../../src/components/DeleteConfirm';
 import { getSkipDeleteConfirm, setSkipDeleteConfirm } from '../../src/store/deletePref';
-import { fa, ymd } from '../../src/utils/format';
+import { ACCOUNT_TYPES, fa, faBal, ymd } from '../../src/utils/format';
 import { filterByPeriod } from '../../src/utils/bookkeeping';
+import { buildLedger } from '../../src/utils/generalLedger';
+import { ADS_ENABLED, adsAvailable } from '../../src/components/Ad';
+import LazyAd from '../../src/components/LazyAd';
+import { ScrollWatch, createScrollWatch } from '../../src/store/scrollWatch';
+import { useAdFree } from '../../src/adFree';
+import { useOnboarding } from '../../src/store/OnboardingProvider';
+import { useTour } from '../../src/store/TourProvider';
+import { withAd } from '../../src/utils/listAd';
 
 const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 // 1マスの高さ。日付の丸（26）と収入・支出の2行が収まる最小限
@@ -144,6 +152,79 @@ function MonthGrid({ month, setMonth, journals, accounts, onSelect }) {
   );
 }
 
+function Stat({ label, value }) {
+  const t = useTheme();
+  return (
+    <View style={{ flex: 1, gap: 2 }}>
+      <Text style={{ color: t.tx3, fontSize: 12 }}>{label}</Text>
+      <Text style={{ color: t.tx, fontSize: 14, fontWeight: '700' }} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
+    </View>
+  );
+}
+
+/** 総勘定元帳。選んだ科目の明細を日付順に並べ、1件ごとの差引残高を出す。 */
+function GeneralLedger({ account, accounts, journals, period, onOpen, refresh }) {
+  const t = useTheme();
+  const book = useMemo(
+    () => buildLedger(journals, account, accounts, period.start, period.end),
+    [journals, account, accounts, period.start, period.end]
+  );
+  // 全期間は、繰越が0なら出さない（始まりの行が「繰越 ¥0」だと紛らわしい）
+  const showOpening = period.mode !== 'all' || book.opening !== 0;
+
+  return (
+    <FlatList
+      data={book.rows}
+      keyExtractor={(r) => r.id}
+      style={{ flex: 1 }}
+      refreshControl={refresh.control}
+      ListHeaderComponent={(
+        <View style={{ padding: 13, paddingTop: 4, gap: 10 }}>
+          <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+              <Text style={{ color: t.tx, fontSize: 17, fontWeight: '700', flexShrink: 1 }} numberOfLines={1}>{account.name}</Text>
+              <Text style={{ color: t.tx3, fontSize: 13 }}>{ACCOUNT_TYPES[account.type]}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Stat label="期首の残高" value={faBal(book.opening)} />
+              <Stat label="借方の合計" value={fa(book.dr)} />
+              <Stat label="貸方の合計" value={fa(book.cr)} />
+              <Stat label="期末の残高" value={faBal(book.closing)} />
+            </View>
+          </Card>
+          {showOpening ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 2 }}>
+              <Text style={{ color: t.tx2, fontSize: 14 }}>繰越（{period.mode === 'all' ? '開始時点' : `${period.start} より前`}）</Text>
+              <Text style={{ color: t.tx, fontSize: 14, fontWeight: '700' }}>残高 {faBal(book.opening)}</Text>
+            </View>
+          ) : null}
+        </View>
+      )}
+      ListEmptyComponent={<Empty text="この期間に、この科目の仕訳はありません" />}
+      renderItem={({ item: r }) => (
+        <TouchableOpacity
+          onPress={() => onOpen(r.id)}
+          style={[{ backgroundColor: t.bg1, paddingVertical: 11, paddingHorizontal: 15, flexDirection: 'row', gap: 12 }, sep(t)]}
+        >
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={{ color: t.tx3, fontSize: 13 }}>{r.date}</Text>
+            <Text style={{ color: t.tx, fontSize: 15 }} numberOfLines={1}>{r.desc || '(摘要なし)'}</Text>
+            <Text style={{ color: t.tx2, fontSize: 13 }} numberOfLines={1}>{r.counter.join('・')}</Text>
+          </View>
+          <View style={{ alignItems: 'flex-end', gap: 2, minWidth: 120 }}>
+            {r.dr ? <Text style={{ color: t.tx, fontSize: 14 }}><Text style={{ color: t.tx3, fontSize: 12 }}>借方 </Text>{fa(r.dr)}</Text> : null}
+            {r.cr ? <Text style={{ color: t.tx, fontSize: 14 }}><Text style={{ color: t.tx3, fontSize: 12 }}>貸方 </Text>{fa(r.cr)}</Text> : null}
+            <Text style={{ color: r.balance < 0 ? t.red : t.tx, fontSize: 15, fontWeight: '700' }}>
+              <Text style={{ color: t.tx3, fontSize: 12, fontWeight: '400' }}>残高 </Text>{faBal(r.balance)}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
+      ListFooterComponent={<Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center', padding: 16 }}>タップで内容を直せます</Text>}
+    />
+  );
+}
+
 export default function Ledger() {
   const t = useTheme();
   const router = useRouter();
@@ -157,6 +238,15 @@ export default function Ledger() {
   // 科目で絞り込む（ウェブの仕訳帳の「全科目」に当たる）。複数選べて、どれかを使っている仕訳を出す。
   // 2026-10-01 の問い合わせ（全科目の場所が分からない）から。非表示の科目も過去の仕訳を見るために選べる。
   const [accts, setAccts] = useState([]);
+  // 元帳で見る科目（1つ）。一覧で1つだけ絞り込んでいるときは、そこから引き継ぐ
+  const [glAcct, setGlAcct] = useState('');
+  // 一覧の4行目（先頭3件のあと）に広告を1つ挟む（2026-10-21 復活）。広告を消している日・まとめて選んでいる間・
+  // オンボーディングとツアーの間は挟まない（行を選ぶ・指す操作の邪魔をしない）
+  const { active: adFree } = useAdFree();
+  // 広告は、画面に近づいたら読み込む（LazyAd）。一覧のスクロールを知らせる
+  const [watch] = useState(() => createScrollWatch());
+  const onboarding = useOnboarding();
+  const tour = useTour();
 
   // 一括操作。選択モードに入るまでチェックは出さない（通常の閲覧を邪魔しないため）。
   const [picking, setPicking] = useState(false);
@@ -167,6 +257,7 @@ export default function Ledger() {
     return next;
   });
   const endPicking = () => { setPicking(false); setChecked(new Set()); };
+  const showAd = adsAvailable() && ADS_ENABLED && !adFree && !picking && !onboarding?.active && !tour?.tourId;
 
   const name = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a.name])), [accounts]);
   const rows = useMemo(
@@ -251,17 +342,26 @@ export default function Ledger() {
       {/* 切替と期間はスクロールしても上に残す */}
       <View style={{ padding: 13, paddingBottom: 9, gap: 9, backgroundColor: t.bg0 }}>
         <Segmented
-          options={[{ value: 'list', label: '一覧' }, { value: 'cal', label: 'カレンダー' }]}
+          options={[{ value: 'list', label: '一覧' }, { value: 'cal', label: 'カレンダー' }, { value: 'gl', label: '元帳' }]}
           // カレンダーから離れるとシートだけが宙に浮くので、切り替え時に閉じる
-          value={mode} onChange={(v) => { setMode(v); setDayOpen(null); }}
+          value={mode} onChange={(v) => {
+            setMode(v);
+            setDayOpen(null);
+            if (v === 'gl' && !glAcct && accts.length === 1) setGlAcct(accts[0]);
+          }}
         />
         {/* カレンダーは月の移動そのものが期間の指定なので、期間バーは出さない */}
-        {mode === 'list' ? <PeriodBar period={period} /> : null}
+        {mode === 'list' || mode === 'gl' ? <PeriodBar period={period} /> : null}
         {mode === 'list' ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <View style={{ flex: 1 }}>
               <AccountPicker label="科目" accounts={accounts} value={accts} onChange={setAccts} placeholder="全科目" multiple />
             </View>
+            {accts.length === 1 ? (
+              <TouchableOpacity onPress={() => { setGlAcct(accts[0]); setMode('gl'); }} style={{ paddingVertical: 8 }}>
+                <Text style={{ color: t.ac, fontSize: 15, fontWeight: '600' }}>元帳で見る</Text>
+              </TouchableOpacity>
+            ) : null}
             {accts.length ? (
               <TouchableOpacity onPress={() => setAccts([])} style={{ paddingVertical: 8 }}>
                 <Text style={{ color: t.ac, fontSize: 15, fontWeight: '600' }}>解除</Text>
@@ -269,9 +369,21 @@ export default function Ledger() {
             ) : null}
           </View>
         ) : null}
+        {mode === 'gl' ? (
+          <AccountPicker label="科目" accounts={accounts} value={glAcct} onChange={setGlAcct} placeholder="科目を選ぶ" />
+        ) : null}
       </View>
 
-      {mode === 'cal' ? (
+      {mode === 'gl' ? (
+        accounts.find((a) => a.id === glAcct) ? (
+          <GeneralLedger account={accounts.find((a) => a.id === glAcct)} accounts={accounts} journals={journals}
+            period={period} refresh={refresh} onOpen={(id) => router.push(`/journal/${id}`)} />
+        ) : (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} refreshControl={refresh.control}>
+            <Empty text="科目を選ぶと、その科目の明細と残高が日付順に出ます" />
+          </ScrollView>
+        )
+      ) : mode === 'cal' ? (
         <MonthGrid month={month} setMonth={setMonth} journals={journals} accounts={accounts}
           onSelect={setDayOpen} />
       ) : rows.length === 0 ? (
@@ -286,12 +398,15 @@ export default function Ledger() {
           <Empty text={accts.length ? 'この期間に、選んだ科目の仕訳はありません' : 'この期間の仕訳はありません'} />
         </ScrollView>
       ) : (
+        <ScrollWatch.Provider value={watch}>
         <FlatList
-          data={rows}
+          data={withAd(rows, showAd)}
           keyExtractor={(j) => j.id}
           style={{ flex: 1 }}
           refreshControl={refresh.control}
-          renderItem={({ item }) => renderRow(item, false)}
+          onScroll={watch.emit}
+          scrollEventThrottle={32}
+          renderItem={({ item }) => (item.__ad ? <LazyAd placement="ledgerRow" /> : renderRow(item, false))}
           ListFooterComponent={
             rows.length ? (
               <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center', padding: 16 }}>
@@ -300,6 +415,7 @@ export default function Ledger() {
             ) : null
           }
         />
+        </ScrollWatch.Provider>
       )}
 
       {/* 一括操作は下端に固定する。件数が多いと、末尾まで送らないと押せなくなるため */}

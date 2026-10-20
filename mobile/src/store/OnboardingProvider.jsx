@@ -14,8 +14,13 @@ import { useData } from './DataProvider';
 import { buildPlan, hasUserData, idsFromIntents, summarize } from './onboardingPlan';
 import { CREATED_IDS_KEY, rememberOnboardingIds } from './onboardingMark';
 import { today, uid } from '../utils/format';
+import { trackStage } from '../track';
 
 const SEEN_KEY = 'onboarding.seen';
+// ホームのモーダル（使い方の大枠。src/components/HomeIntro.jsx）をまだ見ていない印。
+// オンボーディングを終えた・飛ばしたときに付け、モーダルを閉じたら消す。今の利用者には付かないので出ない（8-2）。
+// 端末に残すのは、オンボーディングの直後にアプリを閉じた人にも、次に開いたとき出すため。
+const INTRO_KEY = 'homeIntro.pending';
 
 /**
  * 「もう見た」の記録を消す。端末の帳簿を消すときに一緒に呼ぶこと。
@@ -23,7 +28,7 @@ const SEEN_KEY = 'onboarding.seen';
  * ⚠ 帳簿だけ消して記録を残すと、空の端末なのにオンボーディングが出ず、
  *   いきなり空のホームになる（設定の「端末のデータを消去」で実際に起きた）。
  */
-export const forgetOnboarding = () => AsyncStorage.multiRemove([SEEN_KEY, CREATED_IDS_KEY]).catch(() => {});
+export const forgetOnboarding = () => AsyncStorage.multiRemove([SEEN_KEY, CREATED_IDS_KEY, INTRO_KEY]).catch(() => {});
 
 /** 画面の並び。最後の 'notify'（通知のお知らせと許可）で「次へ」を押すと保存して終わる。 */
 export const STEPS = ['welcome', 'steps', 'pick', 'balance', 'monthly', 'done', 'notify'];
@@ -57,6 +62,8 @@ export function OnboardingProvider({ children }) {
   const [saving, setSaving] = useState(false);
   // 出すかどうかの判定が済んだか。通知の許可を、オンボーディングを飛ばした人にホームで求めるのに使う。
   const [decidedState, setDecidedState] = useState(false);
+  // ホームのモーダルを出すか。出している間は、通知の許可と更新の案内を待たせる（8-2）
+  const [intro, setIntro] = useState(false);
 
   const dataset = useMemo(
     () => ({ accounts, journals, tags, allocs, wallets, presets, budgets, recurring, rules }),
@@ -74,7 +81,13 @@ export function OnboardingProvider({ children }) {
     decided.current = true;
     (async () => {
       let seen = null;
-      try { seen = await AsyncStorage.getItem(SEEN_KEY); } catch { seen = null; }      if (seen) { setDecidedState(true); return; }
+      try { seen = await AsyncStorage.getItem(SEEN_KEY); } catch { seen = null; }      if (seen) {
+        let pending = null;
+        try { pending = await AsyncStorage.getItem(INTRO_KEY); } catch { pending = null; }
+        setIntro(!!pending);
+        setDecidedState(true);
+        return;
+      }
       // 既に帳簿がある（＝入れ直し＋ログインで取り込んだ等）。聞き直さない。
       if (hasUserData(dataset)) { await markSeen(); setDecidedState(true); return; }
       setActive(true);
@@ -97,11 +110,27 @@ export function OnboardingProvider({ children }) {
   const next = useCallback(() => setIndex((v) => Math.min(STEPS.length - 1, v + 1)), []);
   const back = useCallback(() => setIndex((v) => Math.max(0, v - 1)), []);
 
+  // ⚠ 印は setActive(false) より前に付ける。後だと、モーダルが出る前の一瞬に通知の許可が出うる
+  const markIntro = useCallback(async () => {
+    try { await AsyncStorage.setItem(INTRO_KEY, '1'); } catch { /* 保存できなくても、この起動では出す */ }
+    setIntro(true);
+  }, []);
+
+  /** ホームのモーダルを閉じた。もう出さない。 */
+  const closeIntro = useCallback(() => {
+    setIntro(false);
+    AsyncStorage.removeItem(INTRO_KEY).catch(() => {});
+  }, []);
+
+  /** 使い方の画面から、もう一度見る。印は付けない（閉じたらまた出なくなる） */
+  const openIntro = useCallback(() => setIntro(true), []);
+
   /** 「あとで」。何も書かずに閉じる。端末は空のままなので、後のログインは安全な経路に入る。 */
   const skip = useCallback(async () => {
     await markSeen();
+    await markIntro();
     setActive(false);
-  }, [markSeen]);
+  }, [markSeen, markIntro]);
 
   /**
    * 「はじめる」。ここが唯一の書き込み。
@@ -120,7 +149,9 @@ export function OnboardingProvider({ children }) {
         await commitAll(intents);
       }
       await markSeen();
+      await markIntro();
       setActive(false);
+      trackStage('m_onboard_done'); // 新しく入れた端末だけ。オンラインのときだけ数える（src/track.js）
     } catch (e) {
       // 失敗しても印は付けない。次の起動でもう一度出す。
       console.warn('オンボーディングの保存に失敗:', e?.message || String(e));
@@ -128,15 +159,15 @@ export function OnboardingProvider({ children }) {
     } finally {
       setSaving(false);
     }
-  }, [saving, draft, accounts, commitAll, markSeen]);
+  }, [saving, draft, accounts, commitAll, markSeen, markIntro]);
 
   const summary = useMemo(() => summarize(draft), [draft]);
 
   const value = useMemo(() => ({
     active, decided: decidedState, saving, draft, setDraft, summary,
     step: STEPS[index], index, total: STEPS.length,
-    next, back, skip, finish, checkAfterLogin,
-  }), [active, decidedState, saving, draft, summary, index, next, back, skip, finish, checkAfterLogin]);
+    next, back, skip, finish, checkAfterLogin, intro, closeIntro, openIntro,
+  }), [active, decidedState, saving, draft, summary, index, next, back, skip, finish, checkAfterLogin, intro, closeIntro, openIntro]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

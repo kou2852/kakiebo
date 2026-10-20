@@ -48,6 +48,28 @@ export function effectiveNextDate(r, journals, todayStr = todayYmd()) {
   return r.nextDate;
 }
 
+/**
+ * 次の予定日を記帳せずに飛ばす（2026-10-21）。飛ばした回の次の日付を nextDate にする。
+ * 保存先（サーバー）は定期取引の項目を決まった形でしか持たないので、「飛ばした」印は持たず nextDate だけで表す。
+ * 保存は呼び出し側（save('recurring', r)）。
+ * @returns {{ skipped: string, next: string, r: object }} 飛ばした日・新しい次回予定日・更新後の定期取引
+ */
+export function skipNext(r, journals, todayStr = todayYmd()) {
+  const skipped = effectiveNextDate(r, journals, todayStr);
+  const next = advanceDate(skipped, r.frequency);
+  return { skipped, next, r: { ...r, nextDate: next } };
+}
+
+/**
+ * 期日前に先行して記帳できる次の予定日。まだ追いついていない（期日が来た未記帳がある）ときは null
+ * ＝そちらは「期日が来ています」で記帳する。返すのは先行して記帳する回の日付と、その次の予定日。
+ */
+export function nextAhead(r, journals, todayStr = todayYmd()) {
+  const date = effectiveNextDate(r, journals, todayStr);
+  if (!date || date <= todayStr) return null;
+  return { date, after: advanceDate(date, r.frequency) };
+}
+
 /** nextDate<=today で未記帳の定期取引（各 r の生成すべき日付配列） */
 export function dueRecurring(recurring, journals, todayStr = todayYmd()) {
   return (recurring || []).map((r) => {
@@ -127,7 +149,9 @@ export async function generateRecurring({ recurring, journals = [], addJournal, 
       if (!isRecorded(r, next, journals)) {
         const lines = r.lines.map((l) => {
           const ln = { accountId: l.accountId, side: l.side, amount: l.amount, taxRate: 0 };
-          if (l.tagId) ln.splits = [{ tagId: l.tagId, amount: l.amount }];
+          // 行に配分（splits）があればそれを、行の tagId だけなら全額に1つのタグとして付ける
+          if (l.splits?.length) ln.splits = l.splits.map((x) => ({ tagId: x.tagId, amount: x.amount }));
+          else if (l.tagId) ln.splits = [{ tagId: l.tagId, amount: l.amount }];
           return ln;
         });
         await addJournal({ date: next, desc: r.desc || r.name, lines });

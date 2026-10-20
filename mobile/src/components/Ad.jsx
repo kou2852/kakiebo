@@ -11,7 +11,7 @@
 // アプリID（app.json）とユニットID（下記）はどちらも本番のものが入っている。
 // テスト広告に切り替わるのは開発中（__DEV__）と、クローズドテスト中の Android だけ（USE_TEST_ADS）。
 import { useEffect, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
 // ネイティブモジュールが無い環境（Expo Go・広告を含まないビルド）では読み込みに失敗する。
 // アプリ全体を落とさず、広告だけ出さない形で切り離す。
 let Ads = null;
@@ -59,6 +59,9 @@ export const PLACEMENTS = {
   homeBottom: { unit: 'ca-app-pub-1494837719359912/9747424628', androidUnit: 'ca-app-pub-1494837719359912/2036236391', size: 'MEDIUM_RECTANGLE', test: 'BANNER' },
   // レポートの一番下（中サイズの四角）。4つのタブのどれを見ていても同じ位置に出る
   reportsBottom: { unit: 'ca-app-pub-1494837719359912/3790934097', androidUnit: 'ca-app-pub-1494837719359912/9723154728', size: 'MEDIUM_RECTANGLE', test: 'BANNER' },
+  // 仕訳帳の一覧の4行目（先頭3件のあと。2026-10-21 復活）。帯のバナー（320×50）。
+  // この枠専用のユニット（AdMob の ledgerRow_ios / ledgerRow_android。2026-10-21 作成。作成直後は配信まで1時間ほどかかる）
+  ledgerRow: { unit: 'ca-app-pub-1494837719359912/6719018178', androidUnit: 'ca-app-pub-1494837719359912/1330960120', size: 'BANNER', test: 'BANNER' },
 };
 
 // ティア別の表示可否。Web 版 config/tiers.js の AD_CONFIG と同じ考え方。
@@ -89,8 +92,15 @@ export default function AnchoredAd({ tier = 'free', placement = 'anchored' }) {
   const { BannerAd, BannerAdSize } = Ads;
   const p = PLACEMENTS[placement];
 
+  // 一覧に挟む帯。仕訳の行（白）と取り違えないよう、地の色に敷いて「広告」と添える（AdMob は広告と分かる表示を求める）。
+  // 上下に余白を取り、隣の行のスライド操作や記帳の行を誤って押さないようにする
+  const inline = placement === 'ledgerRow';
+
   return (
-    <View style={{
+    <View style={inline ? {
+      backgroundColor: t.bg0, alignItems: 'center', gap: 4, paddingTop: 10, paddingBottom: 12,
+      borderBottomWidth: 1, borderBottomColor: t.bd,
+    } : {
       // ホームの一番下はカードにせず、区切り線だけ引いて地の上に置く。
       // 白い箱に入れると帳簿のカードと同じ見た目になり、アプリの一部と紛らわしい。
       backgroundColor: placement === 'anchored' ? t.bg1 : 'transparent',
@@ -105,6 +115,7 @@ export default function AnchoredAd({ tier = 'free', placement = 'anchored' }) {
       paddingTop: placement === 'anchored' ? 0 : 20,
       marginBottom: placement === 'anchored' ? 0 : 12,
     }}>
+      {inline ? <Text style={{ color: t.tx3, fontSize: 11 }}>広告</Text> : null}
       <BannerAd
         // 取り直すたびに新しい要求として出し直す
         key={attempt}

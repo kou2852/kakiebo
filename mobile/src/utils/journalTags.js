@@ -76,3 +76,72 @@ export function carryLine(prev, next) {
   }
   return out;
 }
+
+/**
+ * 定期取引の行に、タグ配分を載せる（2026-10-21）。
+ * 1つのタグを行の全額に付けるだけなら、ウェブ版の定期取引と同じ行の tagId で持つ
+ * （ウェブの編集画面は splits を読めず、保存で落とすため。記帳のとき splits に直して付ける）。
+ * 一部だけ・複数のタグは splits で持つ。どちらでも splitsToRows が読める。
+ * @param {object} out 行（書き換えて返す）
+ */
+export function storeLineTags(out, splits, amount) {
+  delete out.tagId;
+  delete out.splits;
+  if (!splits?.length) return out;
+  if (splits.length === 1 && splits[0].amount === amount) out.tagId = splits[0].tagId;
+  else out.splits = splits;
+  return out;
+}
+
+// ── 記帳画面のタグ欄 ─────────────────────────────────────
+//
+// タグ欄は「行」の並び: [{ tagId, amount }]。amount は入力中の文字列。
+//   ・1つだけで金額が空 … 行の全額に付ける（いちばん多い使い方。金額を入れさせない）
+//   ・金額を入れたタグ … その金額だけ付ける。1つだけでも入れられる（一部だけタグを付ける）
+//   ・2つ以上 … タグごとに金額を入れる
+//   ・タグの金額の合計は、行の金額と合わせなくてよい（超えてもよい。整合性は確かめない・2026-10-20）
+// 保存するときは、ウェブと同じ splits の形にする。
+// ⚠ 行の tagId に入れないこと。タグごとの残り（bookkeeping.js の computeTagBalances）は
+//   splits しか読まないので、tagId に入れたタグは配分に入らない（2026-10-15 に見つけた不具合）。
+
+const yenOf = (v) => Number(String(v ?? '').replace(/[^0-9]/g, '')) || 0;
+
+/** タグ欄の行を、保存する splits にする。 */
+export function rowsToSplits(rows, amount) {
+  const list = (rows || []).filter((r) => r.tagId);
+  if (!list.length || !(amount > 0)) return [];
+  if (list.length === 1 && String(list[0].amount ?? '') === '') return [{ tagId: list[0].tagId, amount }];
+  return list.map((r) => ({ tagId: r.tagId, amount: yenOf(r.amount) })).filter((s) => s.amount > 0);
+}
+
+/** 保存済みの行から、タグ欄の行を作る。splits と、古い形（行の tagId）の両方を読む。 */
+export function splitsToRows(line) {
+  const sp = (line?.splits || []).filter((s) => s.tagId && s.amount > 0);
+  if (sp.length) {
+    // 1つで全額なら、金額を出さない形に戻す（入力欄を増やさない）
+    if (sp.length === 1 && sp[0].amount === Number(line.amount)) return [{ tagId: sp[0].tagId, amount: '' }];
+    return sp.map((s) => ({ tagId: s.tagId, amount: String(s.amount) }));
+  }
+  return line?.tagId ? [{ tagId: line.tagId, amount: '' }] : [];
+}
+
+/** 金額を決めていないプリセットのタグ（比率）を、入れた金額に合わせたタグ欄の行にする。 */
+export function ratioRows(ratio, amount) {
+  if (!(amount > 0)) return (ratio || []).map((s) => ({ tagId: s.tagId, amount: '' }));
+  return scalePresetSplits(ratio, 0, amount).map((s) => ({ tagId: s.tagId, amount: String(s.amount) }));
+}
+
+/** タグ欄に保存できない理由があれば返す。無ければ null。合計と行の金額の突き合わせはしない。 */
+export function tagRowsProblem(rows) {
+  const list = (rows || []).filter((r) => r.tagId);
+  if (list.length < 2 && !list.some((r) => String(r.amount ?? '') !== '')) return null;
+  if (list.some((r) => !(yenOf(r.amount) > 0))) return 'タグごとの金額を入れてください';
+  return null;
+}
+
+/** 借方と貸方の行のタグが同じか（片方だけに付いている場合も同じとみなす）。違えば簡易フォームでは直せない。 */
+export function sameTagRows(a, b) {
+  if (!a.length || !b.length) return true;
+  const key = (rows) => JSON.stringify([...rows].sort((x, y) => (x.tagId > y.tagId ? 1 : -1)));
+  return key(a) === key(b);
+}

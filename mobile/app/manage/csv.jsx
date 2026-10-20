@@ -51,6 +51,7 @@ const fromLegacy = (v, cols) => {
 
 export default function Csv() {
   const panelRef = useTourTarget('csv-panel');
+  const exportRef = useTourTarget('csv-export');
   const t = useTheme();
   const router = useRouter();
   const [showSkipped, setShowSkipped] = useState(false); // 対象外の行の一覧を開いているか
@@ -267,15 +268,16 @@ export default function Csv() {
 
   return (
     <Screen>
-      <View ref={panelRef} collapsable={false}>
-        <Card title="書き出し">
-          <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 22 }}>
-            仕訳 {journals.length.toLocaleString('ja-JP')} 件を CSV ファイルとして書き出します。
-          </Text>
-          <Button label="CSV を書き出す" onPress={doExport} disabled={!journals.length} />
-        </Card>
+      <View ref={exportRef} collapsable={false}>
+      <Card title="書き出し">
+        <Text style={{ color: t.tx2, fontSize: 15, lineHeight: 22 }}>
+          仕訳 {journals.length.toLocaleString('ja-JP')} 件を CSV ファイルとして書き出します。
+        </Text>
+        <Button label="CSV を書き出す" onPress={doExport} disabled={!journals.length} />
+      </Card>
       </View>
 
+      <View ref={panelRef} collapsable={false}>
       <Card title="取込">
         <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 21 }}>
           カード会社・銀行の明細を読めます。読み込んだら、列ごとに何の項目かを選んでください。
@@ -286,6 +288,7 @@ export default function Csv() {
             style={{ height: 100, textAlignVertical: 'top', fontSize: 14 }} />
         </Field>
       </Card>
+      </View>
 
       {cols > 0 && !known ? (
         <Card title="列の割り当て">

@@ -11,6 +11,8 @@ export const HOME_ITEMS = [
   { id: 'flow', label: '収支' },
   { id: 'breakdown', label: '支出内訳' },
   { id: 'accounts', label: '口座の残高', note: '残高のある口座があるときだけ出ます' },
+  // 口座のお金を、タグ（目的）ごとに分けて見せる。ウェブ版のダッシュボードの「資産の使いみち」と同じ（2026-10-15 追加）
+  { id: 'tags', label: '資産の使いみち', note: 'タグを使っているときだけ出ます' },
   { id: 'trend', label: '支出の推移（6か月）', note: '支出があるときだけ出ます' },
   { id: 'budget', label: '予算の消化', note: '予算を決めているときだけ出ます' },
   { id: 'investments', label: '投資資産', note: '投資の科目があるときだけ出ます' },

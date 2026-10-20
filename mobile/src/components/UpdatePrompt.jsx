@@ -28,7 +28,8 @@ export default function UpdatePrompt() {
   const [show, setShow] = useState(false);
   const checked = useRef(false);
 
-  const ready = !loading && !!onboarding?.decided && !onboarding?.active && !tour?.tourId && path === '/';
+  // ホームのモーダル（HomeIntro）を出している間も待つ。閉じてから出す（8-2）
+  const ready = !loading && !!onboarding?.decided && !onboarding?.active && !onboarding?.intro && !tour?.tourId && path === '/';
 
   useEffect(() => {
     if (!ready || !latest || checked.current) return undefined;

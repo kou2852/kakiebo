@@ -1,7 +1,9 @@
 // journalTags.js の検証。node src/utils/journalTags.check.mjs
 //
 // 見たいのは carryLine: アプリで編集して保存しても、ウェブで付けた複数タグの配分が消えないこと。
-import { carryLine } from './journalTags.js';
+import {
+  carryLine, ratioRows, rowsToSplits, sameTagRows, splitsToRows, tagRowsProblem,
+} from './journalTags.js';
 
 let ng = 0;
 const ok = (cond, name) => {
@@ -50,6 +52,39 @@ console.log('\n配分の無い行・新しい行');
   ok(plain.tagId === 't9' && !plain.splits, '1つだけのタグ（tagId）は引き継ぐ。配分は作らない');
   const fresh = carryLine(undefined, { accountId: 'a01', side: 'cr', amount: 100 });
   ok(JSON.stringify(fresh) === JSON.stringify({ accountId: 'a01', side: 'cr', amount: 100 }), '元の行が無ければ入力欄の内容だけ');
+}
+
+console.log('\n記帳画面のタグ欄（splits で保存する）');
+{
+  const one = rowsToSplits([{ tagId: 't1', amount: '' }], 1200);
+  ok(JSON.stringify(one) === JSON.stringify([{ tagId: 't1', amount: 1200 }]), '1つで金額が空なら、全額に付ける');
+  const two = rowsToSplits([{ tagId: 't1', amount: '800' }, { tagId: 't2', amount: '400' }], 1200);
+  ok(two.length === 2 && two[0].amount === 800 && two[1].amount === 400, '2つなら入れた金額のとおり');
+  ok(rowsToSplits([{ tagId: 't1', amount: '300' }], 1000)[0].amount === 300, '1つでも金額を入れたら、その金額だけ（一部だけタグ）');
+  ok(rowsToSplits([], 1000).length === 0 && rowsToSplits([{ tagId: 't1', amount: '' }], 0).length === 0, 'タグなし・金額0なら空');
+
+  ok(JSON.stringify(splitsToRows({ amount: 1200, splits: [{ tagId: 't1', amount: 1200 }] })) === JSON.stringify([{ tagId: 't1', amount: '' }]),
+    '全額に付いた1つは、金額の無い行に戻す');
+  ok(splitsToRows({ amount: 1000, splits: [{ tagId: 't1', amount: 300 }] })[0].amount === '300', '一部だけのタグは金額を残す');
+  ok(JSON.stringify(splitsToRows({ amount: 500, tagId: 't9' })) === JSON.stringify([{ tagId: 't9', amount: '' }]),
+    '古い形（行の tagId）も読む');
+  const round = rowsToSplits(splitsToRows({ amount: 1000, splits: [{ tagId: 't1', amount: 600 }, { tagId: 't2', amount: 400 }] }), 1000);
+  ok(round[0].amount === 600 && round[1].amount === 400, '読んで保存し直しても配分は変わらない');
+
+  ok(tagRowsProblem([{ tagId: 't1', amount: '' }], 1000) === null, '1つで全額なら問題なし');
+  ok(tagRowsProblem([{ tagId: 't1', amount: '' }, { tagId: 't2', amount: '500' }], 1000) !== null, '2つ以上で金額が空なら止める');
+  ok(tagRowsProblem([{ tagId: 't1', amount: '700' }, { tagId: 't2', amount: '500' }], 1000) === null, '合計が金額を超えても止めない（整合性は確かめない）');
+  ok(tagRowsProblem([{ tagId: 't1', amount: '300' }], 1000) === null, '1つで一部の金額だけでも問題なし');
+  ok(tagRowsProblem([{ tagId: 't1', amount: '2000' }], 1000) === null, '1つで行の金額より大きくても止めない');
+  ok(rowsToSplits([{ tagId: 't1', amount: '2000' }], 1000)[0].amount === 2000, '入れた金額のまま保存する（行の金額に切り詰めない）');
+  ok(tagRowsProblem([{ tagId: 't1', amount: '700' }, { tagId: 't2', amount: '300' }], 1000) === null, '合計がちょうどなら問題なし');
+
+  const r = ratioRows([{ tagId: 't1', amount: 70 }, { tagId: 't2', amount: 30 }], 1500);
+  ok(r[0].amount === '1050' && r[1].amount === '450', 'プリセットの比率を、入れた金額に合わせる（1050/450）');
+  ok(ratioRows([{ tagId: 't1', amount: 70 }], 0)[0].amount === '', '金額がまだ無ければ空欄');
+
+  ok(sameTagRows([{ tagId: 't1', amount: '' }], []), '片方の行だけにタグがあれば同じとみなす');
+  ok(!sameTagRows([{ tagId: 't1', amount: '' }], [{ tagId: 't2', amount: '' }]), '借方と貸方でタグが違えば別');
 }
 
 console.log(ng ? `\n${ng} 件 NG` : '\nすべて ok');

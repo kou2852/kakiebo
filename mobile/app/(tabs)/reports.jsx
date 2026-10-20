@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Animated, PanResponder, Text, View } from 'react-native';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
@@ -10,9 +11,9 @@ import { faBal, fas } from '../../src/utils/format';
 import {
   accountBalance, balanceSheet, balancesAsOf, calcBalances, computeCashFlow, filterByPeriod,
 } from '../../src/utils/bookkeeping';
-import { useTourTarget } from '../../src/store/TourProvider';
+import { useTour, useTourTarget } from '../../src/store/TourProvider';
 import { useOnboarding } from '../../src/store/OnboardingProvider';
-import Ad from '../../src/components/Ad';
+import LazyAd from '../../src/components/LazyAd';
 
 const MODES = [
   { value: 'fs', label: '財務諸表' },
@@ -29,13 +30,51 @@ const SWIPE_PX = 60;
 
 export default function Reports() {
   const tabsRef = useTourTarget('report-tabs');
+  const pagesRef = useTourTarget('report-pages');
   const [mode, setMode] = useState('fs');
   const [page, setPage] = useState(0);
+  // レポートのツアーは財務諸表の貸借対照表から始める。カードを開いたままだと指す先が無い
+  const tour = useTour();
+  const tourId = tour?.tourId;
+  const [seenTour, setSeenTour] = useState(tourId);
+  if (tourId !== seenTour) {
+    setSeenTour(tourId);
+    if (tourId === 'reports') { setMode('fs'); setPage(0); }
+    // カードのツアーは「上の『カード』を押す」から始める。カードを開いたままだと押す段で進めない（2026-10-18）
+    if (tourId === 'card' || tourId === 'credit') setMode('fs');
+  }
+  // ツアーがカードを指す段では、カードを開く（「上の『カード』を押す」をとばしたときも、指す先が出るように）
+  // 「上の『カード』を押す」の段に入ったら、財務諸表に戻す。カードを開いたままだと「出たら進む」が働かず止まる（実機）
+  const pressCard = tour?.step?.target === 'report-tabs' && !!tour?.step?.awaitShown;
+  const [seenPress, setSeenPress] = useState(false);
+  if (pressCard !== seenPress) {
+    setSeenPress(pressCard);
+    if (pressCard) setMode('fs');
+  }
+  const wantCard = tour?.step?.target === 'credit-card' || tour?.step?.target === 'credit-settle';
+  const [seenWant, setSeenWant] = useState(false); // 初めて開いたときもカードを開けるよう、偽から始める
+  if (wantCard !== seenWant) {
+    setSeenWant(wantCard);
+    if (wantCard) setMode('cc');
+  }
   const onboarding = useOnboarding();
   const { accounts, journals } = useData();
 
   // BS は「期間末の時点」、PL と CF は「期間中の増減」。同じ期間指定から両方を出す。
   const period = usePeriod('month');
+
+  // 通知（毎月のまとめ）から ?period=lastm で来たら、財務諸表を先月で開く。
+  // 受け取ったら URL からは消す。残すと、あとでタブを開き直したときも先月に戻される。
+  const params = useLocalSearchParams();
+  const router = useRouter();
+  const paramPeriod = params.period === 'lastm' ? 'lastm' : '';
+  const [takenPeriod, setTakenPeriod] = useState('');
+  // 描画中に状態を合わせる（effect で setState すると描画が二重に走る。journal.jsx の ?date= と同じ）
+  if (paramPeriod !== takenPeriod) {
+    setTakenPeriod(paramPeriod);
+    if (paramPeriod) { period.setMode(paramPeriod); setMode('fs'); }
+  }
+  useEffect(() => { if (paramPeriod) router.setParams({ period: undefined }); }, [paramPeriod, router]);
 
   const r = useMemo(() => {
     const { start, end } = period;
@@ -70,7 +109,9 @@ export default function Reports() {
         <>
           <PeriodBar period={period} />
           {/* 3つのうちどこにいるかの見出し。タップでも移れる */}
-          <Segmented options={PAGES.map((p, i) => ({ value: i, label: p.label }))} value={page} onChange={setPage} />
+          <View ref={pagesRef} collapsable={false}>
+            <Segmented options={PAGES.map((p, i) => ({ value: i, label: p.label }))} value={page} onChange={setPage} />
+          </View>
           <Pager page={page} setPage={setPage}>
             {page === 0 ? <BS r={r} end={period.end} />
               : page === 1 ? <PL r={r} />
@@ -81,7 +122,7 @@ export default function Reports() {
 
       {/* 一番下の広告。4つのどのタブでも同じ位置に出る。
           オンボーディング中は覆いの下に隠れるので読み込まない（ホームと同じ理由） */}
-      {onboarding?.active ? null : <Ad placement="reportsBottom" />}
+      {onboarding?.active ? null : <LazyAd placement="reportsBottom" />}
     </Screen>
   );
 }
@@ -131,11 +172,14 @@ function Pager({ page, setPage, children }) {
 // ── 貸借対照表（期間末の時点） ──
 function BS({ r, end }) {
   const t = useTheme();
-  if (!r.asset.length && !r.liab.length && !r.eq.length) return <Empty text="表示できるデータがありません" />;
+  const ref = useTourTarget('report-bs');
+  if (!r.asset.length && !r.liab.length && !r.eq.length) return <View ref={ref} collapsable={false}><Empty text="表示できるデータがありません" /></View>;
   return (
     <>
       <Text style={{ color: t.tx3, fontSize: 13 }}>{end === '2999-12-31' ? '今日時点' : `${end} 時点`}</Text>
-      <Section title="資産" rows={r.asset} total={r.assetT} totalLabel="資産合計" chart="資産合計" />
+      <View ref={ref} collapsable={false}>
+        <Section title="資産" rows={r.asset} total={r.assetT} totalLabel="資産合計" chart="資産合計" />
+      </View>
       <Section title="負債" rows={r.liab} total={r.liabT} totalLabel="負債合計" />
       <Section title="純資産" rows={r.eq} total={r.eqT} totalLabel="純資産合計" />
       <Card title="差引純資産">
@@ -154,16 +198,20 @@ function BS({ r, end }) {
 // ── 損益計算書（期間中の増減） ──
 function PL({ r }) {
   const t = useTheme();
-  if (!r.inc.length && !r.exp.length) return <Empty text="表示できるデータがありません" />;
+  const ref = useTourTarget('report-pl');
+  if (!r.inc.length && !r.exp.length) return <View ref={ref} collapsable={false}><Empty text="表示できるデータがありません" /></View>;
   return (
     <>
       <Section title="収益" rows={r.inc} total={r.incT} totalLabel="収益合計" />
       <Section title="費用" rows={r.exp} total={r.expT} totalLabel="費用合計" chart="費用合計" />
-      <Card title="当期損益">
-        <Text style={{ color: r.incT - r.expT >= 0 ? t.grn : t.red, fontSize: 26, fontWeight: '800' }}>
-          {faBal(r.incT - r.expT)}
-        </Text>
-      </Card>
+      {/* ツアーの目印は当期損益に付ける。収益・費用の欄は0件だと出ず、指せない */}
+      <View ref={ref} collapsable={false}>
+        <Card title="当期損益">
+          <Text style={{ color: r.incT - r.expT >= 0 ? t.grn : t.red, fontSize: 26, fontWeight: '800' }}>
+            {faBal(r.incT - r.expT)}
+          </Text>
+        </Card>
+      </View>
     </>
   );
 }
@@ -173,14 +221,16 @@ const CF_LABELS = { operating: '営業活動', investing: '投資活動', financ
 
 function CF({ cf, accounts }) {
   const t = useTheme();
+  const ref = useTourTarget('report-cf');
   const name = (id) => accounts.find((a) => a.id === id)?.name || '?';
   const has = cf.items.operating.length || cf.items.investing.length || cf.items.financing.length;
-  if (!has) return <Empty text="表示できるデータがありません" />;
+  if (!has) return <View ref={ref} collapsable={false}><Empty text="表示できるデータがありません" /></View>;
 
   return (
     <>
       {Object.entries(CF_LABELS).map(([k, label]) => (
-        <Card key={k} title={label}>
+        <View key={k} ref={k === 'operating' ? ref : undefined} collapsable={false}>
+        <Card title={label}>
           {cf.items[k].length === 0 ? (
             <Text style={{ color: t.tx3, fontSize: 14 }}>該当なし</Text>
           ) : cf.items[k].map((x) => (
@@ -194,6 +244,7 @@ function CF({ cf, accounts }) {
             <Text style={{ color: t.ac, fontSize: 16, fontWeight: '800' }}>{fas(cf[k])}</Text>
           </View>
         </Card>
+        </View>
       ))}
       <Card title="現金の増減">
         <Text style={{ color: cf.net >= 0 ? t.grn : t.red, fontSize: 26, fontWeight: '800' }}>{fas(cf.net)}</Text>

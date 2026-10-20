@@ -20,11 +20,13 @@ import { ToastProvider } from '../src/store/ToastProvider';
 import KeyboardDone from '../src/components/KeyboardDone';
 import HelpTitle from '../src/components/HelpTitle';
 import NotificationSync from '../src/store/NotificationSync';
+import TrackSync from '../src/store/TrackSync';
 import UpdatePrompt from '../src/components/UpdatePrompt';
 import { TourProvider } from '../src/store/TourProvider';
 import Tour from '../src/components/Tour';
 import { OnboardingProvider } from '../src/store/OnboardingProvider';
 import Onboarding from '../src/components/Onboarding';
+import HomeIntro from '../src/components/HomeIntro';
 
 // スプラッシュは既定だと最初の描画と同時に消える。起動が速い端末では一瞬すぎて
 // 何が出たのか分からないので、自動で消えるのを止めて最低表示時間を持たせる。
@@ -137,6 +139,7 @@ function Nav() {
       <Stack.Screen name="settings/delete-account" options={{ title: 'アカウントの削除' }} />
       <Stack.Screen name="settings/appearance" options={{ title: '外観' }} />
       <Stack.Screen name="settings/home" options={{ title: 'ホームの表示' }} />
+      <Stack.Screen name="settings/networth" options={{ title: '純資産に入れる科目' }} />
       <Stack.Screen name="settings/security" options={{ title: 'アプリロック' }} />
       <Stack.Screen name="settings/reminder" options={{ title: '通知' }} />
       <Stack.Screen name="settings/ads" options={{ title: '広告' }} />
@@ -187,11 +190,13 @@ export default function RootLayout() {
         <DataProvider>
           <OnboardingProvider>
           <NotificationSync />
+          <TrackSync />
           <TourProvider>
             {/* オンボーディングは AppLock の内側に置く。外に出すとロック画面の上に出てしまう。 */}
             <AppLock>
               <Nav />
               <Onboarding />
+              <HomeIntro />
               <UpdatePrompt />
             </AppLock>
             <Tour />

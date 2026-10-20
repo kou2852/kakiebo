@@ -127,7 +127,9 @@ export async function generateRecurring({ recurring, journals = [], addJournal, 
       if (!isRecorded(r, next, journals)) {
         const lines = r.lines.map((l) => {
           const ln = { accountId: l.accountId, side: l.side, amount: l.amount, taxRate: 0 };
-          if (l.tagId) ln.splits = [{ tagId: l.tagId, amount: l.amount }];
+          // 行に配分（splits）があればそれを、行の tagId だけなら全額に1つのタグとして付ける
+          if (l.splits?.length) ln.splits = l.splits.map((x) => ({ tagId: x.tagId, amount: x.amount }));
+          else if (l.tagId) ln.splits = [{ tagId: l.tagId, amount: l.amount }];
           return ln;
         });
         await addJournal({ date: next, desc: r.desc || r.name, lines });

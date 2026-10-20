@@ -130,7 +130,7 @@ console.log('週次・月次');
   const m = planNotifications({ settings: { ...OFF, monthly: true }, journals: withData, accounts, now }).filter((n) => n.id.startsWith('kk_month_'));
   ok(m.length === 3 && m.every((n) => n.when.getDate() === 1 && atH(n.when, 9)), '月次は毎月1日の朝9時から先の3か月分');
   ok(m[0].body === '先月の純資産と収支を確認できます。' && m.every(noMoney), '月次の文面に金額は入らない');
-  ok(m[0].route === '/reports', '行き先はレポート');
+  ok(m[0].route === '/reports?period=lastm', '行き先はレポート（先月で開く）');
   ok(planNotifications({ settings: { ...OFF, weekly: true, monthly: true }, journals: [], accounts, now }).length === 0, '帳簿が空なら送らない');
 }
 

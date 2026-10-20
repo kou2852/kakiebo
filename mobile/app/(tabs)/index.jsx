@@ -2,31 +2,41 @@
 //
 // 主役は純資産。濃いヒーローカード＋推移の折れ線を最上部に置き、それ以外は白いカードに落とす。
 // 資産管理がテーマなので、いくら使ったかより「いま資産がいくらで、増えているか」が先に来る。
-import { Fragment, useMemo } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, Empty, Hero, Kpi, KpiRow, Screen } from '../../src/components/ui';
 import PeriodBar, { usePeriod } from '../../src/components/PeriodBar';
 import Breakdown from '../../src/components/Breakdown';
+import TagUsage from '../../src/components/TagUsage';
 import Sparkline from '../../src/components/Sparkline';
-import { fa, faBal, fas, today } from '../../src/utils/format';
+import { today } from '../../src/utils/format';
+import { setHideAmounts, useMoney } from '../../src/store/hideAmounts';
+import { Ionicons } from '@expo/vector-icons';
 import {
   accountBalance, balanceDate, balanceSheet, calcBalances, filterByPeriod, getPeriodRange,
-  isCashAccount, investmentSummary, monthlyTrend, netWorthTrend,
+  isCashAccount, isInvestmentAsset, investmentSummary, monthlyTrend, netWorthTrend,
 } from '../../src/utils/bookkeeping';
 import { dueRecurring, pendingCC } from '../../src/utils/autoGen';
 import { useTour, useTourTarget } from '../../src/store/TourProvider';
 import { useHomeLayout } from '../../src/store/homeLayout';
 import { useOnboarding } from '../../src/store/OnboardingProvider';
-import Ad from '../../src/components/Ad';
+import LazyAd from '../../src/components/LazyAd';
+import HomeAdFree from '../../src/components/HomeAdFree';
+import { setNetWorthSets, useNetWorthSets } from '../../src/store/netWorthSets';
+import { accountsFor, selectSet, shownPages } from '../../src/utils/netWorthSets';
+import PageDots from '../../src/components/PageDots';
 
 export default function Dashboard() {
   // ツアーで指し示す位置。要素そのものではなく囲みの View に付ける
   // （Hero や PeriodBar は ref を受け取らないため）。
   const netWorthRef = useTourTarget('networth');
-  const periodRef = useTourTarget('period-bar');
+  const breakdownRef = useTourTarget('home-breakdown');
+  const pendingRef = useTourTarget('home-pending');
+  const openRecRef = useTourTarget('home-recurring-open');
+  const accountsRef = useTourTarget('home-accounts');
   const t = useTheme();
   const router = useRouter();
   const onboarding = useOnboarding();
@@ -34,6 +44,30 @@ export default function Dashboard() {
   // 出す項目と並び（設定の「ホームの表示」。端末ごと）
   const layout = useHomeLayout();
   const { loading, accounts, journals, budgets, recurring, wallets } = useData();
+  // 純資産に入れる科目の組み合わせ（設定の「純資産に入れる科目」。端末ごと）。変わるのは純資産・推移・前月比だけ。
+  // 純資産のカードは、設定で選んだ組み合わせ（「すべての科目」を含めて最大5つ）を横にスライドして見比べる。止めたページを覚える
+  const nwState = useNetWorthSets();
+  // 金額を隠しているか（純資産のカードの目のボタン。端末ごと）。隠しているときは fa などが伏せ字を返す
+  const { hidden, fa, faBal, fas } = useMoney();
+  const nwPages = useMemo(() => shownPages(nwState), [nwState]);
+  const nwIndex = Math.max(0, nwPages.findIndex((x) => (x ? x.id : null) === nwState.active));
+  const { width: winW } = useWindowDimensions();
+  // 1ページの幅は画面の幅。カードは左右に Screen と同じ余白（13）を取って置く。
+  // ページの幅をカードの幅にすると、送る幅（画面の幅）とずれて、隣のカードの端がはみ出した（実測）
+  const heroW = winW;
+  const [heroX] = useState(() => new Animated.Value(nwIndex * heroW));
+  // スクロール中か（右下の「広告を消す」を、動かしている間は消し、止まったら出す）。止まりは最後の動きから 0.25 秒で判断する
+  const [scrolling, setScrolling] = useState(false);
+  const stopTimer = useRef(null);
+  const onScrolling = () => {
+    setScrolling(true);
+    clearTimeout(stopTimer.current);
+    stopTimer.current = setTimeout(() => setScrolling(false), 250);
+  };
+  useEffect(() => () => clearTimeout(stopTimer.current), []);
+  // 設定の画面で選び直したら、そのページへ送る（contentOffset は iOS では最初の1回しか効かない）
+  const heroPager = useRef(null);
+  useEffect(() => { heroPager.current?.scrollTo({ x: nwIndex * heroW, animated: false }); }, [nwIndex, heroW]);
 
   // 収支は「期間中」、純資産と口座残高は「期間末の時点」（2026-09-15 決定）。
   //   今日: 今月1日〜今日。純資産は今日時点の実際の残高。
@@ -47,8 +81,6 @@ export default function Dashboard() {
     //    「今月」を選んでも今日までしか集計されていなかった（画面には月末までと出ていた）。
     const asOf = balanceDate(period.mode, end, today());
 
-    // 借方残の負債は資産側へ振り替えて集計する（詳細は balanceSheet のコメント）
-    const bs = balanceSheet(journals, accounts, asOf);
     const flow = calcBalances(filterByPeriod(journals, start, end), accounts);
     const sum = (type, bal) => accounts.filter((a) => a.type === type)
       .reduce((s, a) => s + accountBalance(a.id, accounts, bal), 0);
@@ -61,7 +93,7 @@ export default function Dashboard() {
 
     const income = sum('income', flow);
     const expense = sum('expense', flow);
-    return { netWorth: bs.netWorth, income, expense, balance: income - expense, expenses, asOf };
+    return { income, expense, balance: income - expense, expenses, asOf };
   }, [accounts, journals, period]);
 
   // 口座別の残高。売掛金や固定資産まで並べても「どこにいくらあるか」は分からないので、
@@ -76,7 +108,8 @@ export default function Dashboard() {
     // ⚠ 資産だけに限る。口座を1つでも登録すると「口座に紐づく科目」を全部出す作りだったため、
     //    カードの口座を作った人にはカードがここに並び、しかも負債の残高が符号なしで出ていた
     //    （借りている 48,000 が「48,000 ある」と読める）。上のコメントの意図どおりに絞る。
-    const target = (a) => a.type === 'asset' && (walletIds.size ? walletIds.has(a.id) : isCashAccount(a));
+    // 投資の口座は「投資資産」のカードに出る。ここにも並べると二重になる（2026-10-19）
+    const target = (a) => a.type === 'asset' && !isInvestmentAsset(a) && (walletIds.size ? walletIds.has(a.id) : isCashAccount(a));
     return accounts
       .filter(target)
       .map((a) => ({ id: a.id, name: a.name, type: a.type, amount: accountBalance(a.id, accounts, bal) }))
@@ -91,7 +124,11 @@ export default function Dashboard() {
 
   // 推移は必ず純資産と同じ時点を基準にする。ここを今日で固定していたため、
   // 期間を先月に変えても純資産だけ動いて前月比が変わらなかった。
-  const worth = useMemo(() => netWorthTrend(journals, accounts, 6, m.asOf), [journals, accounts, m.asOf]);
+  // 組み合わせごとの純資産と推移（純資産のカードの各ページ）。借方残の負債は資産側へ振り替えて集計する（詳細は balanceSheet のコメント）
+  const nw = useMemo(() => nwPages.map((set) => {
+    const accs = accountsFor(accounts, set);
+    return { set, net: balanceSheet(journals, accs, m.asOf).netWorth, worth: netWorthTrend(journals, accs, 6, m.asOf) };
+  }), [nwPages, accounts, journals, m.asOf]);
   const trend = useMemo(() => monthlyTrend(journals, accounts, 6, m.asOf), [journals, accounts, m.asOf]);
   const investments = useMemo(() => investmentSummary(journals, accounts), [journals, accounts]);
 
@@ -129,38 +166,76 @@ export default function Dashboard() {
 
   if (loading) return <Screen><Empty text="読み込み中…" /></Screen>;
 
-  const hasTrend = worth.some((w) => w.net !== 0);
-  const prev = hasTrend ? worth[worth.length - 2].net : 0;
-  const delta = hasTrend ? worth[worth.length - 1].net - prev : 0;
-  const rate = prev ? (delta / Math.abs(prev)) * 100 : 0;
 
   // 残高が「いつ時点」かを必ず出す。今日より先なら、実際の残高ではなく見込みだと明記する。
   const td = today();
   const projected = m.asOf > td;
+
+  // 純資産のカードの1ページ（すべての科目、または保存した組み合わせ1つ）
+  const heroPage = ({ set, net, worth }) => {
+    const hasTrend = worth.some((w) => w.net !== 0);
+    const prev = hasTrend ? worth[worth.length - 2].net : 0;
+    const delta = hasTrend ? worth[worth.length - 1].net - prev : 0;
+    const rate = prev ? (delta / Math.abs(prev)) * 100 : 0;
+    return (
+      <Hero
+        label={`純資産（${m.asOf === td ? '今日' : projected ? `${m.asOf} 見込み` : m.asOf}${set ? `・${set.name}` : ''}）`}
+        value={faBal(net)}
+        negative={net < 0}
+        // 前月の純資産が0（使い始めの月）なら前月比は出さない。開始残高の全額が「＋」に見えるため（2026-10-15 決定）
+        sub={hasTrend && prev ? (hidden ? `前月比 ${MASK_RATE}` : `前月比 ${fas(delta)}（${rate >= 0 ? '+' : ''}${rate.toFixed(1)}%）`) : undefined}
+        right={(
+          // 目のボタンと「科目を選ぶ」の押せる範囲（hitSlop）が重ならない間を取る（重なると目を押して画面が移った）
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 24 }}>
+            <TouchableOpacity onPress={() => setHideAmounts(!hidden)} hitSlop={10} accessibilityRole="button"
+              accessibilityLabel={hidden ? '金額を表示する' : '金額を隠す'}>
+              <Ionicons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={20} color={t.heroTx} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/settings/networth')} hitSlop={8} accessibilityRole="button">
+              <Text style={{ color: t.heroTx, fontSize: 13, fontWeight: '700' }}>科目を選ぶ ›</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      >
+        {hasTrend ? (
+          <View style={{ marginTop: 6 }}>
+            <Sparkline data={worth.map((w) => ({ label: w.label, value: w.net }))}
+              color={t.heroTx} labelColor={t.heroSub} />
+          </View>
+        ) : null}
+      </Hero>
+    );
+  };
 
   // カードの部品。並びと出す・出さないは layout（設定の「ホームの表示」）で決まる。
   // 対象が無いカード（未記帳・予算など）は、出す設定でも出ない（これまでと同じ）。
   const blocks = {
     networth: () => (
       <>
-        <View ref={netWorthRef} collapsable={false}>
-        <Hero
-          label={`純資産（${m.asOf === td ? '今日' : projected ? `${m.asOf} 見込み` : m.asOf}）`}
-          value={faBal(m.netWorth)}
-          negative={m.netWorth < 0}
-          sub={hasTrend ? `前月比 ${fas(delta)}（${rate >= 0 ? '+' : ''}${rate.toFixed(1)}%）` : undefined}
-        >
-          {hasTrend ? (
-            <View style={{ marginTop: 6 }}>
-              <Sparkline data={worth.map((w) => ({ label: w.label, value: w.net }))}
-                color={t.heroTx} labelColor={t.heroSub} />
-            </View>
-          ) : null}
-        </Hero>
+        <View ref={netWorthRef} collapsable={false} style={{ gap: 8 }}>
+          {nw.length > 1 ? (
+            <Animated.ScrollView ref={heroPager} horizontal pagingEnabled showsHorizontalScrollIndicator={false}
+              contentOffset={{ x: nwIndex * heroW, y: 0 }}
+              onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: heroX } } }], { useNativeDriver: false })}
+              scrollEventThrottle={16}
+              onMomentumScrollEnd={(e) => {
+                const i = Math.round(e.nativeEvent.contentOffset.x / heroW);
+                const set = nwPages[i];
+                if (i !== nwIndex) setNetWorthSets(selectSet(nwState, set ? set.id : null));
+              }}
+              // Screen の左右の余白の分だけ広げ、画面の端から端までを送る
+              style={{ marginHorizontal: -13 }}>
+              {nw.map((p) => (
+                <View key={p.set ? p.set.id : 'all'} style={{ width: heroW, paddingHorizontal: 13 }}>{heroPage(p)}</View>
+              ))}
+            </Animated.ScrollView>
+          ) : heroPage(nw[0])}
+          <PageDots count={nw.length} x={heroX} step={heroW} />
         </View>
       </>
     ),
     pending: () => (dueCards.length || dueRec.length ? (
+          <View ref={pendingRef} collapsable={false}>
           <Card title="未記帳の自動取引">
             {dueCards.length ? (
               <Text style={{ color: t.red, fontSize: 15 }}>
@@ -172,14 +247,17 @@ export default function Dashboard() {
             ) : null}
             <Text style={{ color: t.tx3, fontSize: 13 }}>記帳しないと残高が実態とずれます。</Text>
             {dueCards.length ? <Button label="クレジットを開く" onPress={() => router.push('/credit')} /> : null}
-            {dueRec.length ? <Button label="定期取引を開く" variant="ghost" onPress={() => router.push('/manage/recurring')} /> : null}
+            {dueRec.length ? (
+              <View ref={openRecRef} collapsable={false}>
+                <Button label="定期取引を開く" variant="ghost" onPress={() => router.push('/manage/recurring')} />
+              </View>
+            ) : null}
           </Card>
+          </View>
         ) : null),
     period: () => (
       <>
-        <View ref={periodRef} collapsable={false}>
-          <PeriodBar period={period} />
-        </View>
+        <PeriodBar period={period} />
       </>
     ),
     flow: () => (
@@ -195,14 +273,17 @@ export default function Dashboard() {
     ),
     breakdown: () => (
       <>
+        <View ref={breakdownRef} collapsable={false}>
         <Card title="支出内訳">
-          <Breakdown pie centerSub={`${period.label}の支出`}
+          <Breakdown pie hide={hidden} centerSub={`${period.label}の支出`}
             items={m.expenses.map((x) => ({ label: x.name, value: x.amount }))}
             emptyText="この期間の支出はまだありません" />
         </Card>
+        </View>
       </>
     ),
     accounts: () => (byAccount.length ? (
+          <View ref={accountsRef} collapsable={false}>
           <Card title="口座の残高">
             {byAccount.map((x) => (
               <View key={x.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
@@ -222,7 +303,10 @@ export default function Dashboard() {
                 : `${m.asOf} 時点の残高です。`}
             </Text>
           </Card>
+          </View>
         ) : null),
+    // 口座のお金を目的（タグ）ごとに。タグを使っていなければ出ない
+    tags: () => <TagUsage />,
     trend: () => (trend.some((x) => x.expense > 0) ? (
           <Card title="支出の推移（6か月）">
             <Bars data={trend.map((x) => ({ label: x.label, value: x.expense }))} color={t.red} />
@@ -258,7 +342,7 @@ export default function Dashboard() {
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                   <Text style={{ color: t.tx3, fontSize: 13 }}>元本 {faBal(r.principal)}</Text>
                   <Text style={{ color: r.gain >= 0 ? t.grn : t.red, fontSize: 13 }}>
-                    {fas(r.gain)}（{(r.rate * 100).toFixed(1)}%）
+                    {fas(r.gain)}{hidden ? '' : `（${(r.rate * 100).toFixed(1)}%）`}
                   </Text>
                 </View>
               </View>
@@ -267,10 +351,11 @@ export default function Dashboard() {
         ) : null),
   };
   // ツアーが純資産を指している間は、消していても出す（指す先が無いと案内が宙に浮く）
-  const forced = tour?.step?.target === 'networth' ? 'networth' : null;
+  const forced = { networth: 'networth', 'home-breakdown': 'breakdown', 'tag-usage': 'tags', 'home-accounts': 'accounts' }[tour?.step?.target] || null;
 
   return (
-    <Screen>
+    <View style={{ flex: 1 }}>
+    <Screen onScrolling={onScrolling}>
       {layout.filter((x) => x.on || x.id === forced).map((x) => (
         <Fragment key={x.id}>{blocks[x.id]?.()}</Fragment>
       ))}
@@ -279,11 +364,18 @@ export default function Dashboard() {
         <Text style={{ color: t.ac, fontSize: 14, fontWeight: '600' }}>ホームの表示を編集</Text>
       </TouchableOpacity>
 
-      {/* 一番下の広告。オンボーディング中は覆いの下に隠れるので読み込まない（TabBar と同じ理由） */}
-      {onboarding?.active ? null : <Ad placement="homeBottom" />}
+      {/* 一番下の広告。オンボーディング中は覆いの下に隠れるので読み込まない（TabBar と同じ理由）。
+          画面に近づくまでは要求しない（LazyAd） */}
+      {onboarding?.active ? null : <LazyAd placement="homeBottom" />}
     </Screen>
+    {/* 右下の「広告を消す」。動画広告を見られない人には出ない（HomeAdFree） */}
+    <HomeAdFree scrolling={scrolling} />
+    </View>
   );
 }
+
+// 前月比の伏せ字（率からも額の見当がつくので、率も伏せる）
+const MASK_RATE = '•••';
 
 /** 縦棒。値の大小だけ分かればよいので、軸やラベルは持たせない。 */
 function Bars({ data, color }) {

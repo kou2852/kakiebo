@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import AnchoredAd from './Ad';
-import { useTourTarget } from '../store/TourProvider';
+import { useTour, useTourTarget } from '../store/TourProvider';
 import { useOnboarding } from '../store/OnboardingProvider';
 
 // 中央ボタンで開くルート。タブとしては出さない。
@@ -22,8 +22,11 @@ const ICONS = {
 };
 
 export default function TabBar({ state, descriptors, navigation }) {
-  const addRef = useTourTarget('add-button');
+  const addRef = useTourTarget('add-button', { fixed: true });
+  // ツアーで押させるタブ（tours.js）。TouchableOpacity は測れないので囲みの View に付ける
+  const tabRefs = { settings: useTourTarget('tab-settings', { fixed: true }), reports: useTourTarget('tab-reports', { fixed: true }) };
   const onboarding = useOnboarding();
+  const tour = useTour();
   const t = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -36,15 +39,16 @@ export default function TabBar({ state, descriptors, navigation }) {
     const focused = state.index === idx;
     const label = descriptors[route.key]?.options?.tabBarLabel ?? route.name;
     return (
+      <View key={route.key} ref={tabRefs[route.name]} collapsable={false} style={{ flex: 1 }}>
       <TouchableOpacity
-        key={route.key}
         accessibilityRole="button"
         accessibilityState={focused ? { selected: true } : {}}
         onPress={() => {
+          tour?.pressed?.(`tab-${route.name}`); // ツアーが指しているタブなら、押した瞬間に次の段へ
           const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
           if (!focused && !e.defaultPrevented) navigation.navigate(route.name);
         }}
-        style={{ flex: 1, alignItems: 'center', gap: 2, paddingTop: 9, paddingBottom: 2 }}
+        style={{ alignItems: 'center', gap: 2, paddingTop: 9, paddingBottom: 2 }}
       >
         <Ionicons name={ICONS[route.name] || 'ellipse-outline'} size={25}
           color={focused ? t.ac : t.tx3} />
@@ -52,6 +56,7 @@ export default function TabBar({ state, descriptors, navigation }) {
           {label}
         </Text>
       </TouchableOpacity>
+      </View>
     );
   };
 
@@ -78,7 +83,7 @@ export default function TabBar({ state, descriptors, navigation }) {
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="記帳する"
-            onPress={() => navigation.navigate(ENTRY_ROUTE)}
+            onPress={() => { tour?.pressed?.('add-button'); navigation.navigate(ENTRY_ROUTE); }}
             style={[{
               width: 64, height: 64, borderRadius: 32,
               // 帯から上へ出さない。出すと広告に重なる。AdMob は操作要素を

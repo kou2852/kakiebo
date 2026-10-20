@@ -4,12 +4,16 @@ import { Text, View } from 'react-native';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, Empty, Input, Screen } from '../../src/components/ui';
-import { faBal } from '../../src/utils/format';
-import { tagAllocation } from '../../src/utils/bookkeeping';
+import { faBal, fas } from '../../src/utils/format';
+import { computeTagBalances, tagAllocation } from '../../src/utils/bookkeeping';
 import { useToast } from '../../src/store/ToastProvider';
+import { useTour, useTourTarget } from '../../src/store/TourProvider';
 
 export default function Allocations() {
   const t = useTheme();
+  const firstRef = useTourTarget('alloc-first');
+  const saveRef = useTourTarget('alloc-save');
+  const tour = useTour();
   const toast = useToast();
   const { accounts, journals, tags, allocs, wallets, setAll } = useData();
 
@@ -17,6 +21,8 @@ export default function Allocations() {
     () => tagAllocation(journals, accounts, tags, allocs, wallets),
     [journals, accounts, tags, allocs, wallets]
   );
+  // 記帳でタグを付けた分の、口座ごと・タグごとの増減。配分（ここで入れる額）と足したものが「残り」
+  const flows = useMemo(() => computeTagBalances(journals, accounts).byAccount, [journals, accounts]);
 
   // 編集中の値は accountId#tagId をキーに持つ。allocs は id を持たないので全置換で保存する。
   const [draft, setDraft] = useState(() =>
@@ -37,11 +43,16 @@ export default function Allocations() {
 
   return (
     <Screen>
-      {rows.map((r) => {
+      {rows.map((r, ri) => {
+        // ⚠ 未配分は、入れた配分だけでなく記帳でタグを付けた分も引く。配分だけで引くと、
+        //   使った分が未配分に戻ったように見える（2026-10-15 まではそうなっていた）。
+        const flow = flows[r.account.id] || {};
+        const used = Object.values(flow).reduce((s, v) => s + v, 0);
         const allocated = tags.reduce((s, g) => s + (Number(String(val(r.account.id, g.id)).replace(/[^0-9]/g, '')) || 0), 0);
-        const free = r.bal - allocated;
+        const free = r.bal - allocated - used;
         return (
-          <Card key={r.account.id} title={r.account.name}>
+          <View key={r.account.id} ref={ri === 0 ? firstRef : undefined} collapsable={false}>
+          <Card title={r.account.name}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ color: t.tx2, fontSize: 14 }}>残高</Text>
               <Text style={{ color: t.tx, fontSize: 15, fontWeight: '700' }}>{faBal(r.bal)}</Text>
@@ -49,7 +60,18 @@ export default function Allocations() {
             {tags.map((g) => (
               <View key={g.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: g.color || t.ac }} />
-                <Text style={{ color: t.tx2, fontSize: 15, flex: 1 }}>{g.name}</Text>
+                <View style={{ flex: 1, gap: 1 }}>
+                  <Text style={{ color: t.tx2, fontSize: 15 }}>{g.name}</Text>
+                  {/* 記帳で増減があれば、配分と合わせた残りを出す */}
+                  {flow[g.id] ? (() => {
+                    const left = (Number(String(val(r.account.id, g.id)).replace(/[^0-9]/g, '')) || 0) + flow[g.id];
+                    return (
+                      <Text style={{ color: left < 0 ? t.red : t.tx3, fontSize: 12.5 }}>
+                        残り {faBal(left)}（記帳 {fas(flow[g.id])}）
+                      </Text>
+                    );
+                  })() : null}
+                </View>
                 <Input
                   value={val(r.account.id, g.id)}
                   onChangeText={(v) => setVal(r.account.id, g.id, v)}
@@ -65,12 +87,15 @@ export default function Allocations() {
               </Text>
             </View>
           </Card>
+          </View>
         );
       })}
 
-      <Button label="保存" onPress={() => { commit(); toast('保存しました'); }} />
+      <View ref={saveRef} collapsable={false}>
+        <Button label="保存" onPress={() => { commit(); toast('保存しました'); tour?.saved('alloc'); }} />
+      </View>
       <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
-        配分は残高を動かしません。「この口座のうち、いくらを何に取っておくか」という目安です。
+        配分は残高を動かしません。「この口座のうち、いくらを何に取っておくか」という目安です。記帳でタグを付けると、そのタグの残りが増減します。
       </Text>
     </Screen>
   );

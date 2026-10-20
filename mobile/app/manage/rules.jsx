@@ -3,10 +3,12 @@
 // 一行入力・CSV取込・レシート読み取りの3つすべてがここを参照する。
 // 使うほど記帳が速くなる仕組みで、この画面が無いと3機能とも本来の速さが出ない。
 import { useState } from 'react';
-import { Alert, Text, TouchableOpacity } from 'react-native';
+import { Alert, Text, TouchableOpacity, View } from 'react-native';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, ChipRow, Empty, Field, Input, Screen, sep } from '../../src/components/ui';
+import ReorderList, { ReorderToggle } from '../../src/components/ReorderList';
+import { setListOrder } from '../../src/store/listOrder';
 import { uid } from '../../src/utils/format';
 import { selectable } from '../../src/utils/hiddenAccounts';
 import { useToast } from '../../src/store/ToastProvider';
@@ -15,6 +17,7 @@ export default function Rules() {
   const t = useTheme();
   const toast = useToast();
   const { rules, accounts, journals, save, del } = useData();
+  const [sorting, setSorting] = useState(false);
   const [editing, setEditing] = useState(null);
 
   const name = (id) => accounts.find((a) => a.id === id)?.name || '?';
@@ -87,6 +90,16 @@ export default function Rules() {
     );
   }
 
+  // 通常の行と、並び替え中の行で、同じ中身を使う
+  const rowBody = (r) => (
+    <>
+            <Text style={{ color: t.tx, fontSize: 16 }}>{r.keyword}</Text>
+            <Text style={{ color: t.tx3, fontSize: 13 }}>
+              {name(r.drAccountId)} ← {name(r.crAccountId)}
+            </Text>
+    </>
+  );
+
   return (
     <Screen>
       <Card>
@@ -108,18 +121,19 @@ export default function Rules() {
         </Card>
       ) : null}
 
+      <ReorderToggle active={sorting} onPress={() => setSorting((v) => !v)} count={(rules || []).length} />
       <Card>
-        {(rules || []).length === 0 ? <Empty text="ルールがありません" /> : rules.map((r) => (
+        {(rules || []).length === 0 ? <Empty text="ルールがありません" /> : sorting ? (
+          <ReorderList items={rules} onChange={(ids) => setListOrder('rules', ids)}
+            renderRow={(r) => <View style={{ paddingVertical: 11 }}>{rowBody(r)}</View>} />
+        ) : rules.map((r) => (
           <TouchableOpacity key={r.id} onPress={() => setEditing({ ...r })} onLongPress={() => remove(r)}
             style={[{ paddingVertical: 11 }, sep(t)]}>
-            <Text style={{ color: t.tx, fontSize: 16 }}>{r.keyword}</Text>
-            <Text style={{ color: t.tx3, fontSize: 13 }}>
-              {name(r.drAccountId)} ← {name(r.crAccountId)}
-            </Text>
+            {rowBody(r)}
           </TouchableOpacity>
         ))}
       </Card>
-      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>タップで編集・長押しで削除</Text>
+      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>{sorting ? '≡ をドラッグして並び替えます。上にあるルールが先に当たります。終わったら「完了」を押します' : 'タップで編集・長押しで削除'}</Text>
     </Screen>
   );
 }

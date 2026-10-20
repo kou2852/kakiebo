@@ -19,6 +19,8 @@ import { forgetOnboarding } from '../../src/store/OnboardingProvider';
 import { codeCollisions } from '../../src/store/merge';
 import { rewardedReady } from '../../src/components/Rewarded';
 import { useAdFree } from '../../src/adFree';
+import { useTourTarget } from '../../src/store/TourProvider';
+import { useNetWorthSets } from '../../src/store/netWorthSets';
 
 // 規約・ポリシーはアプリ内ブラウザで開く。
 //
@@ -38,6 +40,18 @@ export default function Settings() {
   const theme = useThemeMode();
   const adFree = useAdFree();
   const [skipDelete, setSkipDelete] = useState(false);
+  const nwSets = useNetWorthSets().sets;
+  // ツアーで押させるメニュー（tours.js）
+  const tour = {
+    sync: useTourTarget('menu-sync'),
+    wallets: useTourTarget('menu-wallets'),
+    tags: useTourTarget('menu-tags'),
+    presets: useTourTarget('menu-presets'),
+    recurring: useTourTarget('menu-recurring'),
+    allocs: useTourTarget('menu-allocs'),
+    csv: useTourTarget('menu-csv'),
+    encryption: useTourTarget('menu-encryption'),
+  };
   useEffect(() => { getSkipDeleteConfirm().then(setSkipDelete); }, []);
 
   const go = (href) => () => router.push(href);
@@ -75,9 +89,11 @@ export default function Settings() {
           value: auth.signedIn && d.pendingCount ? `未送信 ${d.pendingCount} 件` : (auth.email || '未ログイン'),
           alert: auth.signedIn && d.pendingCount > 0,
           onPress: go('/settings/sync'),
+          tourRef: tour.sync,
         },
         { label: '外観', value: theme.mode === 'auto' ? '端末に合わせる' : (theme.resolved === 'light' ? 'ライト' : 'ダーク'), onPress: go('/settings/appearance') },
         { label: 'ホームの表示', onPress: go('/settings/home') },
+        { label: '純資産に入れる科目', value: n(nwSets), onPress: go('/settings/networth') },
         { label: 'アプリロック', onPress: go('/settings/security') },
         { label: '通知', onPress: go('/settings/reminder') },
         // 動画広告を見ると、その日は広告を消せる。広告の枠を持たない端末・ビルドでは出さない。
@@ -97,25 +113,25 @@ export default function Settings() {
         // 帳簿を合わせたあとにコードが重なることがある。放置すると一覧の並びが
         // 崩れたままになるので、後からでも直せる入口をここに置く。
         ...(dupCodes ? [{ label: 'コードの重複を直す', value: `${dupCodes} 件`, alert: true, onPress: go('/resolve-codes') }] : []),
-        { label: '口座・カード', value: n(d.wallets), onPress: go('/manage/wallets') },
-        { label: 'タグ', value: n(d.tags), onPress: go('/manage/tags') },
+        { label: '口座・カード', value: n(d.wallets), onPress: go('/manage/wallets'), tourRef: tour.wallets },
+        { label: 'タグ', value: n(d.tags), onPress: go('/manage/tags'), tourRef: tour.tags },
       ]} />
 
       <MenuList title="自動化・効率化" items={[
-        { label: 'プリセット', value: n(d.presets), onPress: go('/manage/presets') },
+        { label: 'プリセット', value: n(d.presets), onPress: go('/manage/presets'), tourRef: tour.presets },
         { label: '自動仕訳ルール', value: n(d.rules || []), onPress: go('/manage/rules') },
-        { label: '定期取引', value: n(d.recurring), onPress: go('/manage/recurring') },
+        { label: '定期取引', value: n(d.recurring), onPress: go('/manage/recurring'), tourRef: tour.recurring },
       ]} />
 
       <MenuList title="お金を管理する" items={[
         { label: '実査・評価替え', sub: '実残高と突き合わせて帳簿を合わせる', onPress: go('/manage/reconcile') },
         { label: '予算', value: n(d.budgets), onPress: go('/manage/budgets') },
-        { label: 'タグ配分', value: n(d.allocs || []), onPress: go('/manage/allocations') },
+        { label: 'タグ配分', value: n(d.allocs || []), onPress: go('/manage/allocations'), tourRef: tour.allocs },
       ]} />
 
       <MenuList title="データ・その他" items={[
-        { label: 'CSV 入出力', value: `仕訳 ${d.journals.length.toLocaleString('ja-JP')} 件`, onPress: go('/manage/csv') },
-        { label: '暗号化・バックアップ', onPress: go('/manage/encryption') },
+        { label: 'CSV 入出力', value: `仕訳 ${d.journals.length.toLocaleString('ja-JP')} 件`, onPress: go('/manage/csv'), tourRef: tour.csv },
+        { label: '暗号化・バックアップ', onPress: go('/manage/encryption'), tourRef: tour.encryption },
       ]} />
 
       <MenuList items={[

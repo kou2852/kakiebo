@@ -2,11 +2,13 @@
 //
 // 枠線ではなく影で階層を作る。枠線でカードを囲うと画面が箱だらけに見え、
 // どれも同じ強さになって主役（純資産）が埋もれる。
-import { useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Dimensions, Keyboard, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
 import { useTheme } from '../theme';
 import { KEYBOARD_BAR_H } from './KeyboardDone';
+import { ScrollWatch, createScrollWatch } from '../store/scrollWatch';
 
 /**
  * @param stickyTop     スクロールしても上に貼り付く領域（切替タブなど）
@@ -51,13 +53,26 @@ function useAndroidNavOverlap(ref) {
   return [h, measure];
 }
 
-export function Screen({ children, scroll = true, stickyTop, stickyBottom, refresh }) {
+/** 画面のスクロール。ツアーが指す先が画面の外にあるとき、見える所まで送るのに使う（useTourTarget） */
+export const ScreenScroll = createContext(null);
+// 表に出ている画面のスクロール。画面の多くは useTourTarget を Screen より外（画面の関数の先頭）で呼ぶので、
+// 上の文脈が届かない。そのときはこちらを使う（指す先は表に出ている画面にある）
+export const focusedScroll = { current: null };
+/** ツアーの吹き出しが下端を覆っている高さ（操作を待つ段だけ）。その分、画面の下に余白を足して、隠れた保存ボタンなどをスクロールで出せるようにする */
+export const TourCover = createContext(0);
+/** ツアーが指している部品を押した知らせ（key）。押した瞬間に次の段へ進めるため（TourProvider が値を入れる） */
+export const TourPress = createContext(null);
+
+export function Screen({ children, scroll = true, stickyTop, stickyBottom, refresh, onScrolling }) {
   const t = useTheme();
   const rootRef = useRef(null);
   const kb = useAndroidKeyboardOverlap(rootRef);
   const [nav, measureNav] = useAndroidNavOverlap(rootRef);
   const scrollRef = useRef(null);
   const offsetRef = useRef(0);
+  const cover = useContext(TourCover);
+  // 画面に近づいたら読み込む広告（LazyAd）へ、スクロールを知らせる
+  const [watch] = useState(() => createScrollWatch());
   // キーボードが出たとき、入力中の欄がキーボードの下に隠れていれば、見える位置までスクロールする。
   // 余白を足しただけでは、欄はスクロールしないと出てこず、スクロールするとキーボードが閉じてしまう。
   useEffect(() => {
@@ -76,21 +91,29 @@ export function Screen({ children, scroll = true, stickyTop, stickyBottom, refre
     return () => clearTimeout(id);
   }, [kb]);
   const bg = { flex: 1, backgroundColor: t.bg0, paddingBottom: kb };
+  const scroller = useMemo(() => ({
+    scrollBy: (dy) => scrollRef.current?.scrollTo({ y: Math.max(0, offsetRef.current + dy), animated: false }),
+    getOffset: () => offsetRef.current,
+  }), []);
+  useFocusEffect(useCallback(() => {
+    focusedScroll.current = scroller;
+    return () => { if (focusedScroll.current === scroller) focusedScroll.current = null; };
+  }, [scroller]));
 
   const body = scroll
     ? (
       <ScrollView
         ref={scrollRef}
-        onScroll={(e) => { offsetRef.current = e.nativeEvent.contentOffset.y; }}
+        onScroll={(e) => { offsetRef.current = e.nativeEvent.contentOffset.y; onScrolling?.(); watch.emit(); }}
         scrollEventThrottle={16}
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 13, paddingBottom: 40 + (kb || stickyBottom ? 0 : nav), gap: 11 }}
+        contentContainerStyle={{ padding: 13, paddingBottom: 40 + (kb || stickyBottom ? 0 : nav) + cover, gap: 11 }}
         refreshControl={refresh?.control}
         // 下へ引くとキーボードも一緒に下がる（iOS）。Android は引いた時点で閉じる
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         keyboardShouldPersistTaps="handled"
       >
-        {children}
+        <ScreenScroll.Provider value={scroller}><ScrollWatch.Provider value={watch}>{children}</ScrollWatch.Provider></ScreenScroll.Provider>
       </ScrollView>
     )
     : <View style={{ flex: 1, padding: 13, paddingBottom: 13 + (kb || stickyBottom ? 0 : nav), gap: 11 }}>{children}</View>;
@@ -128,11 +151,14 @@ export function Card({ title, children, style }) {
  * 主役の数字を置く濃いカード。純資産のように「この画面で一番見たいもの」だけに使う。
  * 乱用すると強調の意味が消えるので、1画面に1枚まで。
  */
-export function Hero({ label, value, sub, children, negative }) {
+export function Hero({ label, value, sub, children, negative, right }) {
   const t = useTheme();
   return (
     <View style={[{ backgroundColor: negative ? t.red : t.hero, borderRadius: 16, padding: 15, gap: 2 }, t.shadow]}>
-      <Text style={{ color: t.heroSub, fontSize: 13 }}>{label}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Text style={{ color: t.heroSub, fontSize: 13, flex: 1 }} numberOfLines={1}>{label}</Text>
+        {right}
+      </View>
       <Text style={{ color: t.heroTx, fontSize: 31, fontWeight: '800', letterSpacing: -0.5 }}
         numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
       {sub ? <Text style={{ color: t.heroSub, fontSize: 13 }}>{sub}</Text> : null}
@@ -301,6 +327,7 @@ export function UnderlineTabs({ options, value, onChange }) {
 /** iOS の設定アプリ風のメニュー。行をタップして次の画面へ進む。 */
 export function MenuList({ title, items }) {
   const t = useTheme();
+  const tourPress = useContext(TourPress);
   return (
     <View style={{ gap: 6 }}>
       {title ? (
@@ -310,20 +337,25 @@ export function MenuList({ title, items }) {
       ) : null}
       <View style={[{ backgroundColor: t.bg1, borderRadius: 14, overflow: 'hidden' }, t.shadow]}>
         {items.filter(Boolean).map((it, i) => (
+          // ツアーで指す行は tourRef（useTourTarget の戻り値）を渡す。TouchableOpacity は測れないので View で包む
+          <View key={it.label} ref={it.tourRef} collapsable={false}>
           <TouchableOpacity
-            key={it.label} onPress={it.onPress} disabled={!it.onPress}
+            onPress={it.onPress ? () => { tourPress?.(it.tourRef?.tourKey); it.onPress(); } : undefined}
+            disabled={!it.onPress || it.disabled}
             style={[{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, paddingHorizontal: 14 },
               i ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.bd } : null]}
           >
             <View style={{ flex: 1 }}>
-              <Text style={{ color: it.danger ? t.red : t.tx, fontSize: 16.5 }}>{it.label}</Text>
+              {/* disabled: 押せない行。文字を薄くし、› を出さない（理由は sub に書く） */}
+              <Text style={{ color: it.danger ? t.red : it.disabled ? t.tx3 : t.tx, fontSize: 16.5 }}>{it.label}</Text>
               {it.sub ? <Text style={{ color: t.tx3, fontSize: 13.5, marginTop: 2 }}>{it.sub}</Text> : null}
             </View>
             {it.value ? (
               <Text style={{ color: it.alert ? t.red : t.tx2, fontSize: 15 }} numberOfLines={1}>{it.value}</Text>
             ) : null}
-            {it.onPress ? <Text style={{ color: t.tx3, fontSize: 17 }}>›</Text> : null}
+            {it.onPress && !it.disabled ? <Text style={{ color: t.tx3, fontSize: 17 }}>›</Text> : null}
           </TouchableOpacity>
+          </View>
         ))}
       </View>
     </View>

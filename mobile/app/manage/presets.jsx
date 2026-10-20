@@ -3,10 +3,12 @@ import { Alert, Text, TouchableOpacity, View } from 'react-native';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
 import { Button, Card, ChipRow, Empty, Field, Input, Screen, sep } from '../../src/components/ui';
+import ReorderList, { ReorderToggle } from '../../src/components/ReorderList';
+import { setListOrder } from '../../src/store/listOrder';
 import AccountPicker from '../../src/components/AccountPicker';
 import { isMultiPreset } from '../../src/components/SplitForm';
 import { fa, uid } from '../../src/utils/format';
-import { useTourTarget } from '../../src/store/TourProvider';
+import { useTour, useTourTarget } from '../../src/store/TourProvider';
 import { selectable } from '../../src/utils/hiddenAccounts';
 import { carryLine } from '../../src/utils/journalTags';
 import { useToast } from '../../src/store/ToastProvider';
@@ -24,9 +26,12 @@ const TYPES = [
 
 export default function Presets() {
   const listRef = useTourTarget('preset-list');
+  const saveRef = useTourTarget('preset-save');
+  const tour = useTour();
   const t = useTheme();
   const toast = useToast();
   const { presets, accounts, tags, save, del } = useData();
+  const [sorting, setSorting] = useState(false);
   const [editing, setEditing] = useState(null);
 
   const name = (id) => accounts.find((a) => a.id === id)?.name || '?';
@@ -202,21 +207,17 @@ export default function Presets() {
             <Button label="明細を分ける（複数の口座・科目へ）" variant="ghost" onPress={toMulti} />
           </>
         )}
-        <Button label="保存" onPress={commit} disabled={!editing.name.trim() || (editing.multi && !multiOk(editing))} />
+        <View ref={saveRef} collapsable={false}>
+          <Button label="保存" onPress={() => { commit(); tour?.saved('preset'); }} disabled={!editing.name.trim() || (editing.multi && !multiOk(editing))} />
+        </View>
         <Button label="キャンセル" variant="ghost" onPress={() => setEditing(null)} />
       </Screen>
     );
   }
 
-  return (
-    <Screen>
-      <View ref={listRef} collapsable={false}>
-        <Button label="プリセットを追加" onPress={startNew} />
-      </View>
-      <Card>
-        {presets.length === 0 ? <Empty text="プリセットがありません" /> : presets.map((p) => (
-          <TouchableOpacity key={p.id} onPress={() => startEdit(p)} onLongPress={() => remove(p)}
-            style={[{ paddingVertical: 11 }, sep(t)]}>
+  // 通常の行と、並び替え中の行で、同じ中身を使う
+  const rowBody = (p) => (
+    <>
             <Text style={{ color: t.tx, fontSize: 16 }}>
               {p.name}
               {p.lines.find((l) => l.side === 'dr')?.amount
@@ -229,10 +230,27 @@ export default function Presets() {
               {name(p.lines.find((l) => l.side === 'cr')?.accountId)}
               {isMultiPreset(p) ? `（明細${p.lines.length}行）` : ''}
             </Text>
+    </>
+  );
+
+  return (
+    <Screen>
+      <View ref={listRef} collapsable={false}>
+        <Button label="プリセットを追加" onPress={startNew} />
+      </View>
+      <ReorderToggle active={sorting} onPress={() => setSorting((v) => !v)} count={presets.length} />
+      <Card>
+        {presets.length === 0 ? <Empty text="プリセットがありません" /> : sorting ? (
+          <ReorderList items={presets} onChange={(ids) => setListOrder('presets', ids)}
+            renderRow={(p) => <View style={{ paddingVertical: 11 }}>{rowBody(p)}</View>} />
+        ) : presets.map((p) => (
+          <TouchableOpacity key={p.id} onPress={() => startEdit(p)} onLongPress={() => remove(p)}
+            style={[{ paddingVertical: 11 }, sep(t)]}>
+            {rowBody(p)}
           </TouchableOpacity>
         ))}
       </Card>
-      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>タップで編集・長押しで削除</Text>
+      <Text style={{ color: t.tx3, fontSize: 13, textAlign: 'center' }}>{sorting ? '≡ をドラッグして並び替えます。終わったら「完了」を押します' : 'タップで編集・長押しで削除'}</Text>
     </Screen>
   );
 }

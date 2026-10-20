@@ -35,7 +35,7 @@ export default function Manage() {
         ))}
       </Card>
       <Text style={{ color: t.tx3, fontSize: 13, lineHeight: 20 }}>
-        クレジットカードの締め日・引落日は、勘定科目（負債）の編集画面で設定します。
+        クレジットカードの締め日・引落日は、口座・カードの画面でカードを押すか、勘定科目（負債）の編集画面で設定します。
       </Text>
     </Screen>
   );
