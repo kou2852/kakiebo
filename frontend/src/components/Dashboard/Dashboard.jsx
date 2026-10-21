@@ -224,7 +224,7 @@ export default function Dashboard() {
       </div>
 
       {/* 資産のタグ別内訳（タグを使っている人だけに出る）。資産構成ドーナツの直下＝その口座の中身として読ませる */}
-      <TagAllocationPanel masked={!vis.brk} />
+      <TagAllocationPanel masked={!vis.brk} asOf={end} />
 
       {/* 投資の元本と損益（投資性の資産がある人だけに出る） */}
       <InvestmentPanel masked={!vis.brk} />

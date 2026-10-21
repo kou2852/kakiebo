@@ -9,8 +9,10 @@ const MASK = '¥•••••';
 // 口座ごとの「そのお金が何のためのものか」。タグを1つも使っていない人には出さない。
 // バーの中には文字を書かず、ホバーでツールチップ。スマホにはホバーが無いので、
 // ▶ で内訳を一覧にできるようにしてある（タッチ環境ではこちらが唯一の手段）。
-export default function TagAllocationPanel({ masked = false }) {
-  const { journals, accounts, tags, allocs, wallets } = useData();
+export default function TagAllocationPanel({ masked = false, asOf }) {
+  const { journals: all, accounts, tags, allocs, wallets } = useData();
+  // 時点は上の資産合計と同じ（期間末）。先の日付の仕訳まで入れると、口座の額がずれる（2026-10-21）
+  const journals = useMemo(() => (asOf ? all.filter((j) => j.date <= asOf) : all), [all, asOf]);
   const [openIds, setOpenIds] = useState(() => new Set());
   const [tip, setTip] = useState(null); // { name, color, amount, sub, x, y }
   const tipRef = useRef(null);
