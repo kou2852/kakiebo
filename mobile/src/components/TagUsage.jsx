@@ -15,9 +15,11 @@ import { useMoney } from '../store/hideAmounts';
 import { tagAllocation } from '../utils/bookkeeping';
 import { useTourTarget } from '../store/TourProvider';
 
-export default function TagUsage() {
+export default function TagUsage({ asOf }) {
   const t = useTheme();
-  const { journals, accounts, tags, allocs, wallets } = useData();
+  const { journals: all, accounts, tags, allocs, wallets } = useData();
+  // 時点は「口座の残高」のカードと同じ。先の日付の仕訳まで入れると、口座の額がカードとずれる（2026-10-21）
+  const journals = useMemo(() => (asOf ? all.filter((j) => j.date <= asOf) : all), [all, asOf]);
   const [open, setOpen] = useState(() => new Set());
   // ホームの「金額を隠す」に合わせる
   const { faBal } = useMoney();

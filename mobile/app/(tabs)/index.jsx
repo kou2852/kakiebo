@@ -306,7 +306,7 @@ export default function Dashboard() {
           </View>
         ) : null),
     // 口座のお金を目的（タグ）ごとに。タグを使っていなければ出ない
-    tags: () => <TagUsage />,
+    tags: () => <TagUsage asOf={m.asOf} />,
     trend: () => (trend.some((x) => x.expense > 0) ? (
           <Card title="支出の推移（6か月）">
             <Bars data={trend.map((x) => ({ label: x.label, value: x.expense }))} color={t.red} />
