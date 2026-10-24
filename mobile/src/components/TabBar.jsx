@@ -68,7 +68,8 @@ export default function TabBar({ state, descriptors, navigation }) {
           それに、隠れている間の読み込みで在庫が無いと取り直しまで1分空き、
           オンボーディングを終えた直後のホームで広告が出ていなかった。
       */}
-      {onboarding?.active ? null : <AnchoredAd />}
+      {/* 仕訳帳は一覧の途中に広告を挟むので、タブバー上の帯は出さない（2026-10-24 指示）。隠すだけだと不可視のインプレッションになるので描画しない */}
+      {onboarding?.active || state.routes[state.index]?.name === 'ledger' ? null : <AnchoredAd />}
       <View style={{
         flexDirection: 'row', alignItems: 'flex-start',
         borderTopWidth: 1, borderTopColor: t.bd,
