@@ -12,7 +12,7 @@ import { useData } from '../store/DataProvider';
 import { useTheme } from '../theme';
 import { Card } from './ui';
 import { useMoney } from '../store/hideAmounts';
-import { tagAllocation } from '../utils/bookkeeping';
+import { isInvestmentAsset, tagAllocation } from '../utils/bookkeeping';
 import { useTourTarget } from '../store/TourProvider';
 
 export default function TagUsage({ asOf }) {
@@ -25,8 +25,9 @@ export default function TagUsage({ asOf }) {
   const { faBal } = useMoney();
   const ref = useTourTarget('tag-usage');
 
+  // 投資用の口座（有価証券・固定資産など）は出さない（2026-10-24 指示）。資産合計も、出している口座の合計になる
   const rows = useMemo(
-    () => tagAllocation(journals, accounts, tags, allocs, wallets),
+    () => tagAllocation(journals, accounts, tags, allocs, wallets).filter((r) => !isInvestmentAsset(r.account)),
     [journals, accounts, tags, allocs, wallets]
   );
 

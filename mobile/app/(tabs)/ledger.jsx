@@ -7,6 +7,7 @@ import { useTheme } from '../../src/theme';
 import { Button, Card, Empty, Segmented, sep } from '../../src/components/ui';
 import PeriodBar, { usePeriod } from '../../src/components/PeriodBar';
 import BottomSheet from '../../src/components/BottomSheet';
+import MonthNav from '../../src/components/MonthNav';
 import SwipeRow from '../../src/components/SwipeRow';
 import AccountPicker from '../../src/components/AccountPicker';
 import DeleteConfirm from '../../src/components/DeleteConfirm';
@@ -37,7 +38,8 @@ const short = (n) => {
 };
 
 /** 月グリッド。日をタップしても表は動かさず、その日の一覧はモーダルで出す。
- * 横にスライドすると月を送る（左へ＝翌月、右へ＝前月）。‹ › のボタンも残す。 */
+ * 横にスライドすると月を送る（左へ＝翌月、右へ＝前月）。‹ › のボタンも残す。
+ * 見出しを押すと年・月の表で選べる（MonthNav。日付入力のカレンダーと同じ）。 */
 function MonthGrid({ month, setMonth, journals, accounts, onSelect }) {
   const t = useTheme();
   const [x] = useState(() => new Animated.Value(0));
@@ -69,7 +71,7 @@ function MonthGrid({ month, setMonth, journals, accounts, onSelect }) {
     onPanResponderTerminate: () => Animated.spring(x, { toValue: 0, useNativeDriver: true }).start(),
   }));
 
-  const { cells, label, byDay } = useMemo(() => {
+  const { cells, byDay } = useMemo(() => {
     const first = new Date(month.getFullYear(), month.getMonth(), 1);
     const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
     const typeOf = Object.fromEntries(accounts.map((a) => [a.id, a.type]));
@@ -93,25 +95,17 @@ function MonthGrid({ month, setMonth, journals, accounts, onSelect }) {
 
     const out = Array(first.getDay()).fill(null); // 月初までの空きマス
     for (let d = 1; d <= days; d++) out.push(ymd(new Date(month.getFullYear(), month.getMonth(), d)));
-    return { cells: out, label: `${month.getFullYear()}年${month.getMonth() + 1}月`, byDay: sums };
+    return { cells: out, byDay: sums };
   }, [month, journals, accounts]);
 
-  const shift = (n) => setMonth(new Date(month.getFullYear(), month.getMonth() + n, 1));
   const todayStr = ymd(new Date());
 
   return (
     <View style={[{ backgroundColor: t.bg1, padding: 12, gap: 6, borderRadius: 14, margin: 13, overflow: 'hidden' }, t.shadow]}
-      onLayout={(e) => { width.current = e.nativeEvent.layout.width; }} {...pan.panHandlers}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <TouchableOpacity onPress={() => shift(-1)} style={{ padding: 8 }}>
-          <Text style={{ color: t.ac, fontSize: 18, fontWeight: '700' }}>‹</Text>
-        </TouchableOpacity>
-        <Text style={{ color: t.tx, fontSize: 16, fontWeight: '700' }}>{label}</Text>
-        <TouchableOpacity onPress={() => shift(1)} style={{ padding: 8 }}>
-          <Text style={{ color: t.ac, fontSize: 18, fontWeight: '700' }}>›</Text>
-        </TouchableOpacity>
-      </View>
-
+      onLayout={(e) => { width.current = e.nativeEvent.layout.width; }}>
+      <MonthNav month={month} setMonth={setMonth}>
+      {/* スワイプは日の表の上だけ。年・月の表を開いている間に月が動かないようにする */}
+      <View style={{ gap: 6 }} {...pan.panHandlers}>
       <View style={{ flexDirection: 'row' }}>
         {WEEK.map((w, i) => (
           <Text key={w} style={{ flex: 1, textAlign: 'center', fontSize: 13, color: i === 0 ? t.red : i === 6 ? t.blu : t.tx3 }}>{w}</Text>
@@ -148,6 +142,8 @@ function MonthGrid({ month, setMonth, journals, accounts, onSelect }) {
           );
         })}
       </Animated.View>
+      </View>
+      </MonthNav>
     </View>
   );
 }
