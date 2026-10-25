@@ -25,6 +25,14 @@ Parameters:
   TableName:
     Type: String
     Default: kakeibo-prod
+  InquiryTableName:
+    Type: String
+    Default: kakeibo-inquiries-prod
+    Description: 問い合わせの専用テーブル（backend の InquiryTable）。まだ無い間は元のテーブルだけを読む
+  FeedbackTableName:
+    Type: String
+    Default: kakeibo-feedback-prod
+    Description: ご意見の専用テーブル（backend の FeedbackTable）。まだ無い間は元のテーブルだけを読む
   CleanupLogGroup:
     Type: String
     Default: /aws/lambda/kakeibo-saas-prod-CleanupUnconfirmedFunction-GvWvO3WXvqhh
@@ -70,6 +78,8 @@ Resources:
           DISTRIBUTION_ID: !Ref DistributionId
           USER_POOL_ID: !Ref UserPoolId
           TABLE_NAME: !Ref TableName
+          INQUIRY_TABLE_NAME: !Ref InquiryTableName
+          FEEDBACK_TABLE_NAME: !Ref FeedbackTableName
           CLEANUP_LOG_GROUP: !Ref CleanupLogGroup
           API_NAME: !Ref ApiName
           WEBHOOK_PARAM: !Ref WebhookParam
@@ -136,7 +146,10 @@ Resources:
               Action:
                 - dynamodb:Query
                 - dynamodb:Scan
-              Resource: !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}
+              Resource:
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${InquiryTableName}
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${FeedbackTableName}
               Condition:
                 ForAllValues:StringEquals:
                   dynamodb:Attributes: [PK, SK, status, messages, subject, body, timestamp, createdAt, updatedAt]

@@ -19,6 +19,9 @@ export const CONFIG = {
   distributionId: env('DISTRIBUTION_ID', 'E32HZNCIT2MXUM'), // ファイル名: app/<distId>.YYYY-MM-DD-HH.hash.gz（UTC）
   userPoolId: env('USER_POOL_ID', 'ap-northeast-1_ddBDF3HKK'),
   table: env('TABLE_NAME', 'kakeibo-prod'),
+  // 問い合わせ・ご意見の専用テーブル（backend/src/lib/opsTables.js）。移行が済むまでは元の table と両方を読む
+  inquiryTable: env('INQUIRY_TABLE_NAME', 'kakeibo-inquiries-prod'),
+  feedbackTable: env('FEEDBACK_TABLE_NAME', 'kakeibo-feedback-prod'),
   cleanupLogGroup: env('CLEANUP_LOG_GROUP', '/aws/lambda/kakeibo-saas-prod-CleanupUnconfirmedFunction-GvWvO3WXvqhh'),
   apiName: env('API_NAME', 'kakeibo-saas-prod'),
   appUrl: env('APP_URL', 'https://app.kurofukubo.com/'),
@@ -126,26 +129,48 @@ export async function getLiveHeaders() {
   return { csp: cspStateOf(r.headers.get('content-security-policy'), r.headers.get('content-security-policy-report-only')) };
 }
 
+/**
+ * 元のテーブルと専用テーブルの両方を読み、同じキーは専用テーブルを優先して1件にまとめる
+ * （ダッシュボードの getInquiries / getFeedback と同じ扱い。直しが片側にだけ入ると通知から新しい分が落ちる）。
+ * 専用テーブルがまだ作られていない（sam deploy 前）なら、元のテーブルだけで続ける。
+ * @param {(table: string) => Promise<Array<{key: string}>>} read 1つのテーブルから {key, ...} を返す
+ */
+async function readBothTables(newTable, read) {
+  const merged = new Map();
+  for (const table of [CONFIG.table, newTable]) {
+    let part;
+    try { part = await read(table); } catch (e) {
+      if (table === newTable && e.name === 'ResourceNotFoundException') continue;
+      throw e;
+    }
+    for (const item of part) merged.set(item.key, item);
+  }
+  return [...merged.values()];
+}
+
 /** [from, to) に届いたご意見の件数。SK が FEEDBACK#<ISO日時>#<uuid> なのでキー条件だけで数えられ、本文は読まない */
 export async function countFeedback(from, to) {
-  let n = 0;
-  let start;
-  do {
-    const page = await ddb.send(new QueryCommand({
-      TableName: CONFIG.table,
-      KeyConditionExpression: 'PK = :pk AND SK BETWEEN :a AND :b',
-      ExpressionAttributeValues: {
-        ':pk': { S: 'FEEDBACK' },
-        ':a': { S: `FEEDBACK#${new Date(from).toISOString()}` },
-        ':b': { S: `FEEDBACK#${new Date(to).toISOString()}` },
-      },
-      Select: 'SPECIFIC_ATTRIBUTES', ProjectionExpression: 'PK',
-      ExclusiveStartKey: start,
-    }));
-    n += page.Items?.length || 0;
-    start = page.LastEvaluatedKey;
-  } while (start);
-  return n;
+  const items = await readBothTables(CONFIG.feedbackTable, async (table) => {
+    const out = [];
+    let start;
+    do {
+      const page = await ddb.send(new QueryCommand({
+        TableName: table,
+        KeyConditionExpression: 'PK = :pk AND SK BETWEEN :a AND :b',
+        ExpressionAttributeValues: {
+          ':pk': { S: 'FEEDBACK' },
+          ':a': { S: `FEEDBACK#${new Date(from).toISOString()}` },
+          ':b': { S: `FEEDBACK#${new Date(to).toISOString()}` },
+        },
+        Select: 'SPECIFIC_ATTRIBUTES', ProjectionExpression: 'SK',
+        ExclusiveStartKey: start,
+      }));
+      for (const i of page.Items || []) out.push({ key: i.SK?.S || '' });
+      start = page.LastEvaluatedKey;
+    } while (start);
+    return out;
+  });
+  return items.length;
 }
 
 /**
@@ -153,25 +178,28 @@ export async function countFeedback(from, to) {
  * 読む項目は status と messages だけ（IAM でもこの項目以外は読めないよう絞っている）。
  */
 export async function listInquiries() {
-  const out = [];
-  let start;
-  do {
-    const page = await ddb.send(new ScanCommand({
-      TableName: CONFIG.table,
-      FilterExpression: 'begins_with(SK, :p)',
-      ExpressionAttributeValues: { ':p': { S: 'INQUIRY#' } },
-      ExpressionAttributeNames: { '#st': 'status' },
-      Select: 'SPECIFIC_ATTRIBUTES', ProjectionExpression: '#st, messages',
-      ExclusiveStartKey: start,
-    }));
-    for (const i of page.Items || []) {
-      // from が無い発言はユーザー発言として扱う（ダッシュボードの getInquiries と同じ）
-      const last = i.messages?.L?.at(-1);
-      out.push({ status: i.status?.S || 'open', lastFrom: last ? (last.M?.from?.S || 'user') : null });
-    }
-    start = page.LastEvaluatedKey;
-  } while (start);
-  return out;
+  const items = await readBothTables(CONFIG.inquiryTable, async (table) => {
+    const out = [];
+    let start;
+    do {
+      const page = await ddb.send(new ScanCommand({
+        TableName: table,
+        FilterExpression: 'begins_with(SK, :p)',
+        ExpressionAttributeValues: { ':p': { S: 'INQUIRY#' } },
+        ExpressionAttributeNames: { '#st': 'status' },
+        Select: 'SPECIFIC_ATTRIBUTES', ProjectionExpression: 'SK, #st, messages',
+        ExclusiveStartKey: start,
+      }));
+      for (const i of page.Items || []) {
+        // from が無い発言はユーザー発言として扱う（ダッシュボードの getInquiries と同じ）
+        const last = i.messages?.L?.at(-1);
+        out.push({ key: i.SK?.S || '', status: i.status?.S || 'open', lastFrom: last ? (last.M?.from?.S || 'user') : null });
+      }
+      start = page.LastEvaluatedKey;
+    } while (start);
+    return out;
+  });
+  return items.map(({ status, lastFrom }) => ({ status, lastFrom }));
 }
 
 export async function getWebhookUrl(name = CONFIG.webhookParam) {
@@ -198,53 +226,61 @@ export async function putCursor(cursor) {
 
 /** since より後に届いたご意見（本文つき・古い順）。SK が FEEDBACK#<ISO日時>#<uuid> なので時刻で切れる */
 export async function listFeedbackSince(since) {
-  const out = [];
-  let start;
-  do {
-    const page = await ddb.send(new QueryCommand({
-      TableName: CONFIG.table,
-      KeyConditionExpression: 'PK = :pk AND SK > :a',
-      ExpressionAttributeValues: { ':pk': { S: 'FEEDBACK' }, ':a': { S: `FEEDBACK#${since}` } },
-      ExpressionAttributeNames: { '#ts': 'timestamp' },
-      Select: 'SPECIFIC_ATTRIBUTES', ProjectionExpression: 'SK, #ts, body',
-      ExclusiveStartKey: start,
-    }));
-    for (const i of page.Items || []) {
-      out.push({ sk: i.SK?.S || '', timestamp: i.timestamp?.S || '', body: i.body?.S || '' });
-    }
-    start = page.LastEvaluatedKey;
-  } while (start);
-  return out.sort((a, b) => a.sk.localeCompare(b.sk));
+  const items = await readBothTables(CONFIG.feedbackTable, async (table) => {
+    const out = [];
+    let start;
+    do {
+      const page = await ddb.send(new QueryCommand({
+        TableName: table,
+        KeyConditionExpression: 'PK = :pk AND SK > :a',
+        ExpressionAttributeValues: { ':pk': { S: 'FEEDBACK' }, ':a': { S: `FEEDBACK#${since}` } },
+        ExpressionAttributeNames: { '#ts': 'timestamp' },
+        Select: 'SPECIFIC_ATTRIBUTES', ProjectionExpression: 'SK, #ts, body',
+        ExclusiveStartKey: start,
+      }));
+      for (const i of page.Items || []) {
+        const sk = i.SK?.S || '';
+        out.push({ key: sk, sk, timestamp: i.timestamp?.S || '', body: i.body?.S || '' });
+      }
+      start = page.LastEvaluatedKey;
+    } while (start);
+    return out;
+  });
+  return items.map(({ key, ...rest }) => rest).sort((a, b) => a.sk.localeCompare(b.sk));
 }
 
 /** since より後に動きのあった問い合わせスレッド（古い順）。最後の発言だけを持って帰る */
 export async function listInquiriesSince(since) {
-  const out = [];
-  let start;
-  do {
-    const page = await ddb.send(new ScanCommand({
-      TableName: CONFIG.table,
-      FilterExpression: 'begins_with(SK, :p) AND updatedAt > :since',
-      ExpressionAttributeValues: { ':p': { S: 'INQUIRY#' }, ':since': { S: since } },
-      ExpressionAttributeNames: { '#st': 'status' },
-      Select: 'SPECIFIC_ATTRIBUTES', ProjectionExpression: 'PK, subject, #st, updatedAt, createdAt, messages',
-      ExclusiveStartKey: start,
-    }));
-    for (const i of page.Items || []) {
-      const msgs = i.messages?.L || [];
-      const last = msgs.at(-1);
-      out.push({
-        // 誰からかを画面と突き合わせられるよう、ダッシュボードと同じく sub の先頭8桁だけ持つ
-        sub: (i.PK?.S || '').replace('USER#', '').slice(0, 8),
-        subject: i.subject?.S || '',
-        status: i.status?.S || 'open',
-        updatedAt: i.updatedAt?.S || '',
-        isNew: msgs.length <= 1,
-        lastFrom: last ? (last.M?.from?.S || 'user') : null,
-        lastBody: last?.M?.body?.S || '',
-      });
-    }
-    start = page.LastEvaluatedKey;
-  } while (start);
-  return out.sort((a, b) => a.updatedAt.localeCompare(b.updatedAt));
+  const items = await readBothTables(CONFIG.inquiryTable, async (table) => {
+    const out = [];
+    let start;
+    do {
+      const page = await ddb.send(new ScanCommand({
+        TableName: table,
+        FilterExpression: 'begins_with(SK, :p) AND updatedAt > :since',
+        ExpressionAttributeValues: { ':p': { S: 'INQUIRY#' }, ':since': { S: since } },
+        ExpressionAttributeNames: { '#st': 'status' },
+        Select: 'SPECIFIC_ATTRIBUTES', ProjectionExpression: 'PK, SK, subject, #st, updatedAt, createdAt, messages',
+        ExclusiveStartKey: start,
+      }));
+      for (const i of page.Items || []) {
+        const msgs = i.messages?.L || [];
+        const last = msgs.at(-1);
+        out.push({
+          key: i.SK?.S || '',
+          // 誰からかを画面と突き合わせられるよう、ダッシュボードと同じく sub の先頭8桁だけ持つ
+          sub: (i.PK?.S || '').replace('USER#', '').slice(0, 8),
+          subject: i.subject?.S || '',
+          status: i.status?.S || 'open',
+          updatedAt: i.updatedAt?.S || '',
+          isNew: msgs.length <= 1,
+          lastFrom: last ? (last.M?.from?.S || 'user') : null,
+          lastBody: last?.M?.body?.S || '',
+        });
+      }
+      start = page.LastEvaluatedKey;
+    } while (start);
+    return out;
+  });
+  return items.map(({ key, ...rest }) => rest).sort((a, b) => a.updatedAt.localeCompare(b.updatedAt));
 }

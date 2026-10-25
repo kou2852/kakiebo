@@ -2,12 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   parseLogs, classify, countEvents, funnelOf, countCreated, judgeChecks, judgeCsp, judgeSignals, judgeWatch, isWaitingInquiry,
+  isWriteReq,
 } from '../src/metrics.mjs';
 import { windowsOf, formatReport, formatFailure, dayLabel, formatFeedbackItems, formatInquiryItems } from '../src/format.mjs';
 
 // CloudFront 標準ログの1行（タブ区切り。使う列だけ埋める）
-const line = ({ date, time, ip, uri, ua = 'Mozilla/5.0%20(iPhone;%20CPU%20iPhone%20OS%2017_0)', q = '-', ref = '-' }) =>
-  [date, time, 'NRT', '100', ip, 'GET', 'app.kurofukubo.com', uri, '200', ref, ua, q].join('\t');
+const line = ({ date, time, ip, uri, method = 'GET', ua = 'Mozilla/5.0%20(iPhone;%20CPU%20iPhone%20OS%2017_0)', q = '-', ref = '-' }) =>
+  [date, time, 'NRT', '100', ip, method, 'app.kurofukubo.com', uri, '200', ref, ua, q].join('\t');
 
 test('JST の 10:00 実行は前日分、18:00 実行は当日分を数える', () => {
   const morning = windowsOf('morning', Date.parse('2026-09-17T10:00:03+09:00'));
@@ -66,6 +67,51 @@ test('同一秒に3回以上のオープンはボット扱い', () => {
   const t = { date: '2026-09-16', time: '23:00:00', ip: '5.5.5.5', uri: '/' };
   const { rows, selfIps } = parseLogs([[line(t), line(t), line(t)].join('\n')], new Set(['2026-09-17']));
   assert.equal(classify(rows, selfIps).humanOpens.length, 0);
+});
+
+test('オープンは GET だけを人間に数える（HEAD の監視・POST は除外）', () => {
+  // Discord レポートの監視は UA が node の HEAD。BOT の正規表現には当たらない
+  const text = [
+    line({ date: '2026-09-16', time: '23:00:00', ip: '1.1.1.1', uri: '/' }),
+    line({ date: '2026-09-16', time: '23:00:01', ip: '2.2.2.2', uri: '/', method: 'HEAD', ua: 'node' }),
+    line({ date: '2026-09-16', time: '23:00:02', ip: '3.3.3.3', uri: '/', method: 'POST' }),
+    line({ date: '2026-09-16', time: '23:00:03', ip: '4.4.4.4', uri: '/index.html', method: 'OPTIONS' }),
+  ].join('\n');
+  const { rows, selfIps } = parseLogs([text], new Set(['2026-09-17']));
+  const c = classify(rows, selfIps);
+  assert.equal(c.humanOpens.length, 1);
+  assert.equal(c.humanOpens[0].ip, '1.1.1.1');
+  assert.equal(c.botOpens.length, 3);
+  assert.equal(c.isNonGet(rows[1]), true);
+  assert.equal(c.isNonGet(rows[0]), false);
+});
+
+test('GET 以外でもイベントのビーコンは数える（CSP 違反の報告は利用者のイベントに入れない）', () => {
+  const text = [
+    line({ date: '2026-09-16', time: '23:00:00', ip: '1.1.1.1', uri: '/_e/app_first' }),
+    line({ date: '2026-09-16', time: '23:00:01', ip: '1.1.1.1', uri: '/_e/csp-report', method: 'POST' }),
+    line({ date: '2026-09-16', time: '23:00:02', ip: '2.2.2.2', uri: '/_e/csp-report', method: 'POST' }),
+    // 別の日の分（期間外）は数えない
+    line({ date: '2026-09-10', time: '03:00:00', ip: '2.2.2.2', uri: '/_e/csp-report', method: 'POST' }),
+  ].join('\n');
+  const { rows, selfIps } = parseLogs([text], new Set(['2026-09-17']));
+  const c = classify(rows, selfIps);
+  const ev = countEvents(rows, c.isBot, c.isSelf);
+  assert.deepEqual(ev.total, { app_first: 1 });
+  assert.equal(ev.cspReports, 2);
+});
+
+test('記帳の判定: ステージ名（/prod）付きの path で、書き込みだけを数える', () => {
+  // 実ログの path は API Gateway のステージ名が付く。付いていない形も許す
+  assert.equal(isWriteReq('POST', '/prod/api/journals'), true);
+  assert.equal(isWriteReq('PUT', '/prod/api/journals/89586ceb-b6a1'), true);
+  assert.equal(isWriteReq('POST', '/prod/api/encdata'), true);   // E2E 暗号化の利用者
+  assert.equal(isWriteReq('POST', '/prod/api/import'), true);    // まとめての取り込み
+  assert.equal(isWriteReq('POST', '/api/journals'), true);
+  assert.equal(isWriteReq('GET', '/prod/api/journals'), false);
+  assert.equal(isWriteReq('GET', '/prod/api/encdata'), false);
+  assert.equal(isWriteReq('POST', '/prod/api/accounts'), false); // 科目の追加は記帳ではない
+  assert.equal(isWriteReq('POST', '/prod/api/journals-x'), false);
 });
 
 test('登録数は未確認を除き、[from, to) で数える', () => {

@@ -39,7 +39,7 @@ const PF_CACHE_DIR = join(__dirname, '.cache-platforms'); // 端末別集計の�
 import {
   BOT, SUSPICIOUS_QUERY, dec, isOutdatedUa, jstDayOfIso, lastDays, parseLogs, classify, countEvents, funnelOf,
   summarizeUsers, isWaitingInquiry, judgeChecks, judgeCsp, judgeSignals, signalsOf, signalQueries, cspStateOf,
-  SELF_PREFIXES,
+  SELF_PREFIXES, isWriteReq,
 } from './report/src/metrics.mjs';
 
 // S3から直近days日ぶんのログを増分同期（ファイル名: app/<distId>.YYYY-MM-DD-HH.hash.gz）
@@ -77,7 +77,8 @@ function getRegisteredUsers(days) {
     ], '登録ユーザー数の取得');
   } catch { return null; } // 認証切れ等でも他の数字は出す
   if (!Array.isArray(users)) return null;
-  return summarizeUsers(users, days ? Date.now() - days * 86400000 : null);
+  // 期間の始まりは、アクセスの集計（lastDays）と同じ JST の暦日の 0 時にそろえる
+  return summarizeUsers(users, days ? jstDayStartMs(lastDays(days).at(-1)) : null);
 }
 
 // ── 「状態」タブ ──────────────────────────────────────────────
@@ -106,11 +107,6 @@ const platformOf = (ua) => {
   if (/^Mozilla\//i.test(ua)) return 'web';
   return 'other';
 };
-
-// ⚠ E2E暗号化を使っている人の書き込みは /api/journals を通らず /api/encdata に入る。
-//    片方だけ数えると暗号化利用者の記帳が丸ごと抜ける。
-const isWriteReq = (m, path) => (m === 'POST' || m === 'PUT')
-  && (/^\/api\/journals/.test(path) || /^\/api\/encdata/.test(path));
 
 const medianOf = (a) => {
   if (!a.length) return 0;
@@ -155,9 +151,15 @@ function queryApiLogs(startMs, endMs) {
 
 // 過ぎたJST日ぶんの集計は変わらないので、日ごとに {sub: {端末: [リクエスト, 記帳]}} を保存して取り直さない。
 // 当日は確定しないため毎回問い合わせる。sub はこのファイルにも入るが、元のログにあるもの以上は持たない。
+// 判定のルールを変えたら PF_CACHE_VERSION を上げる。版が違うキャッシュは読まず、取り直す
+// （v1 は記帳の判定が /prod 付きの path に当たらず、書き込みが全て0で保存されていた）。
+const PF_CACHE_VERSION = 2;
 const pfCachePath = (day) => join(PF_CACHE_DIR, `${day}.json`);
 const readPfCache = (day) => {
-  try { return JSON.parse(readFileSync(pfCachePath(day), 'utf8')); } catch { return null; }
+  try {
+    const c = JSON.parse(readFileSync(pfCachePath(day), 'utf8'));
+    return c && c.v === PF_CACHE_VERSION ? c.data : null;
+  } catch { return null; }
 };
 
 function getPlatforms(days) {
@@ -184,7 +186,7 @@ function getPlatforms(days) {
       if (isWriteReq(r.method, r.path || '')) slot[1]++;
     }
     if (!existsSync(PF_CACHE_DIR)) mkdirSync(PF_CACHE_DIR, { recursive: true });
-    for (const d of span) { if (d !== today) writeFileSync(pfCachePath(d), JSON.stringify(perDay[d])); }
+    for (const d of span) { if (d !== today) writeFileSync(pfCachePath(d), JSON.stringify({ v: PF_CACHE_VERSION, data: perDay[d] })); }
   }
 
   const byPf = {};
@@ -439,7 +441,8 @@ function getFeedback() {
   // 月別の件数（どの回のアンケートで多く集まったかを見る）
   const byMonth = {};
   for (const it of items) {
-    const m = (it.timestamp || '').slice(0, 7);
+    // 月の区切りは日本時間（timestamp は UTC の ISO。画面の「今月分」と同じ区切りにそろえる）
+    const m = it.timestamp ? jstDayOfIso(it.timestamp).slice(0, 7) : '';
     if (m) byMonth[m] = (byMonth[m] || 0) + 1;
   }
   return {
@@ -574,7 +577,7 @@ function analyze(days) {
     }
   };
   const { rows, selfIps } = parseLogs(texts(), wanted);
-  const { isBot, isSelf, isBurst, opens, humanOpens, botOpens, selfOpens } = classify(rows, selfIps);
+  const { isBot, isSelf, isBurst, isNonGet, opens, humanOpens, botOpens, selfOpens } = classify(rows, selfIps);
 
   const dates = rows.map((r) => r.date).filter(Boolean).sort();
   const humanIps = new Set(humanOpens.map((r) => r.ip));
@@ -584,6 +587,7 @@ function analyze(days) {
   // 判定順は上の分類と揃える。最初に該当した理由に1件だけ数える。
   const excludeReason = (r) => {
     const ua = dec(r.ua);
+    if (isNonGet(r)) return 'GET以外（監視のHEAD・POSTなど）';
     if (BOT.test(ua)) return 'UAがボット';
     if (SUSPICIOUS_QUERY.test(dec(r.q))) return '不審なクエリ';
     if (isBurst(r)) return '同一秒に3回以上';
@@ -685,7 +689,7 @@ function analyze(days) {
   const botUa = Object.entries(botCnt).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([ua, count]) => ({ ua, count }));
 
   // 自前イベント計測(/_e/*、bot/self除外)
-  const { total: evTotal, byDay: evByDayMap } = countEvents(rows, isBot, isSelf);
+  const { total: evTotal, byDay: evByDayMap, cspReports } = countEvents(rows, isBot, isSelf);
   const gs = evTotal['guest_start'] || 0, ja = evTotal['journal_added'] || 0;
   const n = (k) => evTotal[k] || 0;
   const { funnel, entry, retention } = funnelOf(evTotal);
@@ -696,6 +700,7 @@ function analyze(days) {
     byDay: Object.entries(evByDayMap).sort().map(([date, m]) => ({ date, counts: m })),
     funnel, entry, retention,
     appOpen: n('app_open'), guestReturn: n('guest_return'),
+    cspReports,
   };
 
   return {
@@ -971,7 +976,7 @@ function lead(n, unit, l, s, accent){
 
 /* ── 自前イベント識別子の日本語化 ────────────────────────
    unit: '人' = ブラウザごとに1回だけ送るイベント / '回' = 毎回送るイベント */
-const TOUR_STEP = {'welcome':'ようこそ','account-add':'口座の追加','networth':'純資産','done':'完了','sample':'サンプル'};
+const TOUR_STEP = {'welcome':'ようこそ','account-add':'口座の追加','networth':'純資産','first-journal':'最初の記帳','done':'完了','sample':'サンプル'};
 const EV_MAP = {
   app_open:        {g:'獲得',    ja:'起動',                   u:'回'},
   app_first:       {g:'獲得',    ja:'初回起動（新規訪問者）', u:'人'},
@@ -1061,7 +1066,10 @@ function renderFeedback(d){
   let h = '<div class="band"><h2>ご意見</h2><span class="hint">アプリ内アンケートの自由記述</span></div>';
   h += '<div class="lead" style="grid-template-columns:repeat(2,minmax(0,1fr))">';
   h += lead(d.total, '件', 'ご意見の総数', '全期間', true);
-  h += lead(d.byMonth[0] ? d.byMonth[0].count : 0, '件', '今月分', d.byMonth[0] ? d.byMonth[0].month : '—');
+  // 今月が0件のとき、いちばん新しい月（先月）の件数を「今月分」と出さない
+  const thisMonth = new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 7);
+  const cur = d.byMonth.find(function(m){ return m.month === thisMonth; });
+  h += lead(cur ? cur.count : 0, '件', '今月分', thisMonth);
   h += '</div>';
 
   if(d.byMonth.length){
@@ -1371,7 +1379,7 @@ function render(d){
 
   // 日別の新規登録。件数が少ないので棒グラフにせず、登録があった日だけを新しい順に並べる。
   if(ru && ru.byDay){
-    h += '<section><h3>日別の新規登録 <small>Cognito の登録日時（UTC）。未確認は除く</small></h3>';
+    h += '<section><h3>日別の新規登録 <small>Cognito の登録日時（日本時間）。未確認は除く</small></h3>';
     if(!ru.byDay.length){
       h += '<p class="muted">この期間の登録はありません</p>';
     }else{
@@ -1561,6 +1569,8 @@ function renderDeep(d){
       h += '</div>';
     }
   }
+  h += '<p class="hint" style="margin-top:12px">CSPの違反報告 <b>'+(d.events.cspReports||0)+'</b> 件'
+     + '（ブラウザが自動で送る。利用者のイベントではないので上の一覧には入れない）</p>';
   h += '</section>';
 
   // 5. 日別の内訳（チップ）

@@ -54,7 +54,7 @@ export function parseLogs(texts, wanted) {
       if (/selftest/i.test(dec(c[11]))) selfIps.add(c[4]); // 期間外の行からも拾う
       const date = jstDay(c[0], c[1]);                     // UTCログ → JST日
       if (!wanted.has(date)) continue;                     // 期間外を除外
-      rows.push({ date, time: c[1], ip: c[4], uri: c[7], status: c[8], ref: c[9], ua: c[10], q: c[11] });
+      rows.push({ date, time: c[1], ip: c[4], method: c[5], uri: c[7], status: c[8], ref: c[9], ua: c[10], q: c[11] });
     }
   }
   return { rows, selfIps };
@@ -70,25 +70,45 @@ export function classify(rows, selfIps) {
   const burstCount = {};
   for (const r of opens) { const k = burstKey(r); burstCount[k] = (burstCount[k] || 0) + 1; }
   const isBurst = (r) => burstCount[burstKey(r)] >= 3;
-  const isBot = (r) => BOT.test(dec(r.ua)) || SUSPICIOUS_QUERY.test(dec(r.q)) || isBurst(r) || isOutdatedUa(dec(r.ua));
+  // ページを開く操作は GET だけ。HEAD（Discord レポートの監視。UA が node で BOT に当たらない）や
+  // OPTIONS、ルートへの POST（CSP の違反報告など）は人が開いたものではない。
+  // ルートの行にだけ適用する（/_e/* のビーコンは POST でも数える）。
+  const isOpenUri = (r) => r.uri === '/' || r.uri === '/index.html';
+  const isNonGet = (r) => isOpenUri(r) && !!r.method && r.method !== 'GET';
+  const isBot = (r) => isNonGet(r) || BOT.test(dec(r.ua)) || SUSPICIOUS_QUERY.test(dec(r.q)) || isBurst(r) || isOutdatedUa(dec(r.ua));
 
   const humanOpens = opens.filter((r) => !isBot(r) && !isSelf(r.ip));
   const botOpens = opens.filter((r) => isBot(r));
   const selfOpens = opens.filter((r) => !isBot(r) && isSelf(r.ip));
-  return { isBot, isSelf, isBurst, opens, humanOpens, botOpens, selfOpens };
+  return { isBot, isSelf, isBurst, isNonGet, opens, humanOpens, botOpens, selfOpens };
 }
 
-/** 自前イベント計測(/_e/*、bot/self除外)を合計と日別で数える */
+/**
+ * API Gateway のアクセスログの 1 行が「記帳」の書き込みか。
+ * path には API Gateway のステージ名が付く（/prod/api/journals）。付いていない形も許す。
+ * ⚠ E2E暗号化を使っている人の書き込みは /api/journals を通らず /api/encdata に入る。まとめての取り込みは /api/import。
+ *    どれか欠けると、その使い方の人の記帳が丸ごと抜ける。
+ */
+export const isWriteReq = (method, path) => (method === 'POST' || method === 'PUT')
+  && /^(\/[^/]+)?\/api\/(journals|encdata|import)(\/|$)/.test(path || '');
+
+// ブラウザが自動で送る CSP の違反報告。利用者の行動ではないので、イベントの集計には入れず件数だけ別に返す。
+const CSP_REPORT_EVENT = 'csp-report';
+
+/** 自前イベント計測(/_e/*、bot/self除外)を合計と日別で数える。cspReports は除外せず全件 */
 export function countEvents(rows, isBot, isSelf) {
   const total = {}, byDay = {};
+  let cspReports = 0;
   for (const r of rows) {
     const m = r.uri && r.uri.match(/^\/_e\/([a-z0-9_-]+)$/i);
-    if (!m || isBot(r) || isSelf(r.ip)) continue;
+    if (!m) continue;
     const name = m[1];
+    if (name === CSP_REPORT_EVENT) { cspReports++; continue; }
+    if (isBot(r) || isSelf(r.ip)) continue;
     total[name] = (total[name] || 0) + 1;
     ((byDay[r.date] ||= {})[name] = (byDay[r.date][name] || 0) + 1);
   }
-  return { total, byDay };
+  return { total, byDay, cspReports };
 }
 
 /** イベント合計から獲得ファネル・入口の内訳・継続を組み立てる */
