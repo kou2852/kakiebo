@@ -1,0 +1,27 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>kurofukubo 管理ダッシュボード</title>
+<link rel="stylesheet" href="/app.css"></head><body>
+<header>
+  <h1>kurofukubo 管理ダッシュボード</h1>
+  <span class="tabs">
+    <button id="tab-today" class="on">今日</button>
+    <button id="tab-access">成長</button>
+    <button id="tab-voice">声<i id="badge-voice" class="bd"></i></button>
+    <button id="tab-deep">深掘り</button>
+  </span>
+  <span class="meta" id="period">—</span>
+  <span class="grow"></span>
+  <label class="meta" id="period-picker">期間
+    <select id="days">
+      <option value="7">7日</option>
+      <option value="14" selected>14日</option>
+      <option value="30">30日</option>
+      <option value="90">90日</option>
+    </select>
+  </label>
+  <button class="primary" id="refresh">更新</button>
+</header>
+<div id="banner" class="err banner" style="display:none"></div>
+<main id="root"><p class="muted">読み込み中…</p></main>
+<script src="/app.js"></script></body></html>

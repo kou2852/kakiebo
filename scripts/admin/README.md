@@ -1,119 +1,78 @@
 # ローカル管理者ダッシュボード
 
-CloudFront(app)のアクセスログから、いつも確認している数字だけをローカル画面で見るツール。
-**localhost限定**（127.0.0.1でのみ待受）。数字のみを表示し、解釈・アドバイスはしない方針。
+kurofukubo の運営者が毎日見る数字を、1人用のローカル画面に出すツール。
+**127.0.0.1 限定**で待ち受ける。数字だけを出し、解釈・アドバイスは画面に載せない（解釈は Claude 側で行う）。
 
 ## 使い方
 
 ```bash
-# 1. AWS未認証なら先にログイン
-aws sso login --profile kakeibo-prod
-
-# 2. 起動
-node scripts/admin/server.mjs
-
-# 3. ブラウザで開く
-#    http://localhost:8787
+aws sso login --profile kakeibo-prod     # 未認証のとき
+node scripts/admin/server.mjs            # ブラウザが開く（開かないとき: --no-open / ポート変更: PORT=8788）
 ```
 
-- ヘッダーの「アクセス」「ご意見」でタブを切替。
-- 「期間」で 7/14/30/90日 を切替、「更新」で最新ログを再取得（期間はアクセスタブのみ）。
-- 初回や長期間は S3 同期に少し時間がかかる（2回目以降は増分同期で高速）。
+- すでに起動していれば「すでに起動しています」と出て、同じ画面をブラウザで開くだけ。
+- AWS の認証が切れていると、画面の上に `aws sso login` の案内が出る。
+- AWS SDK は `scripts/admin/report/node_modules` のものを使う。無いときは `cd scripts/admin/report && npm install`。
+- 「更新」は、サーバーがとっておいた結果を使わずに取り直す。
 
-## 表示内容（= いつもログで確認していること）
+## 画面（タブは見る頻度の順）
 
-### アクセスタブ
-
-- 人間の訪問（オープン）と実人数（distinct IP）／ボット・self の除外内訳
-- 日別オープン（人間 / bot / self）
-- 媒体別流入（utm_source、無印は utm 無し・媒体不明）と実人数
-- **獲得ファネル**（人数と率）と**継続率** — 下表の「一度きり」イベントを使う
-- 自前イベント `/_e/*`（guest_start, journal_added 等）合計・日別、アクティベーション（記帳/ゲスト開始）
-
-#### 計測イベントの一覧
-
-| イベント | いつ | 回数の意味 |
+| タブ | 頻度 | 中身 |
 |---|---|---|
-| `app_open` | 起動のたび | 起動回数。**JSを実行しないボットには発火しない**ため、HTMLヒット数（6割がボット）より実態に近い |
-| `app_first` | このブラウザで初回起動 | **新規訪問者数**。ファネルの分母 |
-| `auth_view` | ログイン画面を見た（初回のみ） | 入口の壁に当たった人数 |
-| `guest_start` | ゲスト開始のたび | 回数（`?guest` 付き再訪でも発火） |
-| `guest_first` | 初めてゲスト開始 | **ゲスト開始した人数** |
-| `guest_return` | 既存ゲストの再訪 | 回数。初回訪問では発火しない |
-| `journal_added` | ゲストの記帳のたび | 回数 |
-| `first_journal` | 初めて記帳 | **記帳に到達した人数**（登録ユーザー含む） |
-| `registered` | 本登録完了 | 人数。Google経由はブラウザ単位で1回（別端末で二重に数える。正確な人数はCognito登録ユーザー数を正とする） |
-| `retain_d1` / `d7` / `d30` | 初回利用から1/7/30日以上たって再訪 | **継続した人数**。各段階1回のみ。`d1 ≥ d7 ≥ d30` |
-| `account_deleted` | 退会 | 回数 |
-| `feedback_shown` / `_monthly` / `feedback_sent` | アンケート表示・送信 | 回数 |
-| `tour_*` | ガイドツアー各種 | 回数 |
+| 今日 | 毎日 | 状態の判定（赤・黄を上に、正常は畳む） / 対応すること（返信待ちの問い合わせ・前回見た後のご意見と退会） / 昨日（確定）・今日（途中）・昨日までの7日平均 |
+| 成長 | 週1回 | 新規登録・登録ユーザー・実人数・オープン / 獲得ファネルと継続 / アクティベーション / 日別の推移 / 媒体・記事別の流入 |
+| 声 | 毎日 | 問い合わせ（返信待ちが上、返信済み・終了は畳む。返信はここから） / ご意見 / 退会。前回見た後の分に「新着」の印 |
+| 深掘り | 必要時 | どこで消えたか・行動列 / 端末別の利用 / 自前イベントの全件 / デバイス・OS・参照元 / ボット UA・自分IP |
 
-**継続の計測方式**: 端末の localStorage に初回利用日（`kk_first_seen`）だけを持ち、サーバーへは
-「初回から N 日以上たって戻ってきた」という事実のみを送る。**個人を追跡できる識別子は送信しない。**
+- 期間（7・14・30・90日）が効くのは成長と深掘りだけ。
+- 声のタブ名の赤い数字 = 返信待ち + 新着のご意見 + 新着の退会。「前回見た」時刻はブラウザの localStorage に持つ（声を最後まで開いた時刻）。
+- 各ブロックに取得時刻が出る。「保持」は、サーバーがとっておいた結果を使ったという意味。
 
-**計測開始直後の読み方（2026-08-02 開始）**: 「人数」系は `kk_ev_<イベント名>` の有無で判定するが、
-このキーは計測導入時点では**誰も持っていない**。そのため長く使っている人も次の訪問で
-`app_first` を、次の記帳で `first_journal` を1回ずつ発火する。
-最初の数日は**新規訪問者・初回記帳が実態より多く出る**（少なく出るのではない）。
-`kk_first_seen` も同様に導入後の初回訪問時に記録されるため、`retain_d1/d7/d30` は
-「本当の初回利用日」ではなく**計測開始以降の再訪**を measure している。
+### 判定のルール（Discord 定時レポートと共有）
 
-`localStorage` に `kk_noanalytics='1'` があるブラウザは一切送信しない（自己除外）。
-- 参照元 上位、ボットUA 上位
+`report/src/metrics.mjs` に一本化している。画面と Discord で数字が食い違わないよう、ここだけを直す。
 
-集計ロジックは `docs/design-gen/analyze-cflogs.mjs` と同一。
+- ボット・自分IP・ファネル・状態の基準
+- **オープンは GET だけを人間に数える**。HEAD（Discord 監視）・OPTIONS・ルートへの POST は「GET以外」として除外
+- 記帳の判定（`isWriteReq`）: `/api/journals`・`/api/encdata`・`/api/import` への POST / PUT（API Gateway のステージ名 `/prod` 付きの path）
+- CSP の違反報告（`/_e/csp-report`）は利用者のイベントに入れず、件数だけ別に数える
+- 期間・日付は日本時間の暦日
 
-### ご意見タブ
+## 構成
 
-アプリ内アンケート（`Common/FeedbackModal.jsx`）から送られた本文を新しい順に表示する。
-
-- 総数・今月分・月別件数
-- 本文（改行そのまま。HTMLはエスケープして文字として表示）
-
-DynamoDB `kakeibo-prod` の固定PK `FEEDBACK` を直接クエリしている（CloudFrontログとは別系統のため、期間の絞り込みは無い）。
-
-**匿名で保存されているため、誰が送ったかは分からない**（`userId` は常に `guest`、IPアドレスも保存していない）。
-サイドバーの「ご意見・お問い合わせ」は現在も Google フォームへの外部リンクで、そちらの内容はここには出ない（統合するかは保留。`docs/feature-plan-2026-08.md` 参照）。
-
-## メモ
-
-- ログバケット: `kakeibo-cf-logs-117953360790` / プレフィックス `app/`
-- 取得したログは `scripts/admin/.cache-cflogs/` にキャッシュ（増分同期用）
-- 端末別の利用（深掘りタブ）は CloudWatch Logs Insights で取り、JST日ごとの集計を `scripts/admin/.cache-platforms/` に保存する。
-  過ぎた日は取り直さず、当日ぶんだけ毎回問い合わせる。本体の表示は待たせず、表ができ次第あとから差し込む
-- 環境変数: `PORT`（既定8787）, `AWS_PROFILE`（既定 kakeibo-prod）
-- 自分IP判定（self）は selftest クエリ送信IP + 既知プレフィックス。プレフィックスは変動するため `server.mjs` の `SELF_PREFIXES` を随時確認。
-
-## Discord 定時レポート（`report/`）
-
-ダッシュボードの数字を毎日 10:00 / 18:00(JST) に Discord へ送る Lambda。アプリ本体とは別スタック（`kakeibo-admin-report-prod`）。
-
-- 朝は前日の確定値＋獲得の流れ＋継続（直近30日）、夕方は当日の途中経過＋獲得の流れ。異常は毎回先頭に出す
-- 送るのは集計値だけ。ご意見・問い合わせの本文、IP、sub、参照元URL、UA は送らない
-- 集計ロジック（ボット・自分IP・ファネル・状態の判定基準）は `report/src/metrics.mjs` にあり、このダッシュボードも同じものを読み込んでいる。**`SELF_PREFIXES` の追記もそちらで行う**
-- Webhook URL は SSM SecureString `/kakeibo/prod/discord-webhook-url`（テンプレートやコードには持たない）
-
-```bash
-cd scripts/admin/report && npm install && npm test         # テスト
-node scripts/admin/report/run-local.mjs morning              # 送信せず文面だけ表示（AWSは読むだけ）
-node scripts/admin/report/run-local.mjs evening --at 2026-09-17T18:00:00+09:00
-node scripts/admin/report/run-local.mjs morning --send --test  # 【テスト】付きで Discord に送る
+```
+server.mjs        ルーティング・Host/Origin の検査・起動時の認証確認
+lib/aws.mjs       SDK クライアント・認証エラーの案内・Logs Insights
+lib/reads.mjs     画面用の読み取り（ログの同期・状態・問い合わせ・ご意見・退会・端末別・今日）
+lib/analyze.mjs   CloudFront ログからアクセスとイベントを集計（AWS には触れない）
+lib/cache.mjs     取得結果を一定時間とっておく（状態5分・ログの集計5分・問い合わせ2分・退会10分）
+ui/               画面（index.html / app.css / app.js）。ビルドなし
+report/           Discord 定時レポート（別スタック）。collect.mjs の読み取りは画面も使う
 ```
 
-`--at` で時刻をずらしても、ログと登録者は実行した時点までを読む（本番は定刻に動くのでずれない）。
-デプロイ手順は `report/template.yaml` の先頭コメント。
+## 安全
 
-### 問い合わせ・ご意見の新着通知
+- `Host` が `localhost:<ポート>` か `127.0.0.1:<ポート>` でない要求は断る。
+- 本番への書き込みは「問い合わせへの返信」だけ（`POST /api/inquiry-reply`）。同じ Origin から `Content-Type: application/json` で来たものだけ受ける。
+- メールアドレスは取得しない（Cognito は `sub` だけを読む）。利用者は sub の先頭8桁で表す。IP は画面に出さない（自分のIPの一覧だけは例外）。
 
-同じ Lambda が **13:00 と 17:00** に `{"slot":"watch"}` で動き、前回以降に届いた分だけを送る。**新着が無ければ何も送らない。** 前回以降に届いた分は次の回でまとめて届く（カーソルがあるので取りこぼさない）。
+## 読むデータ
 
-- 宛先は別チャンネル：問い合わせ `/kakeibo/prod/discord-webhook-url-inquiry`、ご意見 `/kakeibo/prod/discord-webhook-url-feedback`
-- レポートと違い**本文を載せる**（1500文字で切って「続きはダッシュボード」）。問い合わせは件名・最新の発言・sub先頭8桁・状態
-- 問い合わせは新規と**利用者からの追記**の両方。運営の返信では通知しない
-- どこまで送ったかは SSM `/kakeibo/prod/discord-watch-cursor`（String）。**送信できた分だけ進める**ので、失敗回があっても次で送り直す。初回は記録を作るだけで過去分は流さない
-- 処理が止まったら、定時レポートの「新着通知の前回確認」が20時間超で注意（黄）になる（1日2回なので、朝のレポート時点では前日17:00が前回になる）
+| 何を | どこから | 保持 |
+|---|---|---|
+| アクセス・自前イベント | S3 `kakeibo-cf-logs-117953360790/app/` → `.cache-cflogs/` に増分で写す | 集計5分 |
+| 端末別の利用 | API Gateway のアクセスログ（Logs Insights）。過ぎた日は `.cache-platforms/` に日別で保存（判定を変えたら `PF_CACHE_VERSION` を上げる） | 5分 |
+| 登録ユーザー・メール送信の設定・SES | Cognito・SES | 5分 |
+| 監視の4指標・掃除ジョブ | CloudWatch | 5分 |
+| 問い合わせ・ご意見 | DynamoDB（元の `kakeibo-prod` と専用テーブルの両方。専用テーブルが無ければ元だけ） | 2〜5分 |
+| 退会 | API Gateway と SettingsFunction のログ（Logs Insights） | 10分 |
 
-```bash
-node scripts/admin/report/run-local.mjs watch                                # 新着の文面を表示（送信なし・カーソルも動かさない）
-node scripts/admin/report/run-local.mjs watch --since 2026-01-01T00:00:00Z   # 過去ぶんで文面を確認
-```
+## 計測イベント
+
+アプリ・ウェブが `/_e/<イベント名>` に送るもの。日本語名と分類は `ui/app.js` の `EV_MAP`（一覧にないものは「その他」に出て、今日タブに「一覧にないイベント」の行が出る）。
+
+- **人** = ブラウザ（端末）ごとに1回だけ送る / **回** = 毎回送る
+- ウェブ: `app_open` `app_first` `auth_view` `guest_start` `guest_first` `guest_return` `journal_added` `first_journal` `registered` `retain_d1/d7/d30` `tour_*` ほか
+- モバイルアプリ（新しく入れた端末だけ。`mobile/src/store/TrackSync.jsx`）: `m_onboard_done` `m_opening` `m_card_set` `m_first_journal` `m_tag_alloc` `m_intro_tour` `m_retain_d7` `m_retain_d30`
+- 継続は端末の localStorage に初回利用日だけを持ち、「N日以上たって戻った」という事実だけを送る。個人を追跡できる識別子は送らない。`kk_noanalytics=1` のブラウザは何も送らない。
+- 計測導入の直後（ウェブ 2026-08-02、アプリ 2026-10-16）は、既存の利用者の分が新規として上乗せされる。
