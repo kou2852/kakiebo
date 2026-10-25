@@ -22,9 +22,15 @@ const LOG_BUCKET = 'kakeibo-cf-logs-117953360790';
 const LOG_PREFIX = 'app/'; // app.kurofukubo.com のCloudFrontログ
 const USER_POOL_ID = 'ap-northeast-1_ddBDF3HKK'; // kakeibo-users-prod
 const TABLE = 'kakeibo-prod'; // DynamoDB（ご意見は固定PK 'FEEDBACK' 配下）
+// 問い合わせ・ご意見の専用テーブル（2026-10-12〜。backend/src/lib/opsTables.js）。
+// 移行が済むまでは元の TABLE と両方を読み、同じものは新しいテーブルを優先する。テーブルがまだ無ければ元だけを読む。
+const INQUIRY_TABLE = 'kakeibo-inquiries-prod';
+const FEEDBACK_TABLE = 'kakeibo-feedback-prod';
 // 未確認サインアップの掃除ジョブ。設定ではなく実行ログを見て「本当に動いたか」を確認する
 const CLEANUP_LOG_GROUP = '/aws/lambda/kakeibo-saas-prod-CleanupUnconfirmedFunction-GvWvO3WXvqhh';
 const API_LOG_GROUP = '/aws/apigateway/kakeibo-saas-prod'; // API Gatewayのアクセスログ（保持90日）
+// 退会理由（ACCOUNT_DELETE_REASON の行）はこのLambdaのログにだけ残る。DBには保存していない（保持90日）
+const SETTINGS_LOG_GROUP = '/aws/lambda/kakeibo-saas-prod-SettingsFunction-ruoTTMCvIWbp';
 const CACHE_DIR = join(__dirname, '.cache-cflogs');
 const PF_CACHE_DIR = join(__dirname, '.cache-platforms'); // 端末別集計の日別キャッシュ
 
@@ -33,6 +39,7 @@ const PF_CACHE_DIR = join(__dirname, '.cache-platforms'); // 端末別集計の�
 import {
   BOT, SUSPICIOUS_QUERY, dec, isOutdatedUa, jstDayOfIso, lastDays, parseLogs, classify, countEvents, funnelOf,
   summarizeUsers, isWaitingInquiry, judgeChecks, judgeCsp, judgeSignals, signalsOf, signalQueries, cspStateOf,
+  SELF_PREFIXES,
 } from './report/src/metrics.mjs';
 
 // S3から直近days日ぶんのログを増分同期（ファイル名: app/<distId>.YYYY-MM-DD-HH.hash.gz）
@@ -290,28 +297,39 @@ function awsJson(args, what) {
 // ここは件数だけでなく本文も扱う（サポート窓口なので中身を読まないと返信できない）。
 // 表示するのは sub の先頭8桁のみで、メールアドレスは取得しない。
 function getInquiries() {
-  const out = [];
+  const byId = new Map(); // id -> スレッド。新しいテーブルを後に読み、同じ id は上書きする
+  for (const table of [TABLE, INQUIRY_TABLE]) {
   let start = null;
   do {
-    const args = ['dynamodb', 'scan', '--table-name', TABLE,
+    const args = ['dynamodb', 'scan', '--table-name', table,
       '--filter-expression', 'begins_with(SK, :p)',
       '--expression-attribute-values', '{":p":{"S":"INQUIRY#"}}'];
     if (start) args.push('--exclusive-start-key', JSON.stringify(start));
-    const page = awsJson(args, '問い合わせの取得');
+    let page;
+    try { page = awsJson(args, '問い合わせの取得'); } catch (e) {
+      // 新しいテーブルがまだ作られていない（sam deploy 前）なら、元のテーブルだけで続ける
+      if (table === INQUIRY_TABLE && /ResourceNotFound|not found/i.test(e.message)) break;
+      throw e;
+    }
     for (const i of page.Items || []) {
-      out.push({
-        pk: i.PK?.S || '', sk: i.SK?.S || '',
-        sub: (i.PK?.S || '').replace('USER#', '').slice(0, 8),
+      const pk = i.PK?.S || '';
+      const t = {
+        table, pk, sk: i.SK?.S || '',
+        // 退会した人の問い合わせは sub を外して PK=DELETED に残している
+        sub: pk === 'DELETED' ? '退会済み' : pk.replace('USER#', '').slice(0, 8),
         id: i.id?.S || '', subject: i.subject?.S || '',
         status: i.status?.S || 'open',
         createdAt: i.createdAt?.S || '', updatedAt: i.updatedAt?.S || '',
         messages: (i.messages?.L || []).map((m) => ({
           from: m.M?.from?.S || 'user', body: m.M?.body?.S || '', at: m.M?.at?.S || '',
         })),
-      });
+      };
+      byId.set(t.id || `${table}|${t.sk}`, t);
     }
     start = page.LastEvaluatedKey || null;
   } while (start);
+  }
+  const out = [...byId.values()];
 
   out.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
   // 最後がユーザー発言＝こちらの返信待ち
@@ -320,7 +338,9 @@ function getInquiries() {
 }
 
 // 運営からの返信を追記する。update-item で messages にだけ足し、他の属性は触らない。
-function replyInquiry(pk, sk, body, close) {
+function replyInquiry(table, pk, sk, body, close) {
+  // スレッドがあるテーブルへ書く（新旧どちらか。それ以外は受け付けない）
+  if (![TABLE, INQUIRY_TABLE].includes(table)) throw new Error('table が不正です');
   const msg = { M: { from: { S: 'staff' }, body: { S: body }, at: { S: new Date().toISOString() } } };
   const values = {
     ':m': { L: [msg] },
@@ -328,7 +348,7 @@ function replyInquiry(pk, sk, body, close) {
     ':u': { S: new Date().toISOString() },
     ':s': { S: close ? 'closed' : 'open' },
   };
-  awsJson(['dynamodb', 'update-item', '--table-name', TABLE,
+  awsJson(['dynamodb', 'update-item', '--table-name', table,
     '--key', JSON.stringify({ PK: { S: pk }, SK: { S: sk } }),
     '--condition-expression', 'attribute_exists(SK)',
     '--update-expression', 'SET messages = list_append(if_not_exists(messages, :empty), :m), updatedAt = :u, #st = :s',
@@ -338,12 +358,102 @@ function replyInquiry(pk, sk, body, close) {
   return { ok: true };
 }
 
+// 退会の記録と、そのとき任意で書かれた理由。
+// 退会は API Gateway のアクセスログ（DELETE /prod/api/account の成功）、理由は SettingsFunction が出す
+// ACCOUNT_DELETE_REASON の行にある。両者に共通のIDは無いので時刻で突き合わせる
+// （理由は同じリクエストの中で削除処理の前に書くので、実測で同じ秒に並ぶ）。
+// 画面には時刻と理由だけを返す。IP は自分の操作かの判定に使うだけで返さない。
+function getDeletions() {
+  // filter-log-events だと2つのロググループで100秒かかった（2026-09-24 実測: API 28秒・Lambda 72秒）。
+  // queryApiLogs と同じく Insights で、両方のロググループを1回で引く。どちらも保持90日。
+  const now = Date.now();
+  const q = 'fields @timestamp, @message, status, ip'
+    + ' | filter @message like /ACCOUNT_DELETE_REASON/ or (method = "DELETE" and path = "/prod/api/account")'
+    + ' | limit 1000';
+  const started = awsJson(['logs', 'start-query', '--log-group-names', API_LOG_GROUP, SETTINGS_LOG_GROUP,
+    '--start-time', String(Math.floor((now - 90 * 86400000) / 1000)), '--end-time', String(Math.floor(now / 1000)),
+    '--query-string', q, '--limit', '1000'], '退会記録の取得');
+  let r;
+  for (let i = 0; ; i++) {
+    r = awsJson(['logs', 'get-query-results', '--query-id', started.queryId], '退会記録の取得');
+    if (r.status !== 'Running' && r.status !== 'Scheduled') break;
+    if (i > 60) throw new Error('退会記録の取得が終わりません');
+  }
+  if (r.status !== 'Complete') throw new Error(`退会記録の取得に失敗しました（${r.status}）`);
+  const rows = (r.results || []).map((fields) => Object.fromEntries(fields.map((f) => [f.field, f.value])));
+
+  const TAG = 'ACCOUNT_DELETE_REASON ';
+  const deletions = [];
+  const reasons = [];
+  for (const row of rows) {
+    const t = insightsMs(row['@timestamp']);
+    const msg = String(row['@message'] || '');
+    const i = msg.indexOf(TAG);
+    if (i >= 0) {
+      try { reasons.push({ t, reason: JSON.parse(msg.slice(i + TAG.length)).reason || '' }); } catch { /* 壊れた行は捨てる */ }
+    } else if (String(row.status).startsWith('2')) { // 失敗した試行は退会ではない
+      deletions.push({ t, self: SELF_PREFIXES.some((p) => String(row.ip || '').startsWith(p)) });
+    }
+  }
+
+  // 退会1件につき、30秒以内で最も近い理由を1つだけ割り当てる
+  const used = new Set();
+  const jst = (t) => new Date(t + 9 * 3600000).toISOString().replace('T', ' ').slice(0, 16);
+  const items = deletions.map((d) => {
+    let best = -1;
+    for (let i = 0; i < reasons.length; i++) {
+      if (used.has(i) || Math.abs(reasons[i].t - d.t) > 30000) continue;
+      if (best < 0 || Math.abs(reasons[i].t - d.t) < Math.abs(reasons[best].t - d.t)) best = i;
+    }
+    if (best >= 0) used.add(best);
+    return { at: jst(d.t), reason: best >= 0 ? reasons[best].reason : '', self: d.self, recorded: true };
+  });
+  // アクセスログを取り始める前（2026-08-13 より前）の退会は記録が無い。理由だけでも捨てずに出す
+  reasons.forEach((r, i) => { if (!used.has(i)) items.push({ at: jst(r.t), reason: r.reason, self: false, recorded: false }); });
+  items.sort((a, b) => b.at.localeCompare(a.at));
+
+  return {
+    total: deletions.length,
+    withReason: items.filter((x) => x.recorded && x.reason).length,
+    self: deletions.filter((d) => d.self).length,
+    items,
+    generatedAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+  };
+}
+
 // アプリ内アンケートで送られたご意見。固定PK 'FEEDBACK' 配下を新しい順に取得する。
 // 匿名で保存されているため、誰が送ったかは分からない（userIdは常に 'guest'）。
 function getFeedback() {
+  // 新旧の両方を読み、同じ SK は1件にまとめる（新しいテーブルが無ければ元だけ）
+  const seen = new Map();
+  for (const table of [TABLE, FEEDBACK_TABLE]) {
+    let part;
+    try { part = getFeedbackFrom(table); } catch (e) {
+      if (table === FEEDBACK_TABLE && /ResourceNotFound|not found/i.test(e.message)) continue;
+      throw e;
+    }
+    part.forEach((it) => seen.set(it.sk, it));
+  }
+  const items = [...seen.values()].sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''))
+    .map(({ sk, ...rest }) => rest);
+  // 月別の件数（どの回のアンケートで多く集まったかを見る）
+  const byMonth = {};
+  for (const it of items) {
+    const m = (it.timestamp || '').slice(0, 7);
+    if (m) byMonth[m] = (byMonth[m] || 0) + 1;
+  }
+  return {
+    total: items.length,
+    byMonth: Object.entries(byMonth).map(([month, count]) => ({ month, count })).sort((a, b) => b.month.localeCompare(a.month)),
+    items,
+    generatedAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+  };
+}
+
+function getFeedbackFrom(table) {
   const r = spawnSync('aws', [
     'dynamodb', 'query',
-    '--table-name', TABLE,
+    '--table-name', table,
     '--key-condition-expression', 'PK = :pk',
     '--expression-attribute-values', '{":pk":{"S":"FEEDBACK"}}',
     '--no-scan-index-forward', // SKが FEEDBACK#<ISO日時>#<uuid> なので降順＝新しい順
@@ -362,22 +472,11 @@ function getFeedback() {
       ? `AWS認証が切れています。ターミナルで実行してください:\n  aws sso login --profile ${PROFILE}`
       : `ご意見の取得に失敗しました:\n${err.slice(0, 500)}`);
   }
-  const items = (JSON.parse(r.stdout || '{}').Items || []).map((i) => ({
+  return (JSON.parse(r.stdout || '{}').Items || []).map((i) => ({
+    sk: i.SK?.S || '',
     timestamp: i.timestamp?.S || '',
     body: i.body?.S || '',
   }));
-  // 月別の件数（どの回のアンケートで多く集まったかを見る）
-  const byMonth = {};
-  for (const it of items) {
-    const m = (it.timestamp || '').slice(0, 7);
-    if (m) byMonth[m] = (byMonth[m] || 0) + 1;
-  }
-  return {
-    total: items.length,
-    byMonth: Object.entries(byMonth).map(([month, count]) => ({ month, count })).sort((a, b) => b.month.localeCompare(a.month)),
-    items,
-    generatedAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
-  };
 }
 
 // キャッシュ内の.gzを全パースし、直近days日で集計
@@ -844,6 +943,7 @@ const HTML = /* html */ `<!doctype html><html lang="ja"><head><meta charset="utf
     <button id="tab-deep">深掘り</button>
     <button id="tab-inquiry">問い合わせ</button>
     <button id="tab-feedback">ご意見</button>
+    <button id="tab-deletion">退会</button>
   </span>
   <span class="meta" id="period">—</span>
   <span class="grow"></span>
@@ -896,7 +996,16 @@ const EV_MAP = {
   feedback_sent:   {g:'アンケート', ja:'アンケート送信',      u:'回'},
   tour_done:       {g:'ツアー',  ja:'ツアー完走',             u:'回'},
   tour_done_acted: {g:'ツアー',  ja:'完走かつ記帳',           u:'回'},
-  tour_sample:     {g:'ツアー',  ja:'サンプル閲覧',           u:'回'}
+  tour_sample:     {g:'ツアー',  ja:'サンプル閲覧',           u:'回'},
+  // モバイルアプリ（mobile/src/store/TrackSync.jsx）。新しく入れた端末だけ・端末ごとに1回
+  m_onboard_done:  {g:'アプリ',  ja:'オンボーディング完了',   u:'人'},
+  m_opening:       {g:'アプリ',  ja:'口座の残高を入力',       u:'人'},
+  m_card_set:      {g:'アプリ',  ja:'カードの締め日・引落を設定', u:'人'},
+  m_first_journal: {g:'アプリ',  ja:'初回記帳',               u:'人'},
+  m_tag_alloc:     {g:'アプリ',  ja:'タグ配分を設定',         u:'人'},
+  m_intro_tour:    {g:'アプリ',  ja:'ホームの案内でツアーを選択', u:'人'},
+  m_retain_d7:     {g:'アプリ',  ja:'7日後に再訪',            u:'人'},
+  m_retain_d30:    {g:'アプリ',  ja:'30日後に再訪',           u:'人'}
 };
 function evInfo(name){
   if(EV_MAP[name]) return EV_MAP[name];
@@ -910,7 +1019,7 @@ function evInfo(name){
   }
   return {g:'その他', ja:name, u:'回'};
 }
-const GROUPS = ['獲得','ツアー','継続','アンケート','その他'];
+const GROUPS = ['獲得','ツアー','アプリ','継続','アンケート','その他'];
 // ⚠ iOS Safari は「Web」に入る。ここでいう iOSアプリ は App Store 版のこと。
 const PF_JA = {ios:'iPhoneアプリ', android:'Androidアプリ', web:'ブラウザ', unknown:'不明（UA未記録）', other:'その他'};
 
@@ -927,7 +1036,7 @@ const stale = (g) => g !== gen;
 function setTab(t){
   tab = t;
   gen++; // 進行中の読み込みの結果を無効にする
-  for (const k of ['status','access','deep','inquiry','feedback'])
+  for (const k of ['status','access','deep','inquiry','feedback','deletion'])
     $('#tab-'+(k==='access'?'access':k)).className = t===k ? 'on' : '';
   // 期間の切替が意味を持つのは成長と深掘りだけ
   const showPeriod = (t==='access' || t==='deep');
@@ -974,6 +1083,40 @@ function renderFeedback(d){
   $('#root').innerHTML = h;
 }
 
+async function loadDeletions(){
+  $('#refresh').disabled = true; $('#refresh').textContent = '取得中…';
+  $('#root').innerHTML = '<p class="muted">CloudWatch Logsから取得中…</p>';
+  try{
+    const r = await fetch('/api/deletions');
+    const d = await r.json();
+    if(!r.ok || d.error){ $('#root').innerHTML = '<div class="err">'+esc(d.error||'エラー')+'</div>'; return; }
+    renderDeletions(d);
+  }catch(e){ $('#root').innerHTML = '<div class="err">'+esc(e.message)+'</div>'; }
+  finally{ $('#refresh').disabled = false; $('#refresh').textContent = '更新'; }
+}
+
+function renderDeletions(d){
+  let h = '<div class="band"><h2>退会</h2><span class="hint">直近90日（ログの保持期間）・時刻は日本時間</span></div>';
+  h += '<div class="lead" style="grid-template-columns:repeat(3,minmax(0,1fr))">';
+  h += lead(d.total, '件', '退会', d.self ? 'うち自分のIPから '+d.self+'件' : '', true);
+  h += lead(d.withReason, '件', '理由あり');
+  h += lead(d.total - d.withReason, '件', '理由の記入なし');
+  h += '</div>';
+
+  h += '<div class="band"><h2>一覧（新しい順）</h2></div>';
+  if(!d.items.length){
+    h += '<section><p class="muted">記録がありません。</p></section>';
+  }else{
+    for(const it of d.items){
+      const note = it.self ? ' · 自分のIPから' : (it.recorded ? '' : ' · アクセスログに退会の記録なし');
+      h += '<div class="fb"><div class="when">'+esc(it.at)+esc(note)+'</div>'
+         + '<div class="body'+(it.reason?'':' muted')+'">'+(it.reason ? esc(it.reason) : '（理由の記入なし）')+'</div></div>';
+    }
+  }
+  h += '<p class="foot"><span>理由は任意入力で、ログにだけ残しています（DBには保存しない）。</span><span>取得時刻: '+esc(d.generatedAt)+'</span></p>';
+  $('#root').innerHTML = h;
+}
+
 async function loadInquiries(){
   $('#refresh').disabled = true; $('#refresh').textContent = '取得中…';
   $('#root').innerHTML = '<p class="muted">DynamoDBから取得中…</p>';
@@ -1010,7 +1153,7 @@ function renderInquiries(d){
       if(t.status!=='closed'){
         h += '<div style="margin-top:8px"><textarea class="rp" rows="3" style="width:100%" '
            + 'data-pk="'+esc(t.pk)+'" data-sk="'+esc(t.sk)+'" placeholder="返信を書く"></textarea>'
-           + '<button class="rp-send" data-pk="'+esc(t.pk)+'" data-sk="'+esc(t.sk)+'">返信する</button> '
+           + '<button class="rp-send" data-table="'+esc(t.table)+'" data-pk="'+esc(t.pk)+'" data-sk="'+esc(t.sk)+'">返信する</button> '
            + '<label class="muted"><input type="checkbox" class="rp-close" data-sk="'+esc(t.sk)+'"> 送信して終了にする</label></div>';
       }
       h += '</div>';
@@ -1028,7 +1171,7 @@ function renderInquiries(d){
       btn.disabled = true; btn.textContent = '送信中…';
       try{
         const r = await fetch('/api/inquiry-reply', { method:'POST', headers:{'content-type':'application/json'},
-          body: JSON.stringify({ pk: btn.dataset.pk, sk, body: ta.value, close }) });
+          body: JSON.stringify({ table: btn.dataset.table, pk: btn.dataset.pk, sk, body: ta.value, close }) });
         const j = await r.json();
         if(!r.ok || j.error) throw new Error(j.error||'失敗');
         loadInquiries();
@@ -1092,6 +1235,7 @@ function renderStatus(d){
 async function load(){
   if(tab==='status') return loadStatus();
   if(tab==='feedback') return loadFeedback();
+  if(tab==='deletion') return loadDeletions();
   if(tab==='inquiry') return loadInquiries();
   const days = $('#days').value;
   // 成長と深掘りは同じ集計を使う。期間が同じなら取り直さない（S3同期が重いため）
@@ -1556,6 +1700,7 @@ $('#tab-access').addEventListener('click', () => setTab('access'));
 $('#tab-deep').addEventListener('click', () => setTab('deep'));
 $('#tab-feedback').addEventListener('click', () => setTab('feedback'));
 $('#tab-inquiry').addEventListener('click', () => setTab('inquiry'));
+$('#tab-deletion').addEventListener('click', () => setTab('deletion'));
 // 初期表示も setTab を通す。直接 load() を呼ぶと期間セレクタの出し分けが効かない
 setTab('status');
 </script></body></html>`;
@@ -1572,6 +1717,17 @@ const server = createServer((req, res) => {
     try {
       // 先に取得してから書き出す（writeHead の後に例外が出るとヘッダ二重送信で落ちるため）
       const data = getFeedback();
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify(data));
+    } catch (e) {
+      res.writeHead(500, { 'content-type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+  if (url.pathname === '/api/deletions') {
+    try {
+      const data = getDeletions();
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify(data));
     } catch (e) {
@@ -1623,7 +1779,7 @@ const server = createServer((req, res) => {
       try {
         const b = JSON.parse(raw || '{}');
         if (!b.pk || !b.sk || !String(b.body || '').trim()) throw new Error('pk / sk / body が必要です');
-        const data = replyInquiry(b.pk, b.sk, String(b.body).trim().slice(0, 2000), !!b.close);
+        const data = replyInquiry(b.table || TABLE, b.pk, b.sk, String(b.body).trim().slice(0, 2000), !!b.close);
         res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(data));
       } catch (e) {
