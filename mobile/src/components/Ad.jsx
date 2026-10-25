@@ -10,8 +10,9 @@
 //
 // アプリID（app.json）とユニットID（下記）はどちらも本番のものが入っている。
 // テスト広告に切り替わるのは開発中（__DEV__）と、クローズドテスト中の Android だけ（USE_TEST_ADS）。
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Platform, Text, View } from 'react-native';
+import { useFocusEffect, useNavigation } from 'expo-router';
 // ネイティブモジュールが無い環境（Expo Go・広告を含まないビルド）では読み込みに失敗する。
 // アプリ全体を落とさず、広告だけ出さない形で切り離す。
 let Ads = null;
@@ -23,6 +24,7 @@ try {
 export const adsAvailable = () => Ads !== null;
 import { useTheme } from '../theme';
 import { useAdFree } from '../adFree';
+import { MAX_RETRY, cooldownLeft, retryDelay } from '../utils/adRequest';
 
 // 広告そのものを止める手段は置かない。
 //
@@ -68,11 +70,15 @@ export const PLACEMENTS = {
 // 課金が未実装なので実ログインユーザーは全員 free 扱い。
 export const AD_TIERS = { guest: true, free: true, pro: false, family: false };
 
-// 読み込みに失敗したときの取り直し。
+// 読み込みに失敗したときの取り直し（間隔は src/utils/adRequest.js）。
 // ⚠ 以前は一度失敗すると、アプリを開き直すまで広告が戻らなかった。AdMob の審査中や
 //   在庫切れで一時的に広告が無いだけでも、その日はずっと空になる。
-const RETRY_MS = 60 * 1000;
-const MAX_RETRY = 5;
+// 取り直すのは、この枠がある画面が前面にあるときだけ（2026-10-25）。タブは裏に回っても残るので、
+// 見ていない画面の枠が60秒おきに要求を出し続けていた。
+
+// 置き場所ごとの、最後に広告を要求した時刻。画面や一覧を作り直しても残るよう、部品の外に持つ。
+// 作り直された枠は、前の要求から間隔があくまで要求しない（2026-10-25。仕訳帳の帯のマッチ率が 13% だった）
+const lastRequestAt = {};
 
 export default function AnchoredAd({ tier = 'free', placement = 'anchored' }) {
   const t = useTheme();
@@ -81,14 +87,35 @@ export default function AnchoredAd({ tier = 'free', placement = 'anchored' }) {
   // 読み込みに失敗したら枠ごと畳む。空白が残るとタブバーが浮いて見える。
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  // この枠がある画面が前面にあるか（タブバーの帯は、タブ全体の画面が前面にあるか）
+  const navigation = useNavigation();
+  const [focused, setFocused] = useState(() => navigation?.isFocused?.() ?? true);
+  useFocusEffect(useCallback(() => {
+    setFocused(true);
+    return () => setFocused(false);
+  }, []));
+  // 前の要求から間隔があいたか。あくまでは枠を畳んでおき、あいたら（前面にあれば）要求する
+  const [ready, setReady] = useState(() => cooldownLeft(lastRequestAt[placement], Date.now()) === 0);
 
   useEffect(() => {
-    if (!failed || attempt >= MAX_RETRY) return undefined;
-    const timer = setTimeout(() => { setAttempt((a) => a + 1); setFailed(false); }, RETRY_MS);
+    if (ready || !focused) return undefined;
+    const timer = setTimeout(() => setReady(true), cooldownLeft(lastRequestAt[placement], Date.now()));
     return () => clearTimeout(timer);
-  }, [failed, attempt]);
+  }, [ready, focused, placement]);
 
-  if (!Ads || !ADS_ENABLED || !AD_TIERS[tier] || failed || adFree) return null;
+  useEffect(() => {
+    if (!failed || attempt >= MAX_RETRY || !focused) return undefined;
+    const timer = setTimeout(() => { setAttempt((a) => a + 1); setFailed(false); }, retryDelay(attempt));
+    return () => clearTimeout(timer);
+  }, [failed, attempt, focused]);
+
+  // 広告を要求する状態になったら（取り直しのたびにも）、時刻を残す
+  const requesting = !!Ads && ADS_ENABLED && !!AD_TIERS[tier] && !adFree && ready && !failed;
+  useEffect(() => {
+    if (requesting) lastRequestAt[placement] = Date.now();
+  }, [requesting, attempt, placement]);
+
+  if (!requesting) return null;
   const { BannerAd, BannerAdSize } = Ads;
   const p = PLACEMENTS[placement];
 
