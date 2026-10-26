@@ -79,11 +79,10 @@ export const AD_TIERS = { guest: true, free: true, pro: false, family: false };
 // 置き場所ごとの、最後に広告を要求した時刻。画面や一覧を作り直しても残るよう、部品の外に持つ。
 // 作り直された枠は、前の要求から間隔があくまで要求しない（2026-10-25。仕訳帳の帯のマッチ率が 13% だった）
 const lastRequestAt = {};
-// タブバー上の帯は、仕訳帳・設定で取り除かれ、戻るたびに作り直される。間隔をあけると戻った直後の60秒は広告が無くなるので、
-// 間引きの対象にしない（2026-10-26）。間引くのは、一覧に挟む帯などの重なる要求。
-const waitLeft = (placement) => (placement === 'anchored' ? 0 : cooldownLeft(lastRequestAt[placement], Date.now()));
-
-export default function AnchoredAd({ tier = 'free', placement = 'anchored' }) {
+// hidden: タブバー上の帯を、仕訳帳・設定では見えなくする。取り除くと戻るたびに作り直されて要求が増える
+// （間引くと、戻った直後に広告が無くなる）ので、枠は残して畳む（display: none）。
+// 畳んでいる間は新しい要求を出さない。一度も出していない枠は、畳んだままなら作らない（見えない広告を読み込まない）。
+export default function AnchoredAd({ tier = 'free', placement = 'anchored', hidden = false }) {
   const t = useTheme();
   // 動画を見て「今日は広告を消す」にしている間は出さない（src/adFree.js）
   const { active: adFree } = useAdFree();
@@ -98,27 +97,30 @@ export default function AnchoredAd({ tier = 'free', placement = 'anchored' }) {
     return () => setFocused(false);
   }, []));
   // 前の要求から間隔があいたか。あくまでは枠を畳んでおき、あいたら（前面にあれば）要求する
-  const [ready, setReady] = useState(() => waitLeft(placement) === 0);
+  const [ready, setReady] = useState(() => cooldownLeft(lastRequestAt[placement], Date.now()) === 0);
 
   useEffect(() => {
-    if (ready || !focused) return undefined;
-    const timer = setTimeout(() => setReady(true), waitLeft(placement));
+    if (ready || !focused || hidden) return undefined;
+    const timer = setTimeout(() => setReady(true), cooldownLeft(lastRequestAt[placement], Date.now()));
     return () => clearTimeout(timer);
-  }, [ready, focused, placement]);
+  }, [ready, focused, hidden, placement]);
 
   useEffect(() => {
-    if (!failed || attempt >= MAX_RETRY || !focused) return undefined;
+    if (!failed || attempt >= MAX_RETRY || !focused || hidden) return undefined;
     const timer = setTimeout(() => { setAttempt((a) => a + 1); setFailed(false); }, retryDelay(attempt));
     return () => clearTimeout(timer);
-  }, [failed, attempt, focused]);
+  }, [failed, attempt, focused, hidden]);
 
   // 広告を要求する状態になったら（取り直しのたびにも）、時刻を残す
   const requesting = !!Ads && ADS_ENABLED && !!AD_TIERS[tier] && !adFree && ready && !failed;
+  // 一度でも見える状態で出した枠か
+  const [shown, setShown] = useState(false);
+  if (requesting && !hidden && !shown) setShown(true);
   useEffect(() => {
-    if (requesting) lastRequestAt[placement] = Date.now();
-  }, [requesting, attempt, placement]);
+    if (requesting && !hidden) lastRequestAt[placement] = Date.now();
+  }, [requesting, hidden, attempt, placement]);
 
-  if (!requesting) return null;
+  if (!requesting || (hidden && !shown)) return null;
   const { BannerAd, BannerAdSize } = Ads;
   const p = PLACEMENTS[placement];
 
@@ -127,7 +129,7 @@ export default function AnchoredAd({ tier = 'free', placement = 'anchored' }) {
   const inline = placement === 'ledgerRow';
 
   return (
-    <View style={inline ? {
+    <View style={[hidden && { display: 'none' }, inline ? {
       backgroundColor: t.bg0, alignItems: 'center', gap: 4, paddingTop: 10, paddingBottom: 12,
       borderBottomWidth: 1, borderBottomColor: t.bd,
     } : {
@@ -144,7 +146,7 @@ export default function AnchoredAd({ tier = 'free', placement = 'anchored' }) {
       // 広告どうしがくっついて見えると誤タップを招く。
       paddingTop: placement === 'anchored' ? 0 : 20,
       marginBottom: placement === 'anchored' ? 0 : 12,
-    }}>
+    }]}>
       {inline ? <Text style={{ color: t.tx3, fontSize: 11 }}>広告</Text> : null}
       <BannerAd
         // 取り直すたびに新しい要求として出し直す
