@@ -18,6 +18,7 @@ import { resetAll } from '../../src/db';
 import { forgetOnboarding } from '../../src/store/OnboardingProvider';
 import { codeCollisions } from '../../src/store/merge';
 import { rewardedReady } from '../../src/components/Rewarded';
+import { openStoreReview } from '../../src/components/ReviewAsk';
 import { useAdFree } from '../../src/adFree';
 import { useTourTarget } from '../../src/store/TourProvider';
 import { useNetWorthSets } from '../../src/store/netWorthSets';
@@ -137,6 +138,7 @@ export default function Settings() {
       <MenuList items={[
         { label: '使い方', onPress: go('/guide') },
         { label: '問い合わせ', onPress: go('/inquiry') },
+        { label: 'アプリを評価する', onPress: openStoreReview },
         // 5.1.1(i)「プライバシーポリシーへのリンクをアプリ内の分かりやすい場所に置く」
         { label: '利用規約', onPress: () => openInApp('https://kurofukubo.com/terms.html', t) },
         { label: 'プライバシーポリシー', onPress: () => openInApp('https://kurofukubo.com/privacy.html', t) },

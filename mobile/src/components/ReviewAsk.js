@@ -6,6 +6,7 @@
 // ⚠ TestFlight 版では isAvailableAsync() が false を返す。確認できるのは Android と、
 //   App Store から入れた本番のアプリだけ。
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Linking, Platform } from 'react-native';
 import { installTime, shouldAsk } from '../utils/reviewPrompt';
 
 let StoreReview = null;
@@ -47,4 +48,20 @@ export async function maybeAskReview({ journals, adShown }) {
     await AsyncStorage.setItem(LAST_ASKED_KEY, String(now));
     await StoreReview.requestReview();
   } catch { /* 評価を聞けなくても、記帳の操作は止めない */ }
+}
+
+// 設定の「アプリを評価する」から、ストアのレビュー記入画面を直接開く。
+// 自分で押した操作なので、requestReview の回数制限（iOS は365日に3回）には掛からない。
+// Apple は action=write-review のリンクを認めている。
+const IOS_REVIEW_URL = 'itms-apps://apps.apple.com/app/id6806592989?action=write-review';
+const ANDROID_REVIEW_URL = 'market://details?id=com.kurofukubo.app';
+const ANDROID_WEB_URL = 'https://play.google.com/store/apps/details?id=com.kurofukubo.app';
+
+export async function openStoreReview() {
+  const ios = Platform.OS === 'ios';
+  try {
+    await Linking.openURL(ios ? IOS_REVIEW_URL : ANDROID_REVIEW_URL);
+  } catch {
+    if (!ios) await Linking.openURL(ANDROID_WEB_URL).catch(() => {});
+  }
 }
