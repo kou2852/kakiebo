@@ -79,6 +79,9 @@ export const AD_TIERS = { guest: true, free: true, pro: false, family: false };
 // 置き場所ごとの、最後に広告を要求した時刻。画面や一覧を作り直しても残るよう、部品の外に持つ。
 // 作り直された枠は、前の要求から間隔があくまで要求しない（2026-10-25。仕訳帳の帯のマッチ率が 13% だった）
 const lastRequestAt = {};
+// タブバー上の帯は、仕訳帳・設定で取り除かれ、戻るたびに作り直される。間隔をあけると戻った直後の60秒は広告が無くなるので、
+// 間引きの対象にしない（2026-10-26）。間引くのは、一覧に挟む帯などの重なる要求。
+const waitLeft = (placement) => (placement === 'anchored' ? 0 : cooldownLeft(lastRequestAt[placement], Date.now()));
 
 export default function AnchoredAd({ tier = 'free', placement = 'anchored' }) {
   const t = useTheme();
@@ -95,11 +98,11 @@ export default function AnchoredAd({ tier = 'free', placement = 'anchored' }) {
     return () => setFocused(false);
   }, []));
   // 前の要求から間隔があいたか。あくまでは枠を畳んでおき、あいたら（前面にあれば）要求する
-  const [ready, setReady] = useState(() => cooldownLeft(lastRequestAt[placement], Date.now()) === 0);
+  const [ready, setReady] = useState(() => waitLeft(placement) === 0);
 
   useEffect(() => {
     if (ready || !focused) return undefined;
-    const timer = setTimeout(() => setReady(true), cooldownLeft(lastRequestAt[placement], Date.now()));
+    const timer = setTimeout(() => setReady(true), waitLeft(placement));
     return () => clearTimeout(timer);
   }, [ready, focused, placement]);
 
