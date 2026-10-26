@@ -69,7 +69,8 @@ export default function TabBar({ state, descriptors, navigation }) {
           オンボーディングを終えた直後のホームで広告が出ていなかった。
       */}
       {/* 仕訳帳は一覧の途中に広告を挟むので、タブバー上の帯は出さない（2026-10-24 指示）。隠すだけだと不可視のインプレッションになるので描画しない */}
-      {onboarding?.active || state.routes[state.index]?.name === 'ledger' ? null : <AnchoredAd />}
+      {/* 設定のメニューも出さない（2026-10-26 指示） */}
+      {onboarding?.active || ['ledger', 'settings'].includes(state.routes[state.index]?.name) ? null : <AnchoredAd />}
       <View style={{
         flexDirection: 'row', alignItems: 'flex-start',
         borderTopWidth: 1, borderTopColor: t.bd,

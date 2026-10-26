@@ -9,7 +9,7 @@
 // 誤タップを避けるため、タブバーとの間に区切り線を入れて領域を分けている。
 //
 // アプリID（app.json）とユニットID（下記）はどちらも本番のものが入っている。
-// テスト広告に切り替わるのは開発中（__DEV__）と、クローズドテスト中の Android だけ（USE_TEST_ADS）。
+// テスト広告に切り替わるのは開発中（__DEV__）と、クローズドテスト中の Android だけ（USE_TEST_ADS。いまは解除済み）。
 import { useCallback, useEffect, useState } from 'react';
 import { Platform, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from 'expo-router';
@@ -41,8 +41,8 @@ export const ADS_ENABLED = !(__DEV__ && process.env.EXPO_PUBLIC_HIDE_ADS === '1'
 
 // クローズドテスト中の Android はテスト広告にする。テスターは全員 Android なので、
 // 本番広告を踏まれて無効なトラフィックと判定されるのを避ける。
-// ⚠ Google Play の製品版を出すときに false に戻す。
-const ANDROID_CLOSED_TEST = true;
+// 14日間のテストを通過したので解除済み（2026-10-26）。再びクローズドテストを回すときだけ true にする。
+const ANDROID_CLOSED_TEST = false;
 export const USE_TEST_ADS = __DEV__ || (ANDROID_CLOSED_TEST && Platform.OS === 'android');
 
 // 置き場所ごとの本番ユニットID（AdMob: kurofukubo iOS）と大きさ。
