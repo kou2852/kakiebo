@@ -73,6 +73,15 @@
       });
       return;
     }
+    // Google Play（2026-10-27〜）。App Store と同じ粒度。管理画面でキーイベントに指定して初めて CV に数えられる。
+    if (a.hostname === 'play.google.com') {
+      window.gtag('event', 'cta_googleplay', {
+        link_url: a.href,
+        cta_location: a.dataset.cta || 'googleplay',
+        cta_text: (a.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 60)
+      });
+      return;
+    }
     if (a.hostname !== 'app.kurofukubo.com') return;
     window.gtag('event', 'cta_app_start', {
       link_url: a.href,

@@ -45,8 +45,8 @@ export const IOS_RELEASE_LABEL = `${Number(m)}月${Number(d)}日`;
 // ⚠ version を上げるのは、そのストアで新しい版が**公開されたのを確かめてから**。審査中・段階配信の途中で
 //    上げると、まだ更新できない人に「アップデートしてください」と出てしまう。
 // ⚠ ポップアップを出すのは 1.0.4 以降のアプリ（それより前のアプリはこの項目を読まない）。
-// Android はクローズドテスト中。Google Play のページはテスターにしか開けない（テスター以外は「見つかりません」）。
+// Android は 2026-10-27 に Google Play で公開（1.0.4）。
 export const APP_LATEST = {
   ios: { version: '1.0.2', url: IOS_APP.url },
-  android: { version: '1.0.3', url: 'https://play.google.com/store/apps/details?id=com.kurofukubo.app' },
+  android: { version: '1.0.4', url: 'https://play.google.com/store/apps/details?id=com.kurofukubo.app' },
 };
