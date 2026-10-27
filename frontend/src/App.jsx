@@ -27,6 +27,7 @@ import Tour from './components/Onboarding/Tour';
 import TutorialMenu from './components/Onboarding/TutorialMenu';
 import WhatsNewModal from './components/Common/WhatsNewModal';
 import IosPromoModal from './components/Common/IosPromoModal';
+import AndroidPromoModal from './components/Common/AndroidPromoModal';
 import FeedbackModal from './components/Common/FeedbackModal';
 import { AD_CONFIG } from './config/tiers';
 import { WEB_UPDATES } from './config/updates';
@@ -152,6 +153,7 @@ function AppShell({ devMode, guestMode, tier }) {
       <TutorialMenu open={menuOpen} onClose={closeMenu} onStart={startTour} />
       <WhatsNewModal open={whatsNewOpen} onClose={closeWhatsNew} />
       <IosPromoModal guestMode={guestMode} blocked={devMode || !!tourId || feedbackOpen || whatsNewOpen} />
+      <AndroidPromoModal guestMode={guestMode} blocked={devMode || !!tourId || feedbackOpen || whatsNewOpen} />
       <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
       <button
         className="journal-fab"

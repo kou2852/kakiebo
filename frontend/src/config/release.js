@@ -39,6 +39,14 @@ export const IOS_APP = {
 const [, m, d] = IOS_APP.releaseOn.split('-');
 export const IOS_RELEASE_LABEL = `${Number(m)}月${Number(d)}日`;
 
+// Androidアプリの公開状態。アプリ内の告知（AndroidPromoModal・更新情報）はここを見る。
+// ⚠ date は実際に公開した日。更新情報の id になり、既読管理（kk_update_seen）のキーになる。あとから書き換えない。
+export const ANDROID_APP = {
+  live: true,
+  date: '2026-10-27', // Google Play で公開した日
+  url: 'https://play.google.com/store/apps/details?id=com.kurofukubo.app',
+};
+
 // ストアに出ているアプリの最新版。アプリは起動後にこれと自分の版を比べ、古ければ「アップデート」の
 // ポップアップを出す（強制しない。「あとで」で閉じられる）。updates.json の latest に書き出す（vite.config.js）。
 //
@@ -48,5 +56,5 @@ export const IOS_RELEASE_LABEL = `${Number(m)}月${Number(d)}日`;
 // Android は 2026-10-27 に Google Play で公開（1.0.4）。
 export const APP_LATEST = {
   ios: { version: '1.0.2', url: IOS_APP.url },
-  android: { version: '1.0.4', url: 'https://play.google.com/store/apps/details?id=com.kurofukubo.app' },
+  android: { version: '1.0.4', url: ANDROID_APP.url },
 };

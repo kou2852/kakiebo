@@ -1,4 +1,4 @@
-import { IOS_APP, IOS_RELEASE_LABEL } from './release';
+import { ANDROID_APP, IOS_APP, IOS_RELEASE_LABEL } from './release';
 
 // 公開前は「◯月◯日に公開します」、公開後は「公開しました」に切り替える。
 //
@@ -31,6 +31,20 @@ const IOS_UPDATE = IOS_APP.live && IOS_APP.date ? [{
   ...(IOS_APP.preorder ? { link: { href: IOS_APP.url, label: 'App Storeで予約注文する', event: 'ios_preorder_click' } } : {}),
 }];
 
+// Androidアプリの公開の告知。公開前は出さない（Google Play のページは公開するまで開けない）。
+const ANDROID_UPDATE = ANDROID_APP.live ? [{
+  id: ANDROID_APP.date,
+  date: ANDROID_APP.date,
+  title: 'Androidアプリを公開しました',
+  items: [
+    'Google Play で「黒福簿」を公開しました。いまお使いのアカウントでログインすれば、同じ帳簿がそのまま見られます。ブラウザ版もこれまでどおりお使いいただけます',
+    'アプリだけの機能として、レシートを撮って記帳できます。文字の読み取りは端末の中だけで行い、写真も読み取り結果も外部には送りません',
+    '電波がないところでも記帳でき、つながったときに自動で同期します。指紋・顔認証などでアプリをロックすることもできます',
+    'ゲストのままお使いの方へ。この端末に保存されているデータは、アプリには引き継がれません。先にアカウントを作成してからインストールしてください',
+  ],
+  link: { href: ANDROID_APP.url, label: 'Google Play で見る', event: 'android_badge_click' },
+}] : [];
+
 // アプリ内「更新情報（What's New）」。先頭が最新。id は既読管理（kk_update_seen）に使用。
 //
 // for: 出し先。省略するとウェブだけ（これまでの記事はすべてウェブ向け）。
@@ -41,6 +55,8 @@ const IOS_UPDATE = IOS_APP.live && IOS_APP.date ? [{
 //   使うときは minApp も '1.0.4' 以上にする（古いアプリは platforms を無視して両方に出す）。
 // link.ios / link.android: OS ごとのリンク先（1.0.4 以降のアプリ）。無ければ link.href。
 export const APP_UPDATES = [
+  // ⚠ ベルの赤ドットは先頭の記事の id で判定するので、新しい記事は先頭に置く。
+  ...ANDROID_UPDATE,
   {
     id: '2026-10-14',
     date: '2026-10-14',
