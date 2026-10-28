@@ -95,8 +95,64 @@ function buildJourneys(rows, isBot, isSelf) {
   };
 }
 
-export function analyze(days, registeredUsers) {
-  const wanted = new Set(lastDays(days));
+// ── 追加の集計（純粋な関数。テストあり）──────────────────────────
+
+const jstMinuteOf = (r) => ((Number(r.time.slice(0, 2)) + 9) % 24) * 60 + Number(r.time.slice(3, 5));
+
+/** 人間のオープンを日本時間の時間帯（0〜23時）ごとに数える。count は回数、distinct は IP の数 */
+export function hourlyOf(humanOpens) {
+  const out = Array.from({ length: 24 }, (_, hour) => ({ hour, count: 0, ips: new Set() }));
+  for (const r of humanOpens) {
+    const h = (Number(r.time.slice(0, 2)) + 9) % 24;
+    out[h].count++;
+    out[h].ips.add(r.ip);
+  }
+  return out.map(({ hour, count, ips }) => ({ hour, count, distinct: ips.size }));
+}
+
+/**
+ * アプリが送る段のイベント（m_*）を端末ごとに数える。端末は UA の末尾 (ios) / (android)。
+ * 段には順序が決まっていない（スキップした端末でも、帳簿の状態から m_opening などは届く）ので、
+ * ファネルにせず段ごとの人数で出す。
+ */
+export function appStagesOf(rows, isBot, isSelf) {
+  const out = {};
+  for (const r of rows) {
+    const m = r.uri && r.uri.match(/^\/_e\/(m_[a-z0-9_]+)$/i);
+    if (!m || isBot(r) || isSelf(r.ip)) continue;
+    const ua = dec(r.ua);
+    const pf = /\(ios\)/i.test(ua) ? 'ios' : /\(android\)/i.test(ua) ? 'android' : 'other';
+    const e = (out[m[1]] ||= { ios: 0, android: 0, other: 0 });
+    e[pf]++;
+  }
+  return out;
+}
+
+/**
+ * 各日の「いまと同じ時刻（日本時間）まで」の人間のオープン数・IP数・イベント数。
+ * 途中の今日を、丸1日の過去と比べて落ち込んだと誤読しないためのもの。
+ * @param {Set<object>} humanSet classify の humanOpens（rows の要素そのもの）
+ * @param {number} nowMin 日本時間の 0 時からの経過分
+ */
+export function sameTimeOf(rows, humanSet, isBot, isSelf, nowMin) {
+  const out = {};
+  for (const r of rows) {
+    if (jstMinuteOf(r) > nowMin) continue;
+    const e = (out[r.date] ||= { opens: 0, ips: new Set(), events: {} });
+    if (humanSet.has(r)) { e.opens++; e.ips.add(r.ip); continue; }
+    const m = r.uri && r.uri.match(/^\/_e\/([a-z0-9_-]+)$/i);
+    if (m && m[1] !== 'csp-report' && !isBot(r) && !isSelf(r.ip)) e.events[m[1]] = (e.events[m[1]] || 0) + 1;
+  }
+  return Object.fromEntries(Object.entries(out).map(([d, e]) => [d, { opens: e.opens, distinct: e.ips.size, events: e.events }]));
+}
+
+/**
+ * @param {string[]} dayList 集計する日本時間の日付（YYYY-MM-DD）。連続していなくてもよい
+ * @param {{sameTimeAt?: number}} opts sameTimeAt = 日本時間の 0 時からの経過分。指定すると同時刻までの集計も返す
+ */
+export function analyze(dayList, registeredUsers, opts = {}) {
+  const days = dayList.length;
+  const wanted = new Set(dayList);
   const files = existsSync(CACHE_DIR) ? readdirSync(CACHE_DIR).filter((f) => f.endsWith('.gz')) : [];
   const texts = function* () {
     for (const f of files) {
@@ -232,7 +288,8 @@ export function analyze(days, registeredUsers) {
 
   return {
     generatedAt: new Date().toISOString(),
-    period: { from: dates[0] || null, to: dates[dates.length - 1] || null, days },
+    // from/to は実際にデータがある範囲、requested は頼まれた範囲（データが無い日があっても変わらない）
+    period: { from: dates[0] || null, to: dates[dates.length - 1] || null, days, requested: [dayList.slice().sort()[0], dayList.slice().sort()[days - 1]] },
     journeys: buildJourneys(rows, isBot, isSelf),
     registeredUsers,
     fileCount: files.length,
@@ -243,5 +300,8 @@ export function analyze(days, registeredUsers) {
       human: humanOpens.length, humanDistinct: humanIps.size,
     },
     byDay, bySrc, byArticle, byDevice, byPlatform, excluded, refs, botUa, events,
+    byHour: hourlyOf(humanOpens),
+    appStages: appStagesOf(rows, isBot, isSelf),
+    sameTime: opts.sameTimeAt == null ? null : sameTimeOf(rows, new Set(humanOpens), isBot, isSelf, opts.sameTimeAt),
   };
 }

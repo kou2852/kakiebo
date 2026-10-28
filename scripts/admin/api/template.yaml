@@ -1,0 +1,225 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >-
+  kurofukubo 管理アプリ（Windows・iOS）用の API。手元の管理ダッシュボードと同じ数字を Lambda 関数 URL で返す。
+  アプリ本体（kakeibo-saas-prod）・Discord レポート（kakeibo-admin-report-prod）とは別スタック。
+  本番リソースは読むだけ。書き込みは問い合わせへの返信（messages・updatedAt・status）だけ。
+
+# デプロイ（本番への干渉。毎回ユーザーの許可を取ってから）:
+#   cd scripts/admin/api && npm run build
+#   sam deploy --template-file template.yaml --stack-name kakeibo-admin-api-prod --profile kakeibo-prod \
+#     --region ap-northeast-1 --resolve-s3 --capabilities CAPABILITY_IAM --no-execute-changeset \
+#     --parameter-overrides AdminEmail=<管理者のメール>
+# 片付け（許可制）:  sam delete --stack-name kakeibo-admin-api-prod --profile kakeibo-prod --region ap-northeast-1
+# トークンの取り消し（許可制）:
+#   aws cognito-idp admin-user-global-sign-out --user-pool-id <AdminPoolId> --username <メール> --profile kakeibo-prod
+
+Parameters:
+  AdminEmail:
+    Type: String
+    Description: 管理者ユーザーのメール（一時パスワードがここに届く）
+  LogBucket:
+    Type: String
+    Default: kakeibo-cf-logs-117953360790
+  LogPrefix:
+    Type: String
+    Default: app/
+  DistributionId:
+    Type: String
+    Default: E32HZNCIT2MXUM
+  UserPoolId:
+    Type: String
+    Default: ap-northeast-1_ddBDF3HKK
+    Description: アプリ本体の利用者プール（登録数を数えるだけ）
+  TableName:
+    Type: String
+    Default: kakeibo-prod
+  InquiryTableName:
+    Type: String
+    Default: kakeibo-inquiries-prod
+  FeedbackTableName:
+    Type: String
+    Default: kakeibo-feedback-prod
+  CleanupLogGroup:
+    Type: String
+    Default: /aws/lambda/kakeibo-saas-prod-CleanupUnconfirmedFunction-GvWvO3WXvqhh
+  ApiLogGroup:
+    Type: String
+    Default: /aws/apigateway/kakeibo-saas-prod
+  SettingsLogGroup:
+    Type: String
+    Default: /aws/lambda/kakeibo-saas-prod-SettingsFunction-ruoTTMCvIWbp
+  ApiName:
+    Type: String
+    Default: kakeibo-saas-prod
+  CursorParam:
+    Type: String
+    Default: /kakeibo/prod/discord-watch-cursor
+
+Resources:
+  # 管理者だけのプール。自己登録なし・TOTP 必須
+  AdminPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: kakeibo-admin-prod
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      UsernameAttributes: [email]
+      MfaConfiguration: 'ON'
+      EnabledMfas: [SOFTWARE_TOKEN_MFA]
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+          TemporaryPasswordValidityDays: 3
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: admin_only
+            Priority: 1
+
+  AdminClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref AdminPool
+      ClientName: admin-apps
+      GenerateSecret: false
+      ExplicitAuthFlows: [ALLOW_USER_PASSWORD_AUTH, ALLOW_REFRESH_TOKEN_AUTH]
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      IdTokenValidity: 15
+      AccessTokenValidity: 15
+      RefreshTokenValidity: 7
+      TokenValidityUnits:
+        IdToken: minutes
+        AccessToken: minutes
+        RefreshToken: days
+
+  AdminUser:
+    Type: AWS::Cognito::UserPoolUser
+    Properties:
+      UserPoolId: !Ref AdminPool
+      Username: !Ref AdminEmail
+      UserAttributes:
+        - Name: email
+          Value: !Ref AdminEmail
+        - Name: email_verified
+          Value: 'true'
+      DesiredDeliveryMediums: [EMAIL]
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: 管理アプリ用 API（管理ダッシュボードと同じ集計）
+      CodeUri: dist/
+      Handler: api/src/handler.handler
+      Runtime: nodejs24.x
+      Architectures: [arm64]
+      MemorySize: 1769
+      Timeout: 120
+      # 同時に動く数の上限（公開の入口なので、費用と負荷の天井をここで決める）
+      ReservedConcurrentExecutions: 10
+      EphemeralStorage:
+        Size: 1024
+      Environment:
+        Variables:
+          ADMIN_CACHE_ROOT: /tmp/admin
+          ADMIN_POOL_ID: !Ref AdminPool
+          ADMIN_CLIENT_ID: !Ref AdminClient
+          LOG_BUCKET: !Ref LogBucket
+          LOG_PREFIX: !Ref LogPrefix
+          DISTRIBUTION_ID: !Ref DistributionId
+          USER_POOL_ID: !Ref UserPoolId
+          TABLE_NAME: !Ref TableName
+          INQUIRY_TABLE_NAME: !Ref InquiryTableName
+          FEEDBACK_TABLE_NAME: !Ref FeedbackTableName
+          CLEANUP_LOG_GROUP: !Ref CleanupLogGroup
+          API_NAME: !Ref ApiName
+          CURSOR_PARAM: !Ref CursorParam
+      FunctionUrlConfig:
+        AuthType: NONE # 検証は関数の中（Cognito のトークン）。トークンが無ければ AWS を読まずに 401
+        Cors:
+          AllowOrigins:
+            - app://admin
+            - https://admin.kurofukubo.invalid
+          AllowMethods: [GET, POST]
+          AllowHeaders: [authorization, content-type]
+          MaxAge: 600
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: s3:ListBucket
+              Resource: !Sub arn:aws:s3:::${LogBucket}
+              Condition:
+                StringLike:
+                  s3:prefix: !Sub ${LogPrefix}*
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub arn:aws:s3:::${LogBucket}/${LogPrefix}*
+            - Effect: Allow
+              Action:
+                - cognito-idp:ListUsers
+                - cognito-idp:DescribeUserPool
+              Resource: !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId}
+            - Effect: Allow
+              Action: ses:GetAccount
+              Resource: '*'
+            - Effect: Allow
+              Action: logs:FilterLogEvents
+              Resource:
+                - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${CleanupLogGroup}
+                - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${CleanupLogGroup}:*
+            # Logs Insights は API のアクセスログと退会理由のロググループだけ
+            - Effect: Allow
+              Action: logs:StartQuery
+              Resource:
+                - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${ApiLogGroup}
+                - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${ApiLogGroup}:*
+                - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${SettingsLogGroup}
+                - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${SettingsLogGroup}:*
+            - Effect: Allow
+              Action:
+                - logs:GetQueryResults
+                - logs:StopQuery
+              Resource: '*'
+            - Effect: Allow
+              Action: cloudwatch:GetMetricData
+              Resource: '*'
+            # 読める項目を限定する（家計簿データは読めない）。項目を指定しない取得は禁止
+            - Effect: Allow
+              Action:
+                - dynamodb:Query
+                - dynamodb:Scan
+              Resource:
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${InquiryTableName}
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${FeedbackTableName}
+              Condition:
+                ForAllValues:StringEquals:
+                  dynamodb:Attributes: [PK, SK, id, status, messages, subject, body, timestamp, createdAt, updatedAt, lastSeen]
+                StringEquals:
+                  dynamodb:Select: SPECIFIC_ATTRIBUTES
+            # 唯一の書き込み: 問い合わせへの返信
+            - Effect: Allow
+              Action: dynamodb:UpdateItem
+              Resource:
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}
+                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${InquiryTableName}
+              Condition:
+                ForAllValues:StringEquals:
+                  dynamodb:Attributes: [PK, SK, messages, updatedAt, status]
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${CursorParam}
+
+Outputs:
+  ApiUrl:
+    Description: 両アプリに設定する API の宛先
+    Value: !GetAtt ApiFunctionUrl.FunctionUrl
+  AdminPoolId:
+    Value: !Ref AdminPool
+  AdminClientId:
+    Description: 両アプリに設定するクライアント ID
+    Value: !Ref AdminClient

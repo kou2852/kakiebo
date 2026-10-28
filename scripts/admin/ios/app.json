@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "黒福簿 管理",
+    "slug": "kurofukubo-admin",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.kurofukubo.admin",
+      "supportsTablet": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "owner": "pokupoku_x_x_x"
+  }
+}

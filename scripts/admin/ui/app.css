@@ -244,3 +244,25 @@
 @media(max-width:640px){.lead2{grid-template-columns:1fr}.banner{margin:10px 12px 0}.subnav{top:96px}}
 .band{flex-wrap:wrap}
 .band h2{white-space:nowrap}
+
+/* ── 期間・比較・稼働 ── */
+#period-picker{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap}
+.range{display:inline-flex;align-items:center;gap:6px}
+.range input[type=date]{font:inherit;font-size:12px;padding:3px 6px;border:1px solid var(--bd2);border-radius:8px;background:var(--bg1);color:var(--tx)}
+.cmp{display:inline-flex;align-items:center;gap:5px;cursor:pointer}
+.cmpline{display:block;margin-top:2px;color:var(--tx3);font-size:11px;font-variant-numeric:tabular-nums}
+.fn-n .pv{display:block;font-size:10px;font-weight:500;color:var(--tx3)}
+.lead4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.ntab .rn.part{color:var(--tx3);font-style:italic}
+.col .b.part{background:transparent;border:1.5px dashed var(--ac)}
+@media(max-width:900px){.lead4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.lead4{grid-template-columns:1fr}.range{flex-wrap:wrap}}
+
+/* 管理アプリのログイン（ui/transport.js が出す） */
+.login{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:16px;background:var(--bg)}
+.login-card{width:100%;max-width:360px;background:var(--bg2);border:1px solid var(--bd);border-radius:14px;padding:22px 20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 14px 30px -20px rgba(20,24,40,.3)}
+.login-card h2{margin:0;font-size:16px}
+.login-card label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--tx2);font-weight:700}
+.login-card input{font:inherit;font-size:16px;padding:9px 10px;border:1px solid var(--bd2);border-radius:8px;background:var(--bg1);color:var(--tx)}
+.login-secret{display:block;word-break:break-all;user-select:all;padding:8px 10px;background:var(--bg3);border:1px dashed var(--bd2);border-radius:8px;font-size:13px}
+.login-err{margin:0;min-height:1em;font-size:12px;color:var(--red)}

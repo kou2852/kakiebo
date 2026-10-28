@@ -6,22 +6,26 @@
   <h1>kurofukubo 管理ダッシュボード</h1>
   <span class="tabs">
     <button id="tab-today" class="on">今日</button>
-    <button id="tab-access">成長</button>
+    <button id="tab-access">獲得</button>
+    <button id="tab-retention">継続</button>
     <button id="tab-voice">声<i id="badge-voice" class="bd"></i></button>
     <button id="tab-deep">深掘り</button>
   </span>
   <span class="meta" id="period">—</span>
   <span class="grow"></span>
-  <label class="meta" id="period-picker">期間
-    <select id="days">
+  <span class="meta" id="period-picker">
+    <label>期間 <select id="days">
       <option value="7">7日</option>
       <option value="14" selected>14日</option>
       <option value="30">30日</option>
       <option value="90">90日</option>
-    </select>
-  </label>
+    </select></label>
+    <span class="range"><input type="date" id="from" aria-label="開始日"> 〜 <input type="date" id="to" aria-label="終了日"> <button id="range-clear" type="button">解除</button></span>
+    <label id="cmp-wrap" class="cmp"><input type="checkbox" id="cmp" checked> 前の期間と比べる</label>
+  </span>
   <button class="primary" id="refresh">更新</button>
 </header>
 <div id="banner" class="err banner" style="display:none"></div>
 <main id="root"><p class="muted">読み込み中…</p></main>
+<script src="/transport.js"></script>
 <script src="/app.js"></script></body></html>

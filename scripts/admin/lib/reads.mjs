@@ -6,11 +6,12 @@ import { mkdirSync, writeFileSync, readFileSync, statSync, existsSync } from 'no
 import { join, basename } from 'node:path';
 import * as collect from '../report/src/collect.mjs';
 import {
-  lastDays, jstDayOfIso, summarizeUsers, isWaitingInquiry, judgeChecks, judgeCsp, judgeSignals, judgeWatch,
+  lastDays, jstDayOfIso, isWaitingInquiry, judgeChecks, judgeCsp, judgeSignals, judgeWatch,
   cspStateOf, isWriteReq, SELF_PREFIXES,
 } from '../report/src/metrics.mjs';
-import { s3, ddb, cmd, insights, friendly, LOGIN_HINT, isAuthError } from './aws.mjs';
-import { CACHE_DIR, PF_CACHE_DIR, API_LOG_GROUP, SETTINGS_LOG_GROUP } from './config.mjs';
+import { s3, ddb, cognito, cmd, insights, friendly, LOGIN_HINT, isAuthError } from './aws.mjs';
+import { CACHE_DIR, PF_CACHE_DIR, API_LOG_GROUP, SETTINGS_LOG_GROUP, SELF_SUBS } from './config.mjs';
+import { datesBetween, activeOf, usageOf, registeredIn, registeredSameTime, jstMinuteNow } from './derive.mjs';
 import { analyze } from './analyze.mjs';
 import { cached, invalidate } from './cache.mjs';
 
@@ -30,11 +31,13 @@ function soft(promise, fallback, auth) {
 
 // ── CloudFront ログの同期と集計 ─────────────────────────────────
 
-/** 直近days日ぶんのログを手元に写す（増分）。ファイル名はUTC日なので、JSTの当日ぶんを取りこぼさないよう前後を余分に取る */
-async function syncLogs(days) {
+const utcDayBefore = (d) => new Date(Date.parse(d + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10);
+
+/** 集計する JST の日付ぶんのログを手元に写す（増分）。ファイル名は UTC の日付で、JST の1日は UTC の前日15時〜当日15時 */
+async function syncLogs(dayList) {
   mkdirSync(CACHE_DIR, { recursive: true });
-  const span = new Set(lastDays(days + 1));
-  span.add(new Date(Date.now() + 86400000).toISOString().slice(0, 10)); // JST当日の残り＝UTC翌日
+  const span = new Set();
+  for (const d of dayList) { span.add(d); span.add(utcDayBefore(d)); }
   const objects = [];
   try {
     await Promise.all([...span].map(async (d) => {
@@ -63,23 +66,53 @@ async function syncLogs(days) {
   } catch (e) { throw friendly(e, 'アクセスログの同期'); }
 }
 
-const getUsers = (fresh) => cached('users', 5 * MIN, () => collect.listUsers().catch((e) => { throw friendly(e, '登録ユーザーの取得'); }), fresh);
+/**
+ * 登録ユーザー [状態, 登録日時(ISO), Username, sub]。AttributesToGet: sub なのでメール等の属性は Cognito 側で除外される。
+ * Username は Google 連携だと Google_… で sub と別物なので、sub は属性から取る。
+ */
+async function listUsersWithSub() {
+  const out = [];
+  let token;
+  do {
+    const page = await cognito.send(new cmd.ListUsersCommand({
+      UserPoolId: CONFIG.userPoolId, AttributesToGet: ['sub'], Limit: 60, PaginationToken: token,
+    }));
+    for (const u of page.Users || []) {
+      const sub = (u.Attributes || []).find((a) => a.Name === 'sub')?.Value || u.Username;
+      out.push([u.UserStatus, new Date(u.UserCreateDate).toISOString(), u.Username, sub]);
+    }
+    token = page.PaginationToken;
+  } while (token);
+  return out;
+}
+
+const getUsers = (fresh) => cached('users', 5 * MIN, () => listUsersWithSub().catch((e) => { throw friendly(e, '登録ユーザーの取得'); }), fresh);
 
 const jstDayStartMs = (day) => Date.parse(`${day}T00:00:00+09:00`);
 
-/** アクセスと自前イベントの集計（成長・深掘り・今日で共有） */
-export function getStats(days, fresh) {
-  return cached(`stats:${days}`, 5 * MIN, async () => {
-    // ログの同期とユーザーの取得は独立しているので並べる。ユーザーが取れなくても他の数字は出す
-    const auth = { failed: false };
-    const [, users] = await Promise.all([
-      cached(`sync:${days}`, 3 * MIN, () => syncLogs(days), fresh),
-      soft(getUsers(fresh).then((r) => r.value), null, auth),
-    ]);
-    // 期間の始まりは、アクセスの集計（lastDays）と同じ JST の暦日の 0 時にそろえる
-    const registered = users ? summarizeUsers(users, jstDayStartMs(lastDays(days).at(-1))) : null;
-    return analyze(days, registered);
-  }, fresh);
+/** 集計する日付の並び。days なら直近 days 日、from / to なら開始日〜終了日（日本時間） */
+export function dayListOf({ days, from, to }) {
+  return from && to ? datesBetween(from, to) : lastDays(Math.min(180, Math.max(1, Number(days) || 14)));
+}
+
+/** ログの同期とユーザーの取得は独立しているので並べる。ユーザーが取れなくても他の数字は出す */
+async function computeStats(dayList, fresh, opts) {
+  const sorted = dayList.slice().sort();
+  const auth = { failed: false };
+  const [, users] = await Promise.all([
+    cached(`sync:${sorted[0]}:${sorted.at(-1)}`, 3 * MIN, () => syncLogs(dayList), fresh),
+    soft(getUsers(fresh).then((r) => r.value), null, auth),
+  ]);
+  // 期間の始まりと終わりは、アクセスの集計と同じ JST の暦日にそろえる
+  const registered = users ? registeredIn(users, sorted[0], sorted.at(-1)) : null;
+  return analyze(dayList, registered, opts);
+}
+
+/** アクセスと自前イベントの集計（成長・深掘り・継続で共有）。spec は { days } か { from, to } */
+export function getStats(spec, fresh) {
+  const dayList = dayListOf(spec);
+  const sorted = dayList.slice().sort();
+  return cached(`stats:${sorted[0]}:${sorted.at(-1)}`, 5 * MIN, () => computeStats(dayList, fresh), fresh);
 }
 
 // ── 状態 ──────────────────────────────────────────────────────
@@ -148,6 +181,9 @@ export function getInquiries(fresh) {
           try {
             page = await ddb.send(new cmd.ScanCommand({
               TableName: table, FilterExpression: 'begins_with(SK, :p)',
+              // 使う項目だけ読む（管理アプリの Lambda は IAM で読める項目を限っている）
+              Select: 'SPECIFIC_ATTRIBUTES', ProjectionExpression: 'PK, SK, id, subject, #st, createdAt, updatedAt, messages',
+              ExpressionAttributeNames: { '#st': 'status' },
               ExpressionAttributeValues: { ':p': { S: 'INQUIRY#' } }, ExclusiveStartKey: start,
             }));
           } catch (e) {
@@ -187,12 +223,13 @@ export async function replyInquiry(table, pk, sk, body, close) {
   try {
     await ddb.send(new cmd.UpdateItemCommand({
       TableName: table, Key: { PK: { S: pk }, SK: { S: sk } },
-      ConditionExpression: 'attribute_exists(SK)',
+      // 問い合わせの行にだけ書く（本体の表の家計簿の行を書き換えない）
+      ConditionExpression: 'attribute_exists(SK) AND begins_with(SK, :inq)',
       UpdateExpression: 'SET messages = list_append(if_not_exists(messages, :empty), :m), updatedAt = :u, #st = :s',
       ExpressionAttributeNames: { '#st': 'status' },
       ExpressionAttributeValues: {
         ':m': { L: [{ M: { from: { S: 'staff' }, body: { S: body }, at: { S: now } } }] },
-        ':empty': { L: [] }, ':u': { S: now }, ':s': { S: close ? 'closed' : 'open' },
+        ':empty': { L: [] }, ':inq': { S: 'INQUIRY#' }, ':u': { S: now }, ':s': { S: close ? 'closed' : 'open' },
       },
     }));
   } catch (e) { throw friendly(e, '返信の保存'); }
@@ -214,6 +251,7 @@ export function getFeedback(fresh) {
           try {
             page = await ddb.send(new cmd.QueryCommand({
               TableName: table, KeyConditionExpression: 'PK = :pk',
+              Select: 'SPECIFIC_ATTRIBUTES', ProjectionExpression: 'SK, #ts, body', ExpressionAttributeNames: { '#ts': 'timestamp' },
               ExpressionAttributeValues: { ':pk': { S: 'FEEDBACK' } },
               ScanIndexForward: false, ExclusiveStartKey: start, // SKが FEEDBACK#<ISO日時>#<uuid> なので降順＝新しい順
             }));
@@ -350,9 +388,10 @@ const readPfCache = (day) => {
   } catch { return null; }
 };
 
-export function getPlatforms(days, fresh) {
-  return cached(`platforms:${days}`, 5 * MIN, async () => {
-    const wanted = lastDays(days).sort(); // 古い順のJST日。期間の区切りは画面の他の数字と揃える
+/** 日ごと・sub ごと・端末ごとの [リクエスト数, 記帳数]。過ぎた日はキャッシュから、足りない分だけ Insights で取る */
+async function loadPerDay(dayList) {
+  {
+    const wanted = dayList.slice().sort(); // 古い順のJST日。期間の区切りは画面の他の数字と揃える
     const today = lastDays(1)[0];
     const perDay = {};
     const missing = [];
@@ -377,6 +416,15 @@ export function getPlatforms(days, fresh) {
         if (d !== today) writeFileSync(pfCachePath(d), JSON.stringify({ v: PF_CACHE_VERSION, data: perDay[d] }));
       }
     }
+    return { wanted, perDay };
+  }
+}
+
+export function getPlatforms(spec, fresh) {
+  const dayList = dayListOf(spec);
+  const sorted = dayList.slice().sort();
+  return cached(`platforms:${sorted[0]}:${sorted.at(-1)}`, 5 * MIN, async () => {
+    const { wanted, perDay } = await loadPerDay(dayList);
     const byPf = {};
     for (const d of wanted) {
       for (const [sub, pfs] of Object.entries(perDay[d] || {})) {
@@ -403,32 +451,83 @@ export function getPlatforms(days, fresh) {
   }, fresh);
 }
 
+// ── 稼働（ログインしている人）────────────────────────────────
+
+/** 日・週・月の稼働人数（端末別・全体）。API のアクセスログの sub で数えるので、IP で数える実人数より正確。自分を除く */
+export function getActive(fresh) {
+  return cached('active', 5 * MIN, async () => {
+    const { perDay } = await loadPerDay(lastDays(60)); // 月（30日）の窓と、その前までの日別を出すため
+    return activeOf(perDay, { today: lastDays(1)[0], selfSubs: SELF_SUBS });
+  }, fresh);
+}
+
+// ── 登録ユーザーの利用状況 ──────────────────────────────────────
+
+/**
+ * 登録ユーザーごとの最終利用日・最終書込日・記帳日数。DynamoDB の全件を読む（scan）ので、結果を長めにとっておき、
+ * 「更新」で取り直す。読む項目は PK・SK・日時だけで、金額や仕訳の内容は読まない。
+ */
+export function getUsage(fresh) {
+  return cached('usage', 30 * MIN, async () => {
+    const users = await getUsers(fresh).then((r) => r.value);
+    const items = [];
+    try {
+      let start;
+      do {
+        const page = await ddb.send(new cmd.ScanCommand({
+          TableName: CONFIG.table, Select: 'SPECIFIC_ATTRIBUTES', ProjectionExpression: 'PK, SK, updatedAt, lastSeen, createdAt', ExclusiveStartKey: start,
+        }));
+        for (const i of page.Items || []) {
+          items.push({
+            PK: i.PK?.S, SK: i.SK?.S, updatedAt: i.updatedAt?.S, lastSeen: i.lastSeen?.S, createdAt: i.createdAt?.S,
+          });
+        }
+        start = page.LastEvaluatedKey;
+      } while (start);
+    } catch (e) { throw friendly(e, '利用状況の取得'); }
+    return { ...usageOf(users, items, { now: Date.now(), selfSubs: SELF_SUBS }), scanned: items.length };
+  }, fresh);
+}
+
 // ── 今日 ──────────────────────────────────────────────────────
 
-/** 昨日（確定）と今日（途中）の主な数字と、昨日までの直近7日の平均 */
+/** 昨日（確定）と今日（途中）の主な数字。昨日までの直近7日の平均と、今日と同じ時刻までの7日の平均を並べる */
 export function getToday(fresh) {
   return cached('today', 5 * MIN, async () => {
-    const st = (await getStats(9, fresh)).value; // 今日 + 昨日までの8日
     const days = lastDays(9); // 新しい順: [今日, 昨日, ...]
+    const nowMin = jstMinuteNow(Date.now());
+    const auth = { failed: false };
+    const [st, users] = await Promise.all([
+      computeStats(days, fresh, { sameTimeAt: nowMin }),
+      soft(getUsers(fresh).then((r) => r.value), null, auth),
+    ]);
     const ev = Object.fromEntries(st.events.byDay.map((d) => [d.date, d.counts]));
     const op = Object.fromEntries(st.byDay.map((d) => [d.date, d]));
     const reg = Object.fromEntries((st.registeredUsers?.byDay || []).map((d) => [d.date, d.count]));
-    const metric = (key, label, of, note) => {
+    const regSame = users ? registeredSameTime(users, days, nowMin) : null;
+    const same = st.sameTime || {};
+    const metric = (key, label, of, sameOf, note) => {
       const v = days.map(of);
-      const avg = v.slice(1, 8).reduce((s, x) => s + x, 0) / 7;
-      return { key, label, note: note || null, yesterday: v[1], today: v[0], avg7: Number(avg.toFixed(1)) };
+      const avg = v.slice(1, 8).reduce((x, y) => x + y, 0) / 7;
+      const sv = sameOf ? days.map(sameOf) : null;
+      const sameAvg = sv ? sv.slice(1, 8).reduce((x, y) => x + y, 0) / 7 : null;
+      return {
+        key, label, note: note || null, yesterday: v[1], today: v[0], avg7: Number(avg.toFixed(1)),
+        sameTime7: sameAvg == null ? null : Number(sameAvg.toFixed(1)),
+      };
     };
+    const evSame = (name) => (d) => same[d]?.events?.[name] || 0;
     const rows = [
-      metric('registered', '新規登録', (d) => reg[d] || 0, 'Cognito の登録日時'),
-      metric('opens', '人間のオープン', (d) => op[d]?.human || 0, 'GET のみ・bot と自分を除く'),
-      metric('distinct', '実端末数', (d) => op[d]?.distinct || 0, 'IP で数えた近似'),
-      metric('guest_start', 'ゲスト開始', (d) => ev[d]?.guest_start || 0, 'ウェブ'),
-      metric('journal_added', 'ゲストの記帳', (d) => ev[d]?.journal_added || 0, 'ウェブ'),
-      metric('m_onboard_done', 'オンボーディング完了', (d) => ev[d]?.m_onboard_done || 0, 'アプリ・新しく入れた端末'),
-      metric('m_first_journal', '初回記帳', (d) => ev[d]?.m_first_journal || 0, 'アプリ・新しく入れた端末'),
+      metric('registered', '新規登録', (d) => reg[d] || 0, regSame ? (d) => regSame[d] || 0 : null, 'Cognito の登録日時'),
+      metric('opens', '人間のオープン', (d) => op[d]?.human || 0, (d) => same[d]?.opens || 0, 'GET のみ・bot と自分を除く'),
+      metric('distinct', '実端末数', (d) => op[d]?.distinct || 0, (d) => same[d]?.distinct || 0, 'IP で数えた近似'),
+      metric('guest_start', 'ゲスト開始', (d) => ev[d]?.guest_start || 0, evSame('guest_start'), 'ウェブ'),
+      metric('journal_added', 'ゲストの記帳', (d) => ev[d]?.journal_added || 0, evSame('journal_added'), 'ウェブ'),
+      metric('m_onboard_done', 'オンボーディング完了', (d) => ev[d]?.m_onboard_done || 0, evSame('m_onboard_done'), 'アプリ・新しく入れた端末'),
+      metric('m_first_journal', '初回記帳', (d) => ev[d]?.m_first_journal || 0, evSame('m_first_journal'), 'アプリ・新しく入れた端末'),
     ];
     return {
-      yesterday: days[1], today: days[0], rows,
+      yesterday: days[1], today: days[0], nowMin, rows,
       eventNames: st.events.total.map((e) => ({ name: e.name, count: e.count })), // 一覧にないイベントの検知用
       cspReports: st.events.cspReports || 0,
     };

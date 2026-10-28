@@ -62,9 +62,9 @@ const GROUPS = ['獲得','ツアー','アプリ','継続','アンケート','そ
 // ⚠ iOS Safari は「Web」に入る。ここでいう iOSアプリ は App Store 版のこと。
 const PF_JA = {ios:'iPhoneアプリ', android:'Androidアプリ', web:'ブラウザ', unknown:'不明（UA未記録）', other:'その他'};
 
-// タブは見る頻度の順。今日=毎日（壊れていないか・対応すること・昨日と今日） / 成長=週1回（伸びているか）
+// タブは見る頻度の順。今日=毎日（壊れていないか・対応すること・昨日と今日） / 獲得・継続=週1回（伸びているか・続いているか）
 // 声=毎日（返信・ご意見・退会） / 深掘り=必要時（なぜそうなったか）
-const TABS = ['today', 'access', 'voice', 'deep'];
+const TABS = ['today', 'access', 'retention', 'voice', 'deep'];
 let tab = 'today';
 let statsCache = null; // 成長と深掘りは同じデータを使うので取り直さない
 let pfCache = {};      // 端末別は期間ごとに別取得（深掘りの絞り込みで何度も描き直すため）
@@ -78,7 +78,7 @@ let pendingAnchor = null;
 
 // ── 取得 ──
 async function api(path, force){
-  const r = await fetch(path + (force ? (path.indexOf('?') >= 0 ? '&' : '?') + 'fresh=1' : ''));
+  const r = await KK.fetch(path + (force ? (path.indexOf('?') >= 0 ? '&' : '?') + 'fresh=1' : ''));
   let d;
   try{ d = await r.json(); }catch(e){ throw new Error('応答を読めませんでした（' + r.status + '）'); }
   if(!r.ok || d.error) throw new Error(d.error || 'エラー');
@@ -89,7 +89,8 @@ const errBox = (e) => '<div class="err">' + esc(e.message) + '</div>';
 const stampOf = (d) => d && d.generatedAt
   ? '<span class="stamp">取得 ' + esc(String(d.generatedAt).slice(11, 16)) + (d.cached ? '（保持）' : '') + '</span>' : '';
 function setBusy(b){ $('#refresh').disabled = b; $('#refresh').textContent = b ? '取得中…' : '更新'; }
-const md = (s) => String(s).slice(5).replace('-', '/');
+// 日付の表示（MM/DD）。データ由来なのでエスケープまで済ませる
+const md = (s) => esc(String(s).slice(5).replace('-', '/'));
 function waitLabel(ms){
   const m = Math.floor(ms / 60000);
   if(m < 60) return m + '分';
@@ -124,8 +125,9 @@ function setTab(t, anchor){
   gen++; // 進行中の読み込みの結果を無効にする
   pendingAnchor = anchor || null;
   for (const k of TABS) $('#tab-' + k).className = t === k ? 'on' : '';
-  // 期間の切替が意味を持つのは成長と深掘りだけ
-  const showPeriod = (t === 'access' || t === 'deep');
+  // 期間の切替が意味を持つのは獲得・継続・深掘り。前の期間との比較は獲得だけ
+  const showPeriod = (t === 'access' || t === 'retention' || t === 'deep');
+  $('#cmp-wrap').style.display = t === 'access' ? '' : 'none';
   $('#period-picker').style.display = showPeriod ? '' : 'none';
   $('#period').style.display = showPeriod ? '' : 'none';
   try{ history.replaceState(null, '', '#' + t); }catch(e){ /* アドレスを書き換えられなくても動く */ }
@@ -135,6 +137,7 @@ function setTab(t, anchor){
 function load(){
   if(tab === 'today') return loadToday();
   if(tab === 'voice') return loadVoice();
+  if(tab === 'retention') return loadRetention();
   return loadStats();
 }
 
@@ -183,11 +186,11 @@ function statusHtml(s, num){
 function numbersHtml(n){
   let h = '<section><div class="wrap"><table class="ntab"><tr><th>項目</th>'
     + '<th class="num">昨日<small>' + esc(md(n.yesterday)) + ' 確定</small></th>'
-    + '<th class="num today">今日<small>' + esc(md(n.today)) + ' <span class="tag-partial">途中</span></small></th>'
+    + '<th class="num today">今日<small>' + esc(md(n.today)) + ' <span class="tag-partial">途中</span> ' + esc(String(Math.floor(n.nowMin / 60)).padStart(2, '0') + ':' + String(n.nowMin % 60).padStart(2, '0')) + 'まで</small></th>'
     + '<th class="num">7日平均<small>昨日まで</small></th></tr>';
   for(const r of n.rows){
     h += '<tr><td>' + esc(r.label) + (r.note ? '<div class="rn">' + esc(r.note) + '</div>' : '') + '</td>'
-       + '<td class="num">' + r.yesterday + '</td><td class="num today">' + r.today + '</td>'
+       + '<td class="num">' + r.yesterday + '</td><td class="num today">' + r.today + (r.sameTime7 == null ? '' : '<div class="rn">7日の同時刻平均 ' + r.sameTime7 + '</div>') + '</td>'
        + '<td class="num">' + r.avg7 + '</td></tr>';
   }
   return h + '</table></div></section>';
@@ -283,7 +286,7 @@ function bindReplies(g){
       if(!ta.value.trim()) return;
       btn.disabled = true; btn.textContent = '送信中…'; err.textContent = '';
       try{
-        const r = await fetch('/api/inquiry-reply', { method: 'POST', headers: { 'content-type': 'application/json' },
+        const r = await KK.fetch('/api/inquiry-reply', { method: 'POST', headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ table: btn.dataset.table, pk: btn.dataset.pk, sk: sk, body: ta.value, close: close }) });
         const j = await r.json();
         if(!r.ok || j.error) throw new Error(j.error || '失敗');
@@ -353,20 +356,160 @@ function loadVoice(){
   });
 }
 
-// ── 成長・深掘り（ログの集計） ──────────────────────────────────
+// ── アプリの獲得の流れ（獲得タブ） ──────────────────────────────
+// アプリは新しく入れた端末だけが、段に着いたときに1回ずつ送る（mobile/src/store/TrackSync.jsx）。
+// 段には順序が決まっていない。オンボーディングをスキップした端末でも、残高・カード・記帳は帳簿の状態から届く
+// （実際に m_opening が m_onboard_done を上回っている）。そのためファネルにせず、段ごとの人数だけを並べる。
+const APP_STAGES = ['m_onboard_done', 'm_opening', 'm_card_set', 'm_first_journal', 'm_tag_alloc', 'm_intro_tour'];
+
+function stageTable(d, names, withCode){
+  const st = d.appStages || {};
+  let h = '<div class="wrap"><table><tr><th>段</th><th class="num">iPhone</th><th class="num">Android</th><th class="num">計</th></tr>';
+  for(const k of names){
+    const e = st[k] || { ios: 0, android: 0, other: 0 };
+    h += '<tr><td>' + esc(evInfo(k).ja) + (withCode ? '<code class="muted" style="margin-left:6px;font-size:11px">' + esc(k) + '</code>' : '') + '</td>'
+       + '<td class="num">' + e.ios + '</td><td class="num">' + e.android + '</td>'
+       + '<td class="num">' + (e.ios + e.android + e.other) + '</td></tr>';
+  }
+  return h + '</table></div>';
+}
+
+function appStagesSection(d){
+  const st = d.appStages || {};
+  let h = '<section><h3>アプリの獲得の流れ <small>新しく入れた端末の人数（端末ごとに1回）</small></h3>';
+  if(!APP_STAGES.some((k) => st[k])){
+    return h + '<p class="muted">この期間はまだありません。アプリの計測は 1.0.4（2026-10-16〜）から、新しく入れた端末だけが送ります。</p></section>';
+  }
+  h += stageTable(d, APP_STAGES, true);
+  h += '<p class="hint" style="margin-top:10px">段に順序は決まっていません（オンボーディングをスキップした端末にも、残高・カード・記帳は帳簿の状態から届く）。'
+     + 'そのため割合は出さず、人数だけを並べています。</p></section>';
+  return h;
+}
+
+// ── 継続タブ ──────────────────────────────────────────────────
+const ACT_COLS = [['all', '全体'], ['ios', 'iPhone'], ['android', 'Android'], ['web', 'ブラウザ'], ['writers', 'うち記帳した人']];
+const WIN_NAME = { 1: '日（DAU）', 7: '週（WAU）', 30: '月（MAU）' };
+
+function activeHtml(a){
+  let h = '<section><div class="wrap"><table class="ntab"><tr><th>窓（昨日まで・確定）</th>';
+  for(const c of ACT_COLS) h += '<th class="num">' + c[1] + '</th>';
+  h += '</tr>';
+  for(const w of a.windows){
+    h += '<tr><td>' + (WIN_NAME[w.size] || (w.size + '日'))
+       + '<div class="rn">' + md(w.confirmed.from) + (w.size > 1 ? ' 〜 ' + md(w.confirmed.to) : '') + '</div></td>';
+    for(const c of ACT_COLS) h += '<td class="num">' + w.confirmed[c[0]] + '<div class="rn part">途中 ' + w.partial[c[0]] + '</div></td>';
+    h += '</tr>';
+  }
+  h += '</table></div>';
+  const sk = a.stickiness, pct = (x) => x == null ? '—' : Math.round(x * 100) + '%';
+  const pair = (k, v) => '<span class="pair"><span class="k">' + k + '</span><span class="v" style="font-size:20px">' + v + '</span></span>';
+  h += '<div class="headline">' + pair('DAU ÷ WAU', pct(sk.dauWau)) + pair('DAU ÷ MAU', pct(sk.dauMau)) + pair('WAU ÷ MAU', pct(sk.wauMau))
+     + '<span class="f">確定した窓どうしの比</span></div>';
+
+  const mx = Math.max(1, ...a.daily.map((x) => x.all));
+  h += '<h3 style="margin:20px 0 8px">日別（ログインして使った人） <small>最後の日は今日で、途中</small></h3><div class="chart">';
+  for(const d of a.daily){
+    h += '<div class="col" title="' + esc(d.date) + ' 全体' + d.all + ' / iPhone' + d.ios + ' / Android' + d.android + ' / ブラウザ' + d.web + ' / 記帳' + d.writers + '">'
+       + '<div class="v">' + d.all + '</div>'
+       + '<div class="track"><div class="b' + (d.partial ? ' part' : '') + '" style="height:' + Math.max(2, Math.round(d.all / mx * 100)) + '%"></div></div>'
+       + '<div class="x">' + md(d.date) + '</div></div>';
+  }
+  h += '</div>';
+  h += '<p class="foot"><span>ログインして使っている人（sub）で数える。ゲストは含まない。自分のアカウントを除く。</span>'
+     + '<span>全体は端末別の合計ではなく重複なし（同じ人が iPhone とブラウザの両方を使えば、端末別には両方に入り、全体では1人）。</span>'
+     + '<span>日・週・月は別々に数えた値で、日の合計が週になるわけではない。「途中」は今日までを含む窓の値。</span></p></section>';
+  return h;
+}
+
+function usageSummaryHtml(u){
+  const m = u.summary;
+  let h = '<div class="lead lead4">'
+    + lead(m.seen7, '人', '7日以内に開いた', '登録ユーザー ' + m.total + '人中')
+    + lead(m.seen30, '人', '30日以内に開いた', '登録ユーザー ' + m.total + '人中')
+    + lead(m.written7, '人', '7日以内に書いた', '登録ユーザー ' + m.total + '人中')
+    + lead(m.written30, '人', '30日以内に書いた', '登録ユーザー ' + m.total + '人中') + '</div>';
+  h += '<div class="sub"><span class="t">記帳した人（本人を除く）</span>'
+     + '<span class="i">仕訳がある <b>' + m.journalers + '</b> 人</span>'
+     + '<span class="i">記帳した日が1日だけ <b>' + m.journalersOneDay + '</b> 人</span>'
+     + '<span class="i">2日以上 <b>' + m.journalers2days + '</b> 人</span>'
+     + '<span class="i">全件が初回記帳日 <b>' + m.allOnFirstDay + '</b> 人</span></div>';
+  h += '<p class="foot"><span>開いた = DynamoDB の PROFILE.lastSeen。書いた = updatedAt の最大値。「N日以内」はその日の0時（日本時間）からの経過日数。</span>'
+     + '<span>E2E暗号化の人は仕訳が1塊のため、記帳日数には出ない。人ごとの表は「深掘り」。</span></p>';
+  return h;
+}
+
+function guestHtml(d){
+  let h = '<div class="cols"><div>' + retentionSection(d) + '</div><div><section><h3>アプリの継続 <small>新しく入れた端末（7日・30日以上たって開いた）</small></h3>';
+  if(!(d.appStages && (d.appStages.m_retain_d7 || d.appStages.m_retain_d30))){
+    h += '<p class="muted">まだ計測できていません。アプリの計測は 2026-10-16 から。7日後・30日後に開いた端末から出ます。</p>';
+  }else{
+    h += stageTable(d, ['m_retain_d7', 'm_retain_d30'], false);
+  }
+  return h + '</section></div></div>';
+}
+
+function loadRetention(){
+  const g = gen, force = fresh;
+  fresh = false;
+  setBusy(true);
+  const key = specQuery(rangeSpec());
+  const wait = '<p class="muted">取得中…</p>';
+  $('#root').innerHTML =
+    '<div class="band"><h2>稼働</h2><span class="hint">ログインして使っている人（日・週・月）</span><span id="s-act"></span></div><div id="r-act">' + wait + '</div>'
+    + '<div class="band"><h2>登録ユーザーの利用状況</h2><span class="hint">全登録ユーザーに対する人数</span><span id="s-use"></span></div><div id="r-use">' + wait + '</div>'
+    + '<div class="band"><h2>ゲストの継続</h2><span class="hint">ゲスト開始した人が分母（ウェブ）。期間の切替が効く</span></div><div id="r-guest">' + wait + '</div>';
+  const run = (sel, stampSel, p, fn) => p.then(function(d){
+    if(stale(g)) return d;
+    if($(sel)) $(sel).innerHTML = fn(d);
+    if(stampSel && $(stampSel)) $(stampSel).innerHTML = stampOf(d);
+    return d;
+  }).catch(function(e){ if(!stale(g) && $(sel)) $(sel).innerHTML = errBox(e); });
+  const pStats = (!force && statsCache && statsCache.__key === key) ? Promise.resolve(statsCache)
+    : api('/api/stats?' + key, force).then(function(d){ d.__key = key; statsCache = d; return d; });
+  Promise.all([
+    run('#r-act', '#s-act', api('/api/active', force), activeHtml),
+    run('#r-use', '#s-use', api('/api/usage', force), usageSummaryHtml),
+    run('#r-guest', null, pStats, function(d){ $('#period').textContent = periodText(d); return guestHtml(d); }),
+  ]).then(function(){ if(!stale(g)) setBusy(false); });
+}
+
+// ── 期間 ──
+// 開始日と終了日が両方入っていればその範囲（日本時間の暦日）、なければ直近N日
+function rangeSpec(){
+  const f = $('#from').value, t = $('#to').value;
+  return f && t ? { from: f, to: t } : { days: $('#days').value };
+}
+const specQuery = (sp) => sp.from ? 'from=' + sp.from + '&to=' + sp.to : 'days=' + sp.days;
+// 直前の同じ長さの期間（前の期間との差を出す）
+function prevSpecOf(period){
+  const f = period.requested[0], t = period.requested[1];
+  const n = Math.round((Date.parse(t) - Date.parse(f)) / 86400000) + 1;
+  const iso = (ms) => new Date(ms).toISOString().slice(0, 10);
+  return { from: iso(Date.parse(f) - n * 86400000), to: iso(Date.parse(f) - 86400000) };
+}
+const periodText = (d) => d.period.requested
+  ? d.period.requested[0] + ' 〜 ' + d.period.requested[1] + '（' + d.period.days + '日間）' : 'データなし';
+
+// ── 獲得・深掘り（ログの集計） ──────────────────────────────────
 async function loadStats(){
   const g = gen, force = fresh;
   fresh = false;
-  const days = $('#days').value;
-  // 成長と深掘りは同じ集計を使う。期間が同じなら取り直さない
-  if(!force && statsCache && statsCache.__days === days){
+  const spec = rangeSpec(), key = specQuery(spec);
+  const wantPrev = tab === 'access' && $('#cmp').checked;
+  // 獲得・継続・深掘りは同じ集計を使う。期間が同じなら取り直さない
+  if(!force && statsCache && statsCache.__key === key && (!wantPrev || statsCache.__prev !== undefined)){
     return tab === 'deep' ? renderDeep(statsCache) : render(statsCache);
   }
   setBusy(true);
   $('#root').innerHTML = '<p class="muted">アクセスログを集計中…</p>';
   try{
-    const d = await api('/api/stats?days=' + days, force);
-    d.__days = days; statsCache = d; // 取得自体は無駄にしない（次のタブで使う）
+    const d = await api('/api/stats?' + key, force);
+    d.__key = key;
+    // 前の同じ長さの期間。取れなくても本体は出す
+    if(wantPrev){
+      try{ d.__prev = await api('/api/stats?' + specQuery(prevSpecOf(d.period)), force); }catch(e){ d.__prev = null; }
+    }
+    statsCache = d; // 取得自体は無駄にしない（次のタブで使う）
     if(stale(g)) return;
     if(tab === 'deep') renderDeep(d); else render(d);
   }catch(e){ if(!stale(g)) $('#root').innerHTML = errBox(e); }
@@ -390,6 +533,8 @@ function funnelSection(d){
   }else{
     const max = Math.max(...f.map(x=>x.count), 1);
     h += '<div class="fn-hd"><div>段階</div><div></div><div>人数</div><div>起動比</div><div>前段比</div></div><div class="fn">';
+    const pf = {};
+    if(d.__prev) for(const x of (d.__prev.events.funnel || [])) pf[x.key] = x.count;
     let prev = null;
     for(const s of f){
       const w = Math.round((s.count / max) * 100);
@@ -401,7 +546,7 @@ function funnelSection(d){
       }
       h += '<div class="fn-r"><div class="fn-l">'+esc(s.label)+'</div>'
          + '<div class="fn-b"><span style="width:'+w+'%"></span></div>'
-         + '<div class="fn-n">'+s.count+'<u>人</u></div>'
+         + '<div class="fn-n">'+s.count+'<u>人</u>'+(d.__prev && pf[s.key] != null ? '<span class="pv">前 '+pf[s.key]+'</span>' : '')+'</div>'
          + '<div class="fn-p">'+(s.rate==null?'—':s.rate+'%')+'</div>'
          + step+'</div>';
       prev = s.count;
@@ -418,8 +563,19 @@ function funnelSection(d){
   }
   h += '</section>';
 
-  const r = d.events.retention || [];
   h += '<div>';
+  h += '<section><h3>アクティベーション <small>記帳イベント ÷ ゲスト開始（どちらも回数。人あたりではなく訪問あたり）</small></h3>';
+  h += '<div class="headline" style="margin:0;padding:0;border:0">'
+     + '<span class="v" style="font-size:34px">'+(d.events.activation==null?'—':d.events.activation)+'</span>'
+     + '<span class="f">＝ 記帳イベント(journal_added) '+(ev.journal_added||0)+'回 ÷ ゲスト開始(guest_start) '+(ev.guest_start||0)+'回</span></div>';
+  h += '</section></div></div>';
+  return h;
+}
+
+// ゲストの継続（ウェブ）。獲得から継続タブへ移した
+function retentionSection(d){
+  let h = '';
+  const r = d.events.retention || [];
   h += '<section><h3>継続 <small>ゲスト開始した人が分母</small></h3>';
   if(!r.some(x=>x.count>0)){
     h += '<p class="muted">まだ計測できていません。retain_d1 は配信の翌日以降、d7 は7日後以降に出はじめます。</p>';
@@ -439,17 +595,16 @@ function funnelSection(d){
      + '<span class="pair"><span class="k">既存ゲストの再訪 guest_return</span><span class="v" style="font-size:20px">'+(d.events.guestReturn||0)+'</span><span class="f">回</span></span></div>';
   h += '</section>';
 
-  h += '<section><h3>アクティベーション <small>記帳イベント ÷ ゲスト開始（どちらも回数。人あたりではなく訪問あたり）</small></h3>';
-  h += '<div class="headline" style="margin:0;padding:0;border:0">'
-     + '<span class="v" style="font-size:34px">'+(d.events.activation==null?'—':d.events.activation)+'</span>'
-     + '<span class="f">＝ 記帳イベント(journal_added) '+(ev.journal_added||0)+'回 ÷ ゲスト開始(guest_start) '+(ev.guest_start||0)+'回</span></div>';
-  h += '</section></div></div>';
   return h;
 }
 
 function render(d){
-  $('#period').textContent = d.period.from ? (d.period.from+' 〜 '+d.period.to+'（直近'+d.period.days+'日）') : 'データなし';
+  $('#period').textContent = periodText(d);
   const o = d.opens;
+  const pv = d.__prev || null; // 前の同じ長さの期間（比較がオフなら null）
+  // 前の期間との差。値が揃わないときは出さない
+  const cmp = (cur, before, unit) => (pv && typeof cur === 'number' && typeof before === 'number')
+    ? '<span class="cmpline">前の期間 ' + before + unit + '（' + (cur > before ? '+' : cur < before ? '−' : '±') + Math.abs(cur - before) + '）</span>' : '';
   const ev = Object.fromEntries(d.events.total.map(e=>[e.name,e.count]));
 
   // 1. 主役の数字
@@ -458,11 +613,11 @@ function render(d){
   const ru = d.registeredUsers;
   // 「この期間に何人増えたか」。ログのビーコン(registered)ではなく Cognito の登録日時を数える。
   // ビーコンは Google の別端末ログインも拾うので獲得数としては使えない。
-  h += lead(ru==null||ru.inPeriod==null?'—':ru.inPeriod, '人', 'この期間の新規登録', 'Cognito の登録日時', true);
+  h += lead(ru==null||ru.inPeriod==null?'—':ru.inPeriod, '人', 'この期間の新規登録', 'Cognito の登録日時' + cmp(ru && ru.inPeriod, pv && pv.registeredUsers && pv.registeredUsers.inPeriod, '人'), true);
   h += lead(ru==null?'—':ru.total, '人', '登録ユーザー数（累計）',
     ru==null ? 'Cognito' : 'Google '+ru.google+' / Apple '+ru.apple+' / メール '+ru.email+(ru.unconfirmed?'（未確認 '+ru.unconfirmed+'）':''));
-  h += lead(o.humanDistinct, '人', '実人数', '重複IPを除いた人数');
-  h += lead(o.human, '回', '人間の訪問（オープン）', '1人あたり '+(o.humanDistinct?(o.human/o.humanDistinct).toFixed(1):'—')+'回');
+  h += lead(o.humanDistinct, '人', '実人数', '重複IPを除いた人数' + cmp(o.humanDistinct, pv && pv.opens.humanDistinct, '人'));
+  h += lead(o.human, '回', '人間の訪問（オープン）', '1人あたり '+(o.humanDistinct?(o.human/o.humanDistinct).toFixed(1):'—')+'回' + cmp(o.human, pv && pv.opens.human, '回'));
   h += '</div>';
   h += '<div class="sub"><span class="t">ノイズ</span>'
      + '<span class="i">ボット <b>'+o.bot+'</b> 回</span>'
@@ -480,8 +635,10 @@ function render(d){
   }
 
   // 2. ファネルと継続
-  h += '<div class="band"><h2>獲得と継続</h2><span class="hint">2026-08-02に計測開始。最初の数日は既存利用者の分が新規として上乗せされる</span></div>';
+  h += '<div class="band"><h2>獲得</h2><span class="hint">2026-08-02に計測開始。最初の数日は既存利用者の分が新規として上乗せされる'
+     + (pv ? '。比較: ' + esc(periodText(pv)) : '') + '</span></div>';
   h += funnelSection(d);
+  h += appStagesSection(d);
 
   // 3. 日別オープン（人間 / bot を別スケールで）
   h += '<div class="band"><h2>推移</h2><span class="hint">直近'+d.period.days+'日</span></div>';
@@ -494,7 +651,7 @@ function render(d){
     }else{
       h += '<div class="chips">';
       for(const r of [...ru.byDay].reverse()){
-        h += '<span class="chip k">'+r.date.slice(5).replace('-','/')+' <b>'+r.count+'</b>'
+        h += '<span class="chip k">'+esc(r.date.slice(5).replace('-','/'))+' <b>'+r.count+'</b>'
            + '<span style="color:var(--tx3);font-size:11px">'
            + (r.google?' Google'+r.google:'') + (r.apple?' Apple'+r.apple:'') + (r.email?' メール'+r.email:'') + '</span></span>';
       }
@@ -511,10 +668,10 @@ function render(d){
     const maxD = Math.max(1, ...d.byDay.map(r=>r.distinct||0));
     h += '<div class="chart">';
     for(const r of d.byDay){
-      h += '<div class="col" title="'+r.date+' 実端末'+(r.distinct||0)+'台 / 訪問'+r.human+'回">'
+      h += '<div class="col" title="'+esc(r.date)+' 実端末'+(r.distinct||0)+'台 / 訪問'+r.human+'回">'
          + '<div class="v">'+(r.distinct||0)+'</div>'
          + '<div class="track"><div class="b" style="height:'+Math.max(2,Math.round((r.distinct||0)/maxD*100))+'%"></div></div>'
-         + '<div class="x">'+r.date.slice(5).replace('-','/')+'</div></div>';
+         + '<div class="x">'+esc(r.date.slice(5).replace('-','/'))+'</div></div>';
     }
     h += '</div>';
     const ds = d.byDay.map(r=>r.distinct||0);
@@ -535,8 +692,8 @@ function render(d){
     const maxB = Math.max(1, ...d.byDay.map(r=>r.bot));
     h += '<div class="chart">';
     for(const r of d.byDay){
-      const md = r.date.slice(5).replace('-','/');
-      h += '<div class="col" title="'+r.date+' 人間'+r.human+'回 / 実端末'+(r.distinct||0)+'台 / bot'+r.bot+'">'
+      const md = esc(r.date.slice(5).replace('-','/'));
+      h += '<div class="col" title="'+esc(r.date)+' 人間'+r.human+'回 / 実端末'+(r.distinct||0)+'台 / bot'+r.bot+'">'
          + '<div class="v">'+r.human+'</div>'
          + '<div class="track"><div class="b" style="height:'+Math.max(2,Math.round(r.human/maxH*100))+'%"></div></div>'
          + '<div class="x">'+md+'</div></div>';
@@ -545,7 +702,7 @@ function render(d){
     h += '<h3 style="margin:20px 0 8px">bot・self <small>人間とは別スケール</small></h3>';
     h += '<div class="chart mini">';
     for(const r of d.byDay){
-      h += '<div class="col" title="'+r.date+' bot'+r.bot+' / self'+r.self+'">'
+      h += '<div class="col" title="'+esc(r.date)+' bot'+r.bot+' / self'+r.self+'">'
          + '<div class="v'+(r.bot===maxB?' peak':'')+'">'+r.bot+'</div>'
          + '<div class="track"><div class="b bot" style="height:'+Math.max(2,Math.round(r.bot/maxB*100))+'%"></div></div>'
          + '</div>';
@@ -632,21 +789,67 @@ function platformHtml(p){
   return h;
 }
 
-// 端末別だけは本体の描画を待たせずに後から入れる（取得に数秒かかるため）
-async function loadPlatforms(days){
-  const put = (html) => { const el = $('#pf'); if(el) el.innerHTML = html; };
-  if(pfCache[days] !== undefined) return put(platformHtml(pfCache[days]));
+// 時間帯別の人間のオープン（日本時間）。深夜デプロイの是非を見るための分布
+function hourlyHtml(d){
+  const hrs = d.byHour || [];
+  const total = hrs.reduce((s, x) => s + x.count, 0);
+  const night = hrs.filter((x) => x.hour < 6).reduce((s, x) => s + x.count, 0);
+  const mx = Math.max(1, ...hrs.map((x) => x.count));
+  let h = '<div class="band"><h2>時間帯</h2></div><section><h3>時間帯別の人間のオープン <small>日本時間・bot と自分を除く・期間の合計</small></h3><div class="chart">';
+  for(const x of hrs){
+    h += '<div class="col" title="' + x.hour + '時台 ' + x.count + '回 / 実人数' + x.distinct + '">'
+       + '<div class="v">' + x.count + '</div>'
+       + '<div class="track"><div class="b" style="height:' + Math.max(2, Math.round(x.count / mx * 100)) + '%"></div></div>'
+       + '<div class="x">' + x.hour + '</div></div>';
+  }
+  h += '</div><div class="sub" style="margin-top:12px"><span class="t">深夜</span>'
+     + '<span class="i">0〜5時 <b>' + night + '</b> 回</span>'
+     + '<span class="i">全体の <b>' + (total ? Math.round(night / total * 100) : 0) + '%</b></span></div></section>';
+  return h;
+}
+
+// 登録ユーザーの人ごとの表（sub の先頭8桁）。メールアドレスは持っていない
+function usageTableHtml(u){
+  let h = '<section><div class="wrap"><table><tr><th>人</th><th>登録日</th><th>方式</th><th>最終利用</th><th>最終書込</th>'
+    + '<th class="num">仕訳</th><th class="num">記帳日数</th><th>初回記帳</th><th>最終記帳</th><th class="num">初日集中</th><th class="num">継続日数</th><th></th></tr>';
+  const PV = { google: 'Google', apple: 'Apple', email: 'メール' };
+  for(const r of u.rows){
+    h += '<tr><td><code>' + esc(r.sub) + '</code></td><td>' + esc(r.created) + '</td><td>' + esc(PV[r.provider] || r.provider) + '</td>'
+       + '<td>' + (r.seen ? esc(r.seen) : '<span class="muted">未記録</span>') + '</td><td>' + (r.last ? esc(r.last) : '<span class="muted">なし</span>') + '</td>'
+       + '<td class="num">' + r.journals + '</td><td class="num">' + r.journalDays + '</td>'
+       + '<td>' + (r.firstJournal ? esc(r.firstJournal) : '<span class="muted">なし</span>') + '</td><td>' + (r.lastJournal ? esc(r.lastJournal) : '<span class="muted">なし</span>') + '</td>'
+       + '<td class="num">' + (r.journals ? r.firstShare + '%' : '—') + '</td><td class="num">' + (r.span || '—') + '</td>'
+       + '<td class="muted">' + (r.self ? '本人' : '') + (r.enc ? (r.self ? ' ' : '') + 'E2E' : '') + '</td></tr>';
+  }
+  h += '</table></div><p class="foot"><span>' + u.summary.total + '人。本人・E2E暗号化の人は印を付けている（E2Eの仕訳は1塊で、記帳日数に出ない）。'
+     + '最終利用日は記録を入れた後に開いた人から順次入る（それ以前は「未記録」）。</span></p></section>';
+  return h;
+}
+
+async function loadUsageTable(){
   const g = gen, force = pfFresh;
-  pfFresh = false;
   try{
-    const d = await api('/api/platforms?days='+days, force);
+    const u = await api('/api/usage', force);
+    if(!stale(g) && $('#usage-table')) $('#usage-table').innerHTML = usageTableHtml(u);
+  }catch(e){ if(!stale(g) && $('#usage-table')) $('#usage-table').innerHTML = errBox(e); }
+}
+
+// 端末別だけは本体の描画を待たせずに後から入れる（取得に数秒かかるため）
+async function loadPlatforms(spec){
+  const key = specQuery(spec);
+  const put = (html) => { const el = $('#pf'); if(el) el.innerHTML = html; };
+  if(pfCache[key] !== undefined) return put(platformHtml(pfCache[key]));
+  const g = gen, force = pfFresh;
+  try{
+    const d = await api('/api/platforms?' + key, force);
     if(stale(g)) return;
-    pfCache[days] = d.platforms;
+    pfCache[key] = d.platforms;
     put(platformHtml(d.platforms));
   }catch(e){ if(!stale(g)) put(errBox(e)); }
 }
 
 function renderDeep(d){
+  $('#period').textContent = periodText(d);
   let h = journeySection(d);
 
   // 3.5 端末別（API Gatewayのアクセスログ）
@@ -692,11 +895,11 @@ function renderDeep(d){
       const g = r.counts.guest_start || 0;
       const j = r.counts.journal_added || 0;
       const rate = g ? Math.round(j/g*1000)/10 : null;
-      h += '<div class="col" title="'+r.date+' ゲスト開始'+g+'回 / 記帳'+j+'回">'
+      h += '<div class="col" title="'+esc(r.date)+' ゲスト開始'+g+'回 / 記帳'+j+'回">'
          + '<div class="v'+(j?'':' zero')+'">'+(rate==null?'—':rate+'%')+'</div>'
          + '<div class="track"><div class="b" style="height:'+Math.max(2,Math.round(g/gmax*100))+'%">'
          + (j?'<i style="height:'+Math.min(100,Math.round(j/Math.max(g,1)*100))+'%"></i>':'')+'</div></div>'
-         + '<div class="x">'+r.date.slice(5).replace('-','/')+'</div></div>';
+         + '<div class="x">'+esc(r.date.slice(5).replace('-','/'))+'</div></div>';
     }
     h += '</div>';
 
@@ -706,7 +909,7 @@ function renderDeep(d){
       const main = entries.filter(en=>evInfo(en[0]).g!=='ツアー');
       const tour = entries.filter(en=>evInfo(en[0]).g==='ツアー');
       const tourSum = tour.reduce((a,en)=>a+en[1], 0);
-      h += '<div class="day"><div class="d">'+r.date.slice(5).replace('-','/')+'</div><div class="chips">';
+      h += '<div class="day"><div class="d">'+esc(r.date.slice(5).replace('-','/'))+'</div><div class="chips">';
       for(const en of main){
         const info = evInfo(en[0]);
         const key = (en[0]==='guest_start'||en[0]==='journal_added'||en[0]==='registered');
@@ -723,6 +926,8 @@ function renderDeep(d){
     }
   }
   h += '</section></div>';
+
+  h += hourlyHtml(d);
 
   // 6. 流入
   h += '<div class="band"><h2>流入</h2></div>';
@@ -789,12 +994,16 @@ function renderDeep(d){
   if(!d.botUa.length) h += '<tr><td class="muted" colspan="2">データなし</td></tr>';
   h += '</table></div></div></details>';
 
-  h += '<details><summary>自分IP <span>'+d.selfIps.length+'件</span></summary><div class="in"><div class="iplist">';
-  for(const ip of d.selfIps) h += '<span>'+esc(ip)+'</span>';
-  if(!d.selfIps.length) h += '<span class="muted">なし</span>';
+  // 管理アプリ（Lambda 経由）では IP を返さない
+  const ips = d.selfIps || null;
+  h += '<details><summary>自分IP <span>'+(ips ? ips.length+'件' : '—')+'</span></summary><div class="in"><div class="iplist">';
+  if(ips) for(const ip of ips) h += '<span>'+esc(ip)+'</span>';
+  if(!ips) h += '<span class="muted">ローカル版でだけ表示</span>';
+  else if(!ips.length) h += '<span class="muted">なし</span>';
   h += '</div></div></details>';
 
-  h += '<p class="foot"><span>集計時刻 '+esc(d.generatedAt)+'</span><span>対象ログファイル '+d.fileCount+'件・'+d.totalRows+'行</span><span>自分IP '+d.selfIps.length+'件</span></p>';
+  h += '<div class="band"><h2>登録ユーザー</h2><span class="hint">人ごとの利用状況（sub の先頭8桁）</span></div><div id="usage-table"><p class="muted">取得中…</p></div>';
+  h += '<p class="foot"><span>集計時刻 '+esc(d.generatedAt)+'</span><span>対象ログファイル '+d.fileCount+'件・'+d.totalRows+'行</span><span>自分IP '+(d.selfIps ? d.selfIps.length+'件' : '—')+'</span></p>';
   $('#root').innerHTML = h;
 
   // 「どこで消えたか」を押すと行動列をその集団だけに絞る。
@@ -807,13 +1016,19 @@ function renderDeep(d){
   });
   const clr = $('#j-clear');
   if(clr) clr.addEventListener('click', ()=>{ jFilter = null; renderDeep(d); });
-  loadPlatforms($('#days').value);
+  loadUsageTable(); // 更新のフラグを読んでから、端末別がフラグを消す
+  loadPlatforms(rangeSpec());
 }
 
 
 // 「更新」は明示的な取り直し。サーバーがとっておいた結果も使わない
 $('#refresh').addEventListener('click', () => { statsCache = null; pfCache = {}; fresh = true; pfFresh = true; voice.inq = voice.fb = voice.del = null; load(); });
-$('#days').addEventListener('change', load); // 期間が変わればキャッシュのキーが外れる
+// 期間が変わればキャッシュのキーが外れる。直近N日を選んだら、開始日・終了日の指定は外す
+$('#days').addEventListener('change', () => { $('#from').value = ''; $('#to').value = ''; load(); });
+$('#from').addEventListener('change', () => { if($('#from').value && $('#to').value) load(); });
+$('#to').addEventListener('change', () => { if($('#from').value && $('#to').value) load(); });
+$('#range-clear').addEventListener('click', () => { $('#from').value = ''; $('#to').value = ''; load(); });
+$('#cmp').addEventListener('change', () => { if(tab === 'access') load(); });
 for (const k of TABS) $('#tab-' + k).addEventListener('click', () => setTab(k));
 // 「声」へ移るリンク（今日の対応すること・声タブの上の目次）
 document.addEventListener('click', (e) => {
@@ -825,7 +1040,7 @@ document.addEventListener('click', (e) => {
 });
 
 // AWS の認証切れは、最初に画面の上で知らせる（各ブロックのエラーにも同じ案内が出る）
-fetch('/api/health').then((r) => r.json()).then((h) => {
+KK.fetch('/api/health').then((r) => r.json()).then((h) => {
   if(!h.ok){ const b = $('#banner'); b.textContent = h.message; b.style.display = ''; }
 }).catch(() => {});
 // 新着の件数はどのタブからでも見えるようにする（取れなければ印を出さないだけ）

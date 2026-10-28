@@ -4,10 +4,12 @@
 
 import { createRequire } from 'node:module';
 
-export const PROFILE = process.env.AWS_PROFILE || 'kakeibo-prod';
+// Lambda（管理アプリの API）では実行ロールの認証情報とランタイム同梱の SDK を使う
+export const IN_LAMBDA = !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+export const PROFILE = IN_LAMBDA ? '' : (process.env.AWS_PROFILE || 'kakeibo-prod');
 export const REGION = 'ap-northeast-1';
 // SDK を読み込む前に設定する（認証情報の解決がこの値を見る）
-process.env.AWS_PROFILE = PROFILE;
+if (!IN_LAMBDA) process.env.AWS_PROFILE = PROFILE;
 process.env.AWS_REGION ||= REGION;
 
 export const LOGIN_HINT = `AWS認証が切れています。ターミナルで実行してください:\n  aws sso login --profile ${PROFILE}`;
@@ -15,7 +17,7 @@ export const INSTALL_HINT = 'SDK が見つかりません。ターミナルで�
 
 const req = createRequire(new URL('../report/package.json', import.meta.url));
 const load = (name) => {
-  try { return req(name); } catch (e) {
+  try { return IN_LAMBDA ? createRequire(import.meta.url)(name) : req(name); } catch (e) {
     if (e.code === 'MODULE_NOT_FOUND') throw new Error(INSTALL_HINT);
     throw e;
   }
@@ -24,11 +26,13 @@ const load = (name) => {
 const s3sdk = load('@aws-sdk/client-s3');
 const logssdk = load('@aws-sdk/client-cloudwatch-logs');
 const ddbsdk = load('@aws-sdk/client-dynamodb');
+const cognitosdk = load('@aws-sdk/client-cognito-identity-provider');
 
 export const s3 = new s3sdk.S3Client({ region: REGION });
 export const logs = new logssdk.CloudWatchLogsClient({ region: REGION });
 export const ddb = new ddbsdk.DynamoDBClient({ region: REGION });
-export const cmd = { ...s3sdk, ...logssdk, ...ddbsdk };
+export const cognito = new cognitosdk.CognitoIdentityProviderClient({ region: REGION });
+export const cmd = { ...s3sdk, ...logssdk, ...ddbsdk, ...cognitosdk };
 
 /** 認証切れかどうか。SSO のトークン切れは名前・メッセージの出方がいくつかある */
 export const isAuthError = (e) => /token|expired|sso|credential|Unable to locate|not authorized to perform: sts/i

@@ -1,0 +1,10 @@
+{
+  "name": "kakeibo-admin-api",
+  "private": true,
+  "type": "module",
+  "description": "管理アプリ（Windows・iOS）用の API。SDK は Lambda ランタイム同梱、手元では ../report/node_modules を使う",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test test/api.test.mjs test/iam.test.mjs"
+  }
+}

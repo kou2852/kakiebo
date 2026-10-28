@@ -1,0 +1,24 @@
+{
+  "name": "kurofukubo-admin-desktop",
+  "productName": "kurofukubo 管理",
+  "version": "1.0.0",
+  "private": true,
+  "description": "管理ダッシュボードの Windows アプリ",
+  "main": "main.cjs",
+  "scripts": {
+    "prepare-ui": "node prepare-ui.mjs",
+    "start": "npm run prepare-ui && electron .",
+    "dist": "npm run prepare-ui && electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "jp.kurofukubo.admin.desktop",
+    "files": ["main.cjs", "preload.cjs", "config.json", "ui/**"],
+    "win": { "target": "nsis", "signAndEditExecutable": false },
+    "nsis": { "oneClick": false, "perMachine": false },
+    "directories": { "output": "release" }
+  },
+  "devDependencies": {
+    "electron": "38.8.6",
+    "electron-builder": "26.0.12"
+  }
+}

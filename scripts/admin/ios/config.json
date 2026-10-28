@@ -1,0 +1,6 @@
+{
+  "apiBase": "http://localhost:8790",
+  "clientId": "devclient",
+  "region": "ap-northeast-1",
+  "cognitoUrl": "http://localhost:8790/cognito"
+}
