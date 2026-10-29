@@ -187,25 +187,32 @@ Resources:
             - Effect: Allow
               Action: cloudwatch:GetMetricData
               Resource: '*'
-            # 読める項目を限定する（家計簿データは読めない）。項目を指定しない取得は禁止
+            # 読める項目を限定する。項目を指定しない取得は禁止
+            # 家計データのテーブルは利用状況（日付）だけ。本文のような項目は読めない
+            - Effect: Allow
+              Action: dynamodb:Scan
+              Resource: !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}
+              Condition:
+                ForAllValues:StringEquals:
+                  dynamodb:Attributes: [PK, SK, updatedAt, lastSeen, createdAt]
+                StringEquals:
+                  dynamodb:Select: SPECIFIC_ATTRIBUTES
             - Effect: Allow
               Action:
                 - dynamodb:Query
                 - dynamodb:Scan
               Resource:
-                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}
                 - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${InquiryTableName}
                 - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${FeedbackTableName}
               Condition:
                 ForAllValues:StringEquals:
-                  dynamodb:Attributes: [PK, SK, id, status, messages, subject, body, timestamp, createdAt, updatedAt, lastSeen]
+                  dynamodb:Attributes: [PK, SK, id, status, messages, subject, body, timestamp, createdAt, updatedAt]
                 StringEquals:
                   dynamodb:Select: SPECIFIC_ATTRIBUTES
-            # 唯一の書き込み: 問い合わせへの返信
+            # 唯一の書き込み: 問い合わせへの返信（専用テーブルだけ。家計データのテーブルには書けない）
             - Effect: Allow
               Action: dynamodb:UpdateItem
               Resource:
-                - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}
                 - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${InquiryTableName}
               Condition:
                 ForAllValues:StringEquals:

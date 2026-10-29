@@ -39,3 +39,10 @@ test('書き込みは問い合わせの行だけ（本体の表の家計簿の�
   assert.match(writes[0][1], /ConditionExpression: 'attribute_exists\(SK\) AND begins_with\(SK, :inq\)'/);
   assert.match(writes[0][1], /':inq': \{ S: 'INQUIRY#' \}/);
 });
+
+test('家計データのテーブルには書けず、読めるのは日付の項目だけ', () => {
+  const upd = tpl.slice(tpl.indexOf('Action: dynamodb:UpdateItem'));
+  assert.doesNotMatch(upd.slice(0, upd.indexOf('- Effect')), /table\/\$\{TableName\}/);
+  const main = tpl.match(/Resource: !Sub arn:aws:dynamodb:\$\{AWS::Region\}:\$\{AWS::AccountId\}:table\/\$\{TableName\}\n[\s\S]*?dynamodb:Attributes: \[([^\]]*)\]/);
+  assert.deepEqual(main[1].split(', '), ['PK', 'SK', 'updatedAt', 'lastSeen', 'createdAt']);
+});

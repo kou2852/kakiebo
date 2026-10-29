@@ -19,10 +19,10 @@ const { CONFIG } = collect;
 const MIN = 60000;
 // 新しい専用テーブル（2026-10-12〜）。移行が済むまでは元のテーブルと両方を読む（collect.mjs と同じ扱い）
 const TABLES = {
-  inquiry: [CONFIG.table, CONFIG.inquiryTable],
-  feedback: [CONFIG.table, CONFIG.feedbackTable],
+  // 問い合わせ・ご意見は専用テーブルだけ（2026-10-28 に家計データのテーブルから写し終えた）
+  inquiry: [CONFIG.inquiryTable],
+  feedback: [CONFIG.feedbackTable],
 };
-const notFound = (e) => e?.name === 'ResourceNotFoundException';
 
 /** 取得の失敗を握りつぶして fallback を返す。ただし認証切れだけは画面全体の失敗にする（「取得できず」だらけを避ける） */
 function soft(promise, fallback, auth) {
@@ -177,19 +177,13 @@ export function getInquiries(fresh) {
       for (const table of TABLES.inquiry) {
         let start;
         do {
-          let page;
-          try {
-            page = await ddb.send(new cmd.ScanCommand({
-              TableName: table, FilterExpression: 'begins_with(SK, :p)',
-              // 使う項目だけ読む（管理アプリの Lambda は IAM で読める項目を限っている）
-              Select: 'SPECIFIC_ATTRIBUTES', ProjectionExpression: 'PK, SK, id, subject, #st, createdAt, updatedAt, messages',
-              ExpressionAttributeNames: { '#st': 'status' },
-              ExpressionAttributeValues: { ':p': { S: 'INQUIRY#' } }, ExclusiveStartKey: start,
-            }));
-          } catch (e) {
-            if (table !== CONFIG.table && notFound(e)) break; // 新しいテーブルがまだ無い（sam deploy 前）
-            throw e;
-          }
+          const page = await ddb.send(new cmd.ScanCommand({
+            TableName: table, FilterExpression: 'begins_with(SK, :p)',
+            // 使う項目だけ読む（管理アプリの Lambda は IAM で読める項目を限っている）
+            Select: 'SPECIFIC_ATTRIBUTES', ProjectionExpression: 'PK, SK, id, subject, #st, createdAt, updatedAt, messages',
+            ExpressionAttributeNames: { '#st': 'status' },
+            ExpressionAttributeValues: { ':p': { S: 'INQUIRY#' } }, ExclusiveStartKey: start,
+          }));
           for (const i of page.Items || []) {
             const pk = i.PK?.S || '';
             const t = {
@@ -247,18 +241,12 @@ export function getFeedback(fresh) {
       for (const table of TABLES.feedback) {
         let start;
         do {
-          let page;
-          try {
-            page = await ddb.send(new cmd.QueryCommand({
-              TableName: table, KeyConditionExpression: 'PK = :pk',
-              Select: 'SPECIFIC_ATTRIBUTES', ProjectionExpression: 'SK, #ts, body', ExpressionAttributeNames: { '#ts': 'timestamp' },
-              ExpressionAttributeValues: { ':pk': { S: 'FEEDBACK' } },
-              ScanIndexForward: false, ExclusiveStartKey: start, // SKが FEEDBACK#<ISO日時>#<uuid> なので降順＝新しい順
-            }));
-          } catch (e) {
-            if (table !== CONFIG.table && notFound(e)) break;
-            throw e;
-          }
+          const page = await ddb.send(new cmd.QueryCommand({
+            TableName: table, KeyConditionExpression: 'PK = :pk',
+            Select: 'SPECIFIC_ATTRIBUTES', ProjectionExpression: 'SK, #ts, body', ExpressionAttributeNames: { '#ts': 'timestamp' },
+            ExpressionAttributeValues: { ':pk': { S: 'FEEDBACK' } },
+            ScanIndexForward: false, ExclusiveStartKey: start, // SKが FEEDBACK#<ISO日時>#<uuid> なので降順＝新しい順
+          }));
           for (const i of page.Items || []) {
             const it = { sk: i.SK?.S || '', timestamp: i.timestamp?.S || '', body: i.body?.S || '' };
             seen.set(it.sk, it);

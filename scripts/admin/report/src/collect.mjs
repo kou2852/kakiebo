@@ -130,27 +130,17 @@ export async function getLiveHeaders() {
 }
 
 /**
- * 元のテーブルと専用テーブルの両方を読み、同じキーは専用テーブルを優先して1件にまとめる
- * （ダッシュボードの getInquiries / getFeedback と同じ扱い。直しが片側にだけ入ると通知から新しい分が落ちる）。
- * 専用テーブルがまだ作られていない（sam deploy 前）なら、元のテーブルだけで続ける。
+ * 問い合わせ・ご意見は専用テーブルだけを読む（2026-10-28 に元のテーブルから写し終えた。家計データのテーブルは読まない）。
+ * ダッシュボードの getInquiries / getFeedback と同じ扱い。
  * @param {(table: string) => Promise<Array<{key: string}>>} read 1つのテーブルから {key, ...} を返す
  */
-async function readBothTables(newTable, read) {
-  const merged = new Map();
-  for (const table of [CONFIG.table, newTable]) {
-    let part;
-    try { part = await read(table); } catch (e) {
-      if (table === newTable && e.name === 'ResourceNotFoundException') continue;
-      throw e;
-    }
-    for (const item of part) merged.set(item.key, item);
-  }
-  return [...merged.values()];
+async function readOpsTable(table, read) {
+  return read(table);
 }
 
 /** [from, to) に届いたご意見の件数。SK が FEEDBACK#<ISO日時>#<uuid> なのでキー条件だけで数えられ、本文は読まない */
 export async function countFeedback(from, to) {
-  const items = await readBothTables(CONFIG.feedbackTable, async (table) => {
+  const items = await readOpsTable(CONFIG.feedbackTable, async (table) => {
     const out = [];
     let start;
     do {
@@ -178,7 +168,7 @@ export async function countFeedback(from, to) {
  * 読む項目は status と messages だけ（IAM でもこの項目以外は読めないよう絞っている）。
  */
 export async function listInquiries() {
-  const items = await readBothTables(CONFIG.inquiryTable, async (table) => {
+  const items = await readOpsTable(CONFIG.inquiryTable, async (table) => {
     const out = [];
     let start;
     do {
@@ -226,7 +216,7 @@ export async function putCursor(cursor) {
 
 /** since より後に届いたご意見（本文つき・古い順）。SK が FEEDBACK#<ISO日時>#<uuid> なので時刻で切れる */
 export async function listFeedbackSince(since) {
-  const items = await readBothTables(CONFIG.feedbackTable, async (table) => {
+  const items = await readOpsTable(CONFIG.feedbackTable, async (table) => {
     const out = [];
     let start;
     do {
@@ -251,7 +241,7 @@ export async function listFeedbackSince(since) {
 
 /** since より後に動きのあった問い合わせスレッド（古い順）。最後の発言だけを持って帰る */
 export async function listInquiriesSince(since) {
-  const items = await readBothTables(CONFIG.inquiryTable, async (table) => {
+  const items = await readOpsTable(CONFIG.inquiryTable, async (table) => {
     const out = [];
     let start;
     do {
