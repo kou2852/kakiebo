@@ -120,7 +120,8 @@ Resources:
       MemorySize: 1769
       Timeout: 120
       # 同時に動く数の上限（公開の入口なので、費用と負荷の天井をここで決める）
-      ReservedConcurrentExecutions: 10
+      # アカウント全体の枠（アプリ本体と共有）から3だけ取る。枠が10のままだとデプロイできない（AWS は10を残す決まり）
+      ReservedConcurrentExecutions: 3
       EphemeralStorage:
         Size: 1024
       Environment:

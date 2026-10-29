@@ -12,6 +12,7 @@
         "ITSAppUsesNonExemptEncryption": false
       }
     },
-    "owner": "pokupoku_x_x_x"
+    "owner": "pokupoku_x_x_x",
+    "icon": "./assets/icon.png"
   }
 }
