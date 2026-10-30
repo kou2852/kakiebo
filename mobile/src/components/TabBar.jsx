@@ -74,7 +74,7 @@ export default function TabBar({ state, descriptors, navigation }) {
       <View style={{
         flexDirection: 'row', alignItems: 'flex-start',
         borderTopWidth: 1, borderTopColor: t.bd,
-        paddingBottom: insets.bottom || 8,
+        paddingBottom: Math.max((insets.bottom || 8) - 6, 2), // 少し下げる（2026-10-31 指示）
       }}>
         {routes.slice(0, half).map(tab)}
 
