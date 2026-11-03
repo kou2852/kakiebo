@@ -87,8 +87,9 @@ export async function handler(event) {
     const body = parseBody(event);
     if (!body) return badRequest('Invalid JSON');
     const { list, rev } = parseCollection(body);
+    // マイナスの配分は他のタグからの借り（タグ付け替え）。0 だけを捨てる
     const items = list
-      .filter((a) => a.accountId && a.tagId && a.amount > 0)
+      .filter((a) => a.accountId && a.tagId && Number.isFinite(a.amount) && a.amount !== 0)
       .map((a) => ({
         SK: `ALLOC#${a.accountId}#${a.tagId}`,
         accountId: a.accountId,

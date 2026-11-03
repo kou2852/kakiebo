@@ -114,8 +114,11 @@ export async function handler(event) {
   return badRequest('Unsupported operation');
 }
 
-/** PK/SK/GSI キーを除外してクライアントに返す */
+/**
+ * PK/SK/GSI キーを除外してクライアントに返す。
+ * createdAt（記帳日）と updatedAt（更新日）は返す。仕訳帳の「記帳日」「更新日」の並べ替えが使う。
+ */
 function strip(item) {
-  const { PK, SK, GSI1SK, updatedAt, ...rest } = item;
+  const { PK, SK, GSI1SK, ...rest } = item;
   return rest;
 }
