@@ -247,7 +247,9 @@ export function DataProvider({ children }) {
   // 保存しないので、リロードすると消える。ツアーの判定はセッション内で完結するため足りる）。
   const addJournal = useCallback(async (data, opts = {}) => {
     const silent = !!opts.silent;
-    const newJ = { id: uid(), ...data, ...(silent ? { auto: 1 } : {}) };
+    // 記帳日（createdAt）・更新日（updatedAt）。API 経由はサーバーが付ける。ゲスト・暗号化はここで付ける
+    const now = new Date().toISOString();
+    const newJ = { id: uid(), ...data, createdAt: now, updatedAt: now, ...(silent ? { auto: 1 } : {}) };
     // 初回記帳は登録の有無にかかわらず計上する。journal_added は記帳のたびに出る
     // 「回数」なので、何人が記帳に到達したかはこちらで見る。
     if (!silent) trackOnce('first_journal');
@@ -263,8 +265,9 @@ export function DataProvider({ children }) {
 
   const updateJournal = useCallback(async (id, data) => {
     if (useLocal || encEnabled) {
-      setJournals((prev) => prev.map((j) => j.id === id ? { ...j, ...data } : j));
-      return { id, ...data };
+      const updatedAt = new Date().toISOString();
+      setJournals((prev) => prev.map((j) => j.id === id ? { ...j, ...data, updatedAt } : j));
+      return { id, ...data, updatedAt };
     }
     const updated = await api.journals.update(id, data);
     setJournals((prev) => prev.map((j) => j.id === id ? updated : j));
@@ -309,6 +312,12 @@ export function DataProvider({ children }) {
   const saveRules = useCallback(async (newRules, intent) => {
     if (useLocal || encEnabled) { setRules(newRules); return; }
     setRules(await saveCollection('rules', api.rules, newRules, intent));
+  }, [useLocal, encEnabled, saveCollection]);
+
+  // ── Allocs（タグ配分: サーバー保存付き。id を持たないので intent は使わず、競合は呼び出し元へ投げる） ──
+  const saveAllocs = useCallback(async (newAllocs) => {
+    if (useLocal || encEnabled) { setAllocs(newAllocs); return; }
+    setAllocs(await saveCollection('allocs', api.allocs, newAllocs));
   }, [useLocal, encEnabled, saveCollection]);
 
   const deleteJournal = useCallback(async (id) => {
@@ -587,7 +596,7 @@ export function DataProvider({ children }) {
     addAccount, updateAccount, deleteAccount,
     saveTags, saveWallets, saveBudgets,
     exportAll, importAll,
-    setPresets, setRecurring, setRules, setAllocs, saveRecurring, savePresets, saveRules,
+    setPresets, setRecurring, setRules, setAllocs, saveRecurring, savePresets, saveRules, saveAllocs,
     loadSampleData, clearSampleData,
     sampleAvailable: useLocal,
     hasSampleData: journals.some((j) => j.sample),

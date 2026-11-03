@@ -13,6 +13,7 @@ import CCSettleModal from '../Credit/CCSettleModal';
 import BudgetPanel from './BudgetPanel';
 import InvestmentPanel from './InvestmentPanel';
 import TagAllocationPanel from './TagAllocationPanel';
+import SetupPanel from './SetupPanel';
 import Ad from '../Common/Ad';
 import { RegisterCard } from '../Common/Guest';
 import SetupChecklist from '../Onboarding/SetupChecklist';
@@ -231,6 +232,9 @@ export default function Dashboard() {
 
       {/* 今月の予算 */}
       <BudgetPanel period={period} start={start} end={end} />
+
+      {/* 基本設定（科目・カード・口座・タグ・予算の入口） */}
+      <SetupPanel />
 
       {/* 純資産の推移 */}
       <div className="card mt-16" data-tour="nw-trend">

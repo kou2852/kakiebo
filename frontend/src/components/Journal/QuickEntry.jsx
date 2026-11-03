@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, Fragment } from 'react';
 import { useData } from '../../contexts/DataContext';
+import { useUI } from '../../contexts/UIContext';
 import { fa, today } from '../../utils/format';
 import { useToast } from '../Common/Toast';
 import InfoTip from '../Common/InfoTip';
@@ -69,6 +70,7 @@ const TYPE_ORDER = ['expense', 'asset', 'liability', 'income', 'equity'];
 export default function QuickEntry() {
   const { accounts, rules, tags, addJournal } = useData();
   const toast = useToast();
+  const { navigate } = useUI();
 
   // ── 一行入力（クイック） ──
   const [text, setText] = useState('');
@@ -254,6 +256,7 @@ export default function QuickEntry() {
         <span style={{ fontSize: 12, color: 'var(--tx3)', fontWeight: 600 }}>入力方法</span>
         <button className={`btn btn-s ${mode === 'simple' ? 'btn-p' : 'btn-g'}`} onClick={() => setModeP('simple')}>かんたん</button>
         <button className={`btn btn-s ${mode === 'detail' ? 'btn-p' : 'btn-g'}`} onClick={() => setModeP('detail')}>詳細（借方・貸方）</button>
+        <button className="btn btn-s btn-g" onClick={() => navigate('tagmove')}>タグ付け替え</button>
         <span style={{ fontSize: 11, color: 'var(--tx3)' }}>
           {mode === 'simple' ? '簿記の知識がなくてもOK。裏で複式仕訳に変換します' : '借方・貸方を直接入力します'}
         </span>

@@ -3,6 +3,8 @@ import { useData } from '../../contexts/DataContext';
 import { useUI } from '../../contexts/UIContext';
 import { fa, esc, ACCOUNT_TYPES, BADGE_CLASSES } from '../../utils/format';
 import { filterByPeriod, getPeriodRange } from '../../utils/bookkeeping';
+import { journalHasTag, retagJournal } from '../../utils/journalTags';
+import { DEFAULT_SORT, SORT_KEYS, normalizeSort, sortJournals, stampLabel } from '../../utils/journalSort';
 import PeriodBar from '../Dashboard/PeriodBar';
 import JournalModal from './JournalModal';
 import CSVModal from './CSVModal';
@@ -13,6 +15,13 @@ import EmptyState from '../Common/EmptyState';
 import Modal from '../Common/Modal';
 import { useToast } from '../Common/Toast';
 
+const REMOVE_TAG = '__remove__';
+const SORT_STORE = 'kk_journal_sort'; // 取引日・記帳日・更新日の並べ方。端末ごとに覚える
+const loadSort = () => {
+  try { return normalizeSort(JSON.parse(localStorage.getItem(SORT_STORE))); } catch { return DEFAULT_SORT; }
+};
+const isStampSort = (k) => SORT_KEYS.some((x) => x.id === k);
+
 export default function JournalPage() {
   const { journals, accounts, wallets, presets, tags, deleteJournal, updateJournal, addJournal, loading } = useData();
   const { journalEntryRequested, consumeJournalEntryRequest } = useUI();
@@ -20,8 +29,8 @@ export default function JournalPage() {
   const [period, setPeriod] = useState('month');
   const [custom, setCustom] = useState({ start: '', end: '' });
   const [search, setSearch] = useState('');
-  const [sortKey, setSortKey] = useState('date');
-  const [sortDir, setSortDir] = useState('desc');
+  const [sortKey, setSortKey] = useState(() => loadSort().key);
+  const [sortDir, setSortDir] = useState(() => loadSort().dir);
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState(null);
   const [copyId, setCopyId] = useState(null);
@@ -34,6 +43,8 @@ export default function JournalPage() {
   const [bulkDesc, setBulkDesc] = useState('');
   const [bulkDr, setBulkDr] = useState('');
   const [bulkCr, setBulkCr] = useState('');
+  const [bulkTagFrom, setBulkTagFrom] = useState('');
+  const [bulkTagTo, setBulkTagTo] = useState(''); // タグID、または REMOVE_TAG（外す）
   const [selectMode, setSelectMode] = useState(false);
   const [tagFilter, setTagFilter] = useState('');
   const [cheatOpen, setCheatOpen] = useState(false);
@@ -71,8 +82,7 @@ export default function JournalPage() {
     if (tagFilter) j = j.filter((x) => x.lines.some((l) => (l.splits || []).some((s) => s.tagId === tagFilter)));
     // ソート
     const dir = sortDir === 'asc' ? 1 : -1;
-    j = [...j].sort((a, b) => {
-      if (sortKey === 'date') return dir * a.date.localeCompare(b.date);
+    j = isStampSort(sortKey) ? sortJournals(j, { key: sortKey, dir: sortDir }) : [...j].sort((a, b) => {
       if (sortKey === 'drName') return dir * sideNames(a, 'dr').localeCompare(sideNames(b, 'dr'), 'ja');
       if (sortKey === 'crName') return dir * sideNames(a, 'cr').localeCompare(sideNames(b, 'cr'), 'ja');
       if (sortKey === 'amount') {
@@ -91,13 +101,13 @@ export default function JournalPage() {
     return j;
   }, [journals, accounts, start, end, search, tagFilter, sortKey, sortDir]);
 
+  const applySort = (key, dir) => {
+    setSortKey(key); setSortDir(dir);
+    if (isStampSort(key)) { try { localStorage.setItem(SORT_STORE, JSON.stringify({ key, dir })); } catch {} }
+  };
   const toggleSort = (key) => {
-    if (sortKey === key) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
-      setSortDir(key === 'date' ? 'desc' : 'asc');
-    }
+    if (sortKey === key) applySort(key, sortDir === 'asc' ? 'desc' : 'asc');
+    else applySort(key, key === 'date' ? 'desc' : 'asc');
   };
 
   const acctName = (id) => {
@@ -138,24 +148,36 @@ export default function JournalPage() {
     } catch { toast('一括削除に失敗しました'); }
   };
 
+  // 選択中の仕訳に付いているタグ（付け替え元の選択肢）
+  const selectedTagIds = useMemo(() => {
+    const sel = journals.filter((j) => selected.has(j.id));
+    return tags.filter((t) => sel.some((j) => journalHasTag(j, t.id)));
+  }, [journals, tags, selected]);
+
   const handleBulkEdit = async () => {
     if (bulkDate && !/^\d{4}-\d{2}-\d{2}$/.test(bulkDate)) { toast('日付は YYYY-MM-DD 形式で入力してください'); return; }
-    if (!bulkDate && bulkDesc === '' && !bulkDr && !bulkCr) { toast('変更する項目を1つ以上指定してください'); return; }
+    if (bulkTagFrom && !bulkTagTo) { toast('付け替え先のタグを選んでください'); return; }
+    if (!bulkDate && bulkDesc === '' && !bulkDr && !bulkCr && !bulkTagFrom) { toast('変更する項目を1つ以上指定してください'); return; }
     const ids = [...selected];
     try {
       for (const id of ids) {
         const j = journals.find((x) => x.id === id);
         if (!j) continue;
-        const lines = (bulkDr || bulkCr)
+        let lines = (bulkDr || bulkCr)
           ? j.lines.map((l) => ({
               ...l,
               accountId: (l.side === 'dr' && bulkDr) ? bulkDr : (l.side === 'cr' && bulkCr) ? bulkCr : l.accountId,
             }))
           : j.lines;
+        // タグの付け替え。元のタグが付いていない仕訳はそのまま（他の項目だけ適用）
+        const retagged = bulkTagFrom ? retagJournal({ ...j, lines }, bulkTagFrom, bulkTagTo === REMOVE_TAG ? null : bulkTagTo) : null;
+        if (retagged) lines = retagged.lines;
         await updateJournal(id, {
           date: bulkDate || j.date,
           desc: bulkDesc !== '' ? bulkDesc : (j.desc || ''),
           lines,
+          // 旧クイック入力の仕訳直下の tagId。外すときは空文字（読む側は falsy を「タグなし」とみなす）
+          ...(retagged && 'tagId' in j ? { tagId: retagged.tagId ?? '' } : {}),
         });
       }
       toast(`${ids.length}件を更新しました`);
@@ -216,6 +238,17 @@ export default function JournalPage() {
           value={search} onChange={(e) => setSearch(e.target.value)}
           style={{ maxWidth: 240, padding: '6px 10px', fontSize: 12 }}
         />
+        {/* 並び順。取引日・記帳日（作った日時）・更新日（最後に変えた日時）。昇順⇄降順は隣のボタン */}
+        <select className="fc" aria-label="並び順" value={isStampSort(sortKey) ? sortKey : ''}
+          onChange={(e) => applySort(e.target.value, sortDir)}
+          style={{ maxWidth: 130, padding: '6px 10px', fontSize: 12 }}>
+          {!isStampSort(sortKey) && <option value="" disabled>列で並び替え中</option>}
+          {SORT_KEYS.map((k) => <option key={k.id} value={k.id}>{k.label}</option>)}
+        </select>
+        <button className="btn btn-g btn-s" aria-label="昇順と降順を切り替える"
+          onClick={() => applySort(isStampSort(sortKey) ? sortKey : 'date', sortDir === 'asc' ? 'desc' : 'asc')}>
+          {sortDir === 'asc' ? '↑ 昇順' : '↓ 降順'}
+        </button>
         {journals.length > 0 && (
           <button className={`btn btn-s ${selectMode ? 'btn-p' : 'btn-g'}`}
             onClick={() => { if (selectMode) clearSel(); setSelectMode((v) => !v); }}>
@@ -234,7 +267,7 @@ export default function JournalPage() {
       {selectMode && selected.size > 0 && (
         <div className="card" style={{ marginBottom: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 600 }}>{selected.size}件 選択中</span>
-          <button className="btn btn-g btn-s" onClick={() => { setBulkDate(''); setBulkDesc(''); setBulkDr(''); setBulkCr(''); setBulkOpen(true); }}>一括編集</button>
+          <button className="btn btn-g btn-s" onClick={() => { setBulkDate(''); setBulkDesc(''); setBulkDr(''); setBulkCr(''); setBulkTagFrom(''); setBulkTagTo(''); setBulkOpen(true); }}>一括編集</button>
           <button className="btn btn-d btn-s" onClick={handleBulkDelete}>一括削除</button>
           <button className="btn btn-g btn-s" onClick={clearSel}>選択解除</button>
         </div>
@@ -288,7 +321,9 @@ export default function JournalPage() {
                           <input type="checkbox" checked={selected.has(j.id)} readOnly aria-label="選択" />
                         </td>
                       )}
-                      <td data-label="日付" className="mono text-m" style={{ whiteSpace: 'nowrap' }}>{j.date}</td>
+                      <td data-label="日付" className="mono text-m" style={{ whiteSpace: 'nowrap' }}>{j.date}
+                        {stampLabel(j, { key: sortKey }) ? <div style={{ fontSize: 10, color: 'var(--tx3)', fontWeight: 400 }}>{stampLabel(j, { key: sortKey })}</div> : null}
+                      </td>
                       <td data-label="摘要">
                         {j.desc || ''}
                         {jtags.length > 0 && (
@@ -360,6 +395,26 @@ export default function JournalPage() {
             </select>
           </div>
         </div>
+        {tags.length > 0 && (
+          <div className="form-row" style={{ marginTop: 10 }}>
+            <div className="fg">
+              <label className="fl">付け替えるタグ（変更する場合のみ）</label>
+              <select className="fc" value={bulkTagFrom} onChange={(e) => { setBulkTagFrom(e.target.value); setBulkTagTo(''); }}>
+                <option value="">変更しない</option>
+                {selectedTagIds.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+              {selectedTagIds.length === 0 && <div className="text-m" style={{ fontSize: 11, marginTop: 3 }}>選択中の仕訳にタグが付いていません</div>}
+            </div>
+            <div className="fg">
+              <label className="fl">付け替え先</label>
+              <select className="fc" value={bulkTagTo} onChange={(e) => setBulkTagTo(e.target.value)} disabled={!bulkTagFrom}>
+                <option value="">選んでください</option>
+                <option value={REMOVE_TAG}>タグを外す</option>
+                {tags.filter((t) => t.id !== bulkTagFrom).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

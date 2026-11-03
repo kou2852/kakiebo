@@ -8,6 +8,7 @@ import { GUEST_LIMITS } from '../../config/tiers';
 import EmptyState from '../Common/EmptyState';
 import InfoTip from '../Common/InfoTip';
 import TagModal from './TagModal';
+import AllocModal from './AllocModal';
 
 export default function TagsPage() {
   const { accounts, journals, tags, allocs, wallets, saveTags, loading } = useData();
@@ -33,6 +34,7 @@ export default function TagsPage() {
   const [sortDir, setSortDir] = useState('asc');
   const [tagModalOpen, setTagModalOpen] = useState(false);
   const [tagEditId, setTagEditId] = useState(null);
+  const [allocModalOpen, setAllocModalOpen] = useState(false);
 
   const tagBals = useMemo(() => computeTagBalances(journals, accounts), [journals, accounts]);
 
@@ -82,7 +84,10 @@ export default function TagsPage() {
           <div className="pg-title">タグ・配分</div>
           <div className="pg-sub">タグ別の集計と残高配分を管理します</div>
         </div>
-        <button className="btn btn-p" onClick={openNewTag}>＋ タグ</button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button className="btn btn-g" onClick={() => setAllocModalOpen(true)} disabled={tags.length === 0}>配分を編集</button>
+          <button className="btn btn-p" onClick={openNewTag}>＋ タグ</button>
+        </div>
       </div>
 
       <div className="g2">
@@ -168,6 +173,7 @@ export default function TagsPage() {
         </div>
       </div>
       <TagModal open={tagModalOpen} onClose={() => setTagModalOpen(false)} editId={tagEditId} />
+      <AllocModal open={allocModalOpen} onClose={() => setAllocModalOpen(false)} />
     </div>
   );
 }

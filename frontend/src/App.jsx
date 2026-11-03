@@ -15,6 +15,7 @@ import PLPage from './components/Reports/PLPage';
 import CFPage from './components/Reports/CFPage';
 import AccountsPage from './components/Accounts/AccountsPage';
 import TagsPage from './components/Tags/TagsPage';
+import TagMovePage from './components/Tags/TagMovePage';
 import CalendarPage from './components/Calendar/CalendarPage';
 import RecurringPage from './components/Recurring/RecurringPage';
 import SettingsPage from './components/Settings/SettingsPage';
@@ -26,6 +27,7 @@ import { GuestBanner, GuestPromoModal } from './components/Common/Guest';
 import Tour from './components/Onboarding/Tour';
 import TutorialMenu from './components/Onboarding/TutorialMenu';
 import WhatsNewModal from './components/Common/WhatsNewModal';
+import UpdatesOverlay from './components/Common/UpdatesOverlay';
 import IosPromoModal from './components/Common/IosPromoModal';
 import AndroidPromoModal from './components/Common/AndroidPromoModal';
 import FeedbackModal from './components/Common/FeedbackModal';
@@ -58,6 +60,7 @@ const PAGES = {
   cf: CFPage,
   accounts: AccountsPage,
   tags: TagsPage,
+  tagmove: TagMovePage,
   calendar: CalendarPage,
   recurring: RecurringPage,
   settings: SettingsPage,
@@ -72,6 +75,8 @@ function AppShell({ devMode, guestMode, tier }) {
   const [navCount, setNavCount] = useState(0);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [updatesOverlayOpen, setUpdatesOverlayOpen] = useState(false);
+  const updatesOverlayShown = useRef(false);
   const previousJournalCount = useRef(null);
 
   useEffect(() => {
@@ -93,11 +98,22 @@ function AppShell({ devMode, guestMode, tier }) {
     return () => clearTimeout(timer);
   }, [devMode, journals.length, loading]);
 
-  // 更新情報は自動表示せず、ヘッダーのベルから開く。未読は赤ドットで示す。
+  // 更新情報は、ベルの一覧に加えて、未読の新着があるときだけダッシュボードに着いた直後にカードで重ねて出す（起動1回につき1度）。
+  // 未読は赤ドットでも示す。ゲストには出さない（登録の案内と重なるため）。
   const latestUpdate = WEB_UPDATES[0]?.id;
   const [updateSeen, setUpdateSeen] = useState(() => localStorage.getItem('kk_update_seen'));
   const hasUnreadUpdate = !!latestUpdate && updateSeen !== latestUpdate;
   const closeWhatsNew = () => { localStorage.setItem('kk_update_seen', latestUpdate || ''); setUpdateSeen(latestUpdate); setWhatsNewOpen(false); };
+
+  const closeUpdatesOverlay = () => { setUpdatesOverlayOpen(false); closeWhatsNew(); };
+  useEffect(() => {
+    if (updatesOverlayShown.current || guestMode || loading || encLocked) return undefined;
+    if (currentPage !== 'dashboard' || !hasUnreadUpdate || tourId || feedbackOpen || whatsNewOpen) return undefined;
+    // 描画が落ち着いてから出す（決まった秒数は待たない）
+    let raf2;
+    const raf1 = requestAnimationFrame(() => { raf2 = requestAnimationFrame(() => { updatesOverlayShown.current = true; setUpdatesOverlayOpen(true); }); });
+    return () => { cancelAnimationFrame(raf1); if (raf2) cancelAnimationFrame(raf2); };
+  }, [guestMode, loading, encLocked, currentPage, hasUnreadUpdate, tourId, feedbackOpen, whatsNewOpen]);
 
   const PageComponent = PAGES[currentPage] || Dashboard;
   const navEvery = AD_CONFIG[tier]?.navEvery || 0;
@@ -152,8 +168,9 @@ function AppShell({ devMode, guestMode, tier }) {
       <Tour tourId={tourId} onClose={endTour} onNavigate={onNavigate} onOpenSidebar={() => setSidebarOpen(true)} onStartTour={startTour} />
       <TutorialMenu open={menuOpen} onClose={closeMenu} onStart={startTour} />
       <WhatsNewModal open={whatsNewOpen} onClose={closeWhatsNew} />
-      <IosPromoModal guestMode={guestMode} blocked={devMode || !!tourId || feedbackOpen || whatsNewOpen} />
-      <AndroidPromoModal guestMode={guestMode} blocked={devMode || !!tourId || feedbackOpen || whatsNewOpen} />
+      <UpdatesOverlay open={updatesOverlayOpen} onClose={closeUpdatesOverlay} onList={() => { closeUpdatesOverlay(); setWhatsNewOpen(true); }} />
+      <IosPromoModal guestMode={guestMode} blocked={devMode || !!tourId || feedbackOpen || whatsNewOpen || updatesOverlayOpen} />
+      <AndroidPromoModal guestMode={guestMode} blocked={devMode || !!tourId || feedbackOpen || whatsNewOpen || updatesOverlayOpen} />
       <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
       <button
         className="journal-fab"

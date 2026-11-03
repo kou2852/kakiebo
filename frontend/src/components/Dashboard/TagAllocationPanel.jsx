@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
 import { useData } from '../../contexts/DataContext';
+import { useUI } from '../../contexts/UIContext';
 import { fa, faBal } from '../../utils/format';
 import { tagAllocation } from '../../utils/bookkeeping';
 import InfoTip from '../Common/InfoTip';
@@ -11,6 +12,7 @@ const MASK = '¥•••••';
 // ▶ で内訳を一覧にできるようにしてある（タッチ環境ではこちらが唯一の手段）。
 export default function TagAllocationPanel({ masked = false, asOf }) {
   const { journals: all, accounts, tags, allocs, wallets } = useData();
+  const { navigate } = useUI();
   // 時点は上の資産合計と同じ（期間末）。先の日付の仕訳まで入れると、口座の額がずれる（2026-10-21）
   const journals = useMemo(() => (asOf ? all.filter((j) => j.date <= asOf) : all), [all, asOf]);
   const [openIds, setOpenIds] = useState(() => new Set());
@@ -60,9 +62,12 @@ export default function TagAllocationPanel({ masked = false, asOf }) {
   return (
     <div className="card mt-16">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 14, flexWrap: 'wrap' }}>
-        <div className="card-title" style={{ marginBottom: 0 }}>
-          資産の使いみち
-          <InfoTip text="各口座の残高を、タグごとの内訳で表示します。カード払いのようにまだ口座から引き落とされていない分は、タグ・配分ページの「登録タグ」残高からは引かれますが、ここには反映されません（引落時に反映されます）。" />
+        <div className="card-title" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span>
+            資産の使いみち
+            <InfoTip text="各口座の残高を、タグごとの内訳で表示します。カード払いのようにまだ口座から引き落とされていない分は、タグ・配分ページの「登録タグ」残高からは引かれますが、ここには反映されません（引落時に反映されます）。" />
+          </span>
+          <button type="button" className="btn btn-g btn-s" onClick={() => navigate('tagmove')}>タグ付け替え ›</button>
         </div>
         <div style={{ fontSize: 11.5, color: 'var(--tx3)' }}>
           資産合計
