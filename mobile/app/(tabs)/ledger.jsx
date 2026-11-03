@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, FlatList, PanResponder, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Dimensions, FlatList, Modal, PanResponder, Pressable, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useData } from '../../src/store/DataProvider';
 import { useSyncRefresh } from '../../src/store/useSyncRefresh';
@@ -15,6 +15,8 @@ import { getSkipDeleteConfirm, setSkipDeleteConfirm } from '../../src/store/dele
 import { ACCOUNT_TYPES, fa, faBal, ymd } from '../../src/utils/format';
 import { filterByPeriod } from '../../src/utils/bookkeeping';
 import { buildLedger } from '../../src/utils/generalLedger';
+import { DEFAULT_SORT, SORT_KEYS, sortJournals, stampLabel } from '../../src/utils/journalSort';
+import { loadLedgerSort, saveLedgerSort } from '../../src/store/ledgerSort';
 import { ADS_ENABLED, adsAvailable } from '../../src/components/Ad';
 import LazyAd from '../../src/components/LazyAd';
 import { ScrollWatch, createScrollWatch } from '../../src/store/scrollWatch';
@@ -159,18 +161,24 @@ function Stat({ label, value }) {
 }
 
 /** 総勘定元帳。選んだ科目の明細を日付順に並べ、1件ごとの差引残高を出す。 */
-function GeneralLedger({ account, accounts, journals, period, onOpen, refresh }) {
+function GeneralLedger({ account, accounts, journals, period, onOpen, refresh, sort }) {
   const t = useTheme();
   const book = useMemo(
     () => buildLedger(journals, account, accounts, period.start, period.end),
     [journals, account, accounts, period.start, period.end]
   );
+  // 差引残高は取引日の順に積み上げた値（行ごとに「その時点の残高」）。表示の並びだけを選べる。
+  // 取引日: 昇順は帳簿の順（既定の元帳）、降順はその逆。記帳日・更新日は、その日時で並べる（残高の値は変わらない）。
+  const shown = useMemo(() => {
+    if (sort.key === 'date') return sort.dir === 'asc' ? book.rows : [...book.rows].reverse();
+    return sortJournals(book.rows, sort);
+  }, [book.rows, sort]);
   // 全期間は、繰越が0なら出さない（始まりの行が「繰越 ¥0」だと紛らわしい）
   const showOpening = period.mode !== 'all' || book.opening !== 0;
 
   return (
     <FlatList
-      data={book.rows}
+      data={shown}
       keyExtractor={(r) => r.id}
       style={{ flex: 1 }}
       refreshControl={refresh.control}
@@ -213,6 +221,8 @@ function GeneralLedger({ account, accounts, journals, period, onOpen, refresh })
             <Text style={{ color: r.balance < 0 ? t.red : t.tx, fontSize: 15, fontWeight: '700' }}>
               <Text style={{ color: t.tx3, fontSize: 12, fontWeight: '400' }}>残高 </Text>{faBal(r.balance)}
             </Text>
+            {/* 並びが記帳日・更新日のときだけ。相手科目と同じ行の右端に置く */}
+            {stampLabel(r, sort) ? <Text style={{ color: t.tx3, fontSize: 12 }}>{stampLabel(r, sort)}</Text> : null}
           </View>
         </TouchableOpacity>
       )}
@@ -236,6 +246,15 @@ export default function Ledger() {
   const [accts, setAccts] = useState([]);
   // 元帳で見る科目（1つ）。一覧で1つだけ絞り込んでいるときは、そこから引き継ぐ
   const [glAcct, setGlAcct] = useState('');
+  // 一覧の並べ方（取引日・記帳日・更新日／新しい順・古い順）。この端末に覚えておく
+  const [sort, setSortState] = useState(DEFAULT_SORT);
+  const [sortMenu, setSortMenu] = useState(null); // 開いているときだけ、ボタンの位置 { top, right }
+  const sortBtn = useRef(null);
+  const openSortMenu = () => sortBtn.current?.measureInWindow((x, y, w, h) => {
+    setSortMenu({ top: y + h + 4, right: Math.max(8, Dimensions.get('window').width - (x + w)) });
+  });
+  useEffect(() => { loadLedgerSort().then(setSortState); }, []);
+  const setSort = (next) => { setSortState(next); saveLedgerSort(next); };
   // 一覧の4行目（先頭3件のあと）に広告を1つ挟む（2026-10-21 復活）。広告を消している日・まとめて選んでいる間・
   // オンボーディングとツアーの間は挟まない（行を選ぶ・指す操作の邪魔をしない）
   const { active: adFree } = useAdFree();
@@ -255,12 +274,24 @@ export default function Ledger() {
   const endPicking = () => { setPicking(false); setChecked(new Set()); };
   const showAd = adsAvailable() && ADS_ENABLED && !adFree && !picking && !onboarding?.active && !tour?.tourId;
 
+  // 並べ方のボタン（一覧と元帳で共用。科目の右）。押すと、その真下にメニューが開く
+  const sortButton = (
+    <TouchableOpacity ref={sortBtn} collapsable={false} onPress={openSortMenu} accessibilityRole="button" accessibilityLabel="並び順を変える"
+      style={{ paddingVertical: 8 }}>
+      <Text style={{ color: t.ac, fontSize: 15, fontWeight: '600' }}>
+        {`${SORT_KEYS.find((k) => k.id === sort.key)?.label} ${sort.dir === 'asc' ? '↑' : '↓'}`}
+      </Text>
+    </TouchableOpacity>
+  );
+
   const name = useMemo(() => Object.fromEntries(accounts.map((a) => [a.id, a.name])), [accounts]);
   const rows = useMemo(
-    () => [...filterByPeriod(journals, period.start, period.end)]
-      .filter((j) => !accts.length || j.lines.some((l) => accts.includes(l.accountId)))
-      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
-    [journals, period, accts]
+    () => sortJournals(
+      filterByPeriod(journals, period.start, period.end)
+        .filter((j) => !accts.length || j.lines.some((l) => accts.includes(l.accountId))),
+      sort
+    ),
+    [journals, period, accts, sort]
   );
   const dayRows = useMemo(
     () => (dayOpen ? journals.filter((j) => j.date === dayOpen) : []),
@@ -322,11 +353,15 @@ export default function Ledger() {
             <Text style={{ color: t.tx, fontSize: 16, fontWeight: '700' }}>{fa(total)}</Text>
           </View>
           <Text style={{ color: t.tx, fontSize: 15 }} numberOfLines={1}>{item.desc || '(摘要なし)'}</Text>
-          <Text style={{ color: t.tx2, fontSize: 14 }} numberOfLines={1}>
-            {drs.map((l) => name[l.accountId] || '?').join('・')}
-            <Text style={{ color: t.tx3 }}>  ←  </Text>
-            {crs.map((l) => name[l.accountId] || '?').join('・')}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={{ color: t.tx2, fontSize: 14, flexShrink: 1 }} numberOfLines={1}>
+              {drs.map((l) => name[l.accountId] || '?').join('・')}
+              <Text style={{ color: t.tx3 }}>  ←  </Text>
+              {crs.map((l) => name[l.accountId] || '?').join('・')}
+            </Text>
+            {/* 並びが記帳日・更新日のときだけ、その日時を右寄せで（取引日の並びでは出さない） */}
+            {stampLabel(item, sort) ? <Text style={{ color: t.tx3, fontSize: 12, marginLeft: 'auto' }}>{stampLabel(item, sort)}</Text> : null}
+          </View>
         </View>
       </TouchableOpacity>
       </SwipeRow>
@@ -351,8 +386,10 @@ export default function Ledger() {
         {mode === 'list' ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <View style={{ flex: 1 }}>
-              <AccountPicker label="科目" accounts={accounts} value={accts} onChange={setAccts} placeholder="全科目" multiple />
+              <AccountPicker label="科目：" accounts={accounts} value={accts} onChange={setAccts} placeholder="全科目" multiple compact />
             </View>
+            {/* 並べ方。科目の右に置く */}
+            {sortButton}
             {accts.length === 1 ? (
               <TouchableOpacity onPress={() => { setGlAcct(accts[0]); setMode('gl'); }} style={{ paddingVertical: 8 }}>
                 <Text style={{ color: t.ac, fontSize: 15, fontWeight: '600' }}>元帳で見る</Text>
@@ -366,14 +403,19 @@ export default function Ledger() {
           </View>
         ) : null}
         {mode === 'gl' ? (
-          <AccountPicker label="科目" accounts={accounts} value={glAcct} onChange={setGlAcct} placeholder="科目を選ぶ" />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ flex: 1 }}>
+              <AccountPicker label="科目：" accounts={accounts} value={glAcct} onChange={setGlAcct} placeholder="科目を選ぶ" compact />
+            </View>
+            {sortButton}
+          </View>
         ) : null}
       </View>
 
       {mode === 'gl' ? (
         accounts.find((a) => a.id === glAcct) ? (
           <GeneralLedger account={accounts.find((a) => a.id === glAcct)} accounts={accounts} journals={journals}
-            period={period} refresh={refresh} onOpen={(id) => router.push(`/journal/${id}`)} />
+            period={period} refresh={refresh} sort={sort} onOpen={(id) => router.push(`/journal/${id}`)} />
         ) : (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} refreshControl={refresh.control}>
             <Empty text="科目を選ぶと、その科目の明細と残高が日付順に出ます" />
@@ -439,6 +481,34 @@ export default function Ledger() {
           )}
         </View>
       ) : null}
+
+      {/* 並び順のドロップダウン。ボタンの真下に出す。選ぶとすぐ並び替わり、閉じて、この端末に覚えておく */}
+      <Modal visible={!!sortMenu} transparent animationType="fade" onRequestClose={() => setSortMenu(null)} statusBarTranslucent>
+        <Pressable onPress={() => setSortMenu(null)} accessibilityLabel="閉じる" style={{ flex: 1 }}>
+          <View style={[{ position: 'absolute', top: sortMenu?.top ?? 0, right: sortMenu?.right ?? 8, minWidth: 210,
+            backgroundColor: t.bg1, borderRadius: 12, borderWidth: 1, borderColor: t.bd, paddingVertical: 4 }, t.shadow]}>
+            {/* 種類を上に */}
+            {SORT_KEYS.map((k) => {
+              const on = sort.key === k.id;
+              return (
+                <TouchableOpacity key={k.id} accessibilityRole="menuitem" accessibilityState={{ selected: on }}
+                  onPress={() => setSort({ ...sort, key: k.id })}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11, paddingHorizontal: 14 }}>
+                  <Text style={{ color: on ? t.ac : t.tx, fontSize: 15.5, fontWeight: on ? '700' : '500', flex: 1 }}>{k.label}</Text>
+                  {on ? <Text style={{ color: t.ac, fontSize: 16, fontWeight: '800' }}>✓</Text> : null}
+                </TouchableOpacity>
+              );
+            })}
+            {/* 昇順 ⇄ 降順のトグル（右に倒すと降順＝新しい順） */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 14, borderTopWidth: 1, borderTopColor: t.bd, marginTop: 4 }}>
+              <Text style={{ color: sort.dir === 'asc' ? t.ac : t.tx3, fontSize: 14.5, fontWeight: sort.dir === 'asc' ? '700' : '500' }}>昇順</Text>
+              <Switch value={sort.dir === 'desc'} onValueChange={(v) => setSort({ ...sort, dir: v ? 'desc' : 'asc' })}
+                trackColor={{ true: t.ac, false: t.ac }} accessibilityLabel="昇順と降順を切り替える" />
+              <Text style={{ color: sort.dir === 'desc' ? t.ac : t.tx3, fontSize: 14.5, fontWeight: sort.dir === 'desc' ? '700' : '500' }}>降順</Text>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
 
       {/* カレンダーを隠さない高さで出し、上へスワイプで全画面、下へスワイプで戻す・閉じる */}
       <BottomSheet visible={!!dayOpen} onClose={() => setDayOpen(null)} title={`${dayOpen || ''} の仕訳`}>

@@ -13,6 +13,8 @@ import Breakdown from '../../src/components/Breakdown';
 import TagUsage from '../../src/components/TagUsage';
 import Sparkline from '../../src/components/Sparkline';
 import { today } from '../../src/utils/format';
+import { isHidden } from '../../src/utils/hiddenAccounts';
+import { isCreditCard } from '../../src/utils/creditCard';
 import { setHideAmounts, useMoney } from '../../src/store/hideAmounts';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -25,6 +27,7 @@ import { useHomeLayout } from '../../src/store/homeLayout';
 import { useOnboarding } from '../../src/store/OnboardingProvider';
 import LazyAd from '../../src/components/LazyAd';
 import HomeAdFree from '../../src/components/HomeAdFree';
+import UpdatesOverlay from '../../src/components/UpdatesOverlay';
 import { setNetWorthSets, useNetWorthSets } from '../../src/store/netWorthSets';
 import { accountsFor, selectSet, shownPages } from '../../src/utils/netWorthSets';
 import PageDots from '../../src/components/PageDots';
@@ -43,7 +46,7 @@ export default function Dashboard() {
   const tour = useTour();
   // 出す項目と並び（設定の「ホームの表示」。端末ごと）
   const layout = useHomeLayout();
-  const { loading, accounts, journals, budgets, recurring, wallets } = useData();
+  const { loading, accounts, journals, budgets, recurring, wallets, tags } = useData();
   // 純資産に入れる科目の組み合わせ（設定の「純資産に入れる科目」。端末ごと）。変わるのは純資産・推移・前月比だけ。
   // 純資産のカードは、設定で選んだ組み合わせ（「すべての科目」を含めて最大5つ）を横にスライドして見比べる。止めたページを覚える
   const nwState = useNetWorthSets();
@@ -284,7 +287,13 @@ export default function Dashboard() {
     ),
     accounts: () => (byAccount.length ? (
           <View ref={accountsRef} collapsable={false}>
-          <Card title="口座の残高">
+          <Card>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ color: t.tx3, fontSize: 13.5, letterSpacing: 0.3, fontWeight: '700' }}>口座の残高</Text>
+              <TouchableOpacity onPress={() => router.push('/manage/wallets')} accessibilityRole="link" hitSlop={8}>
+                <Text style={{ color: t.ac, fontSize: 13.5, fontWeight: '600' }}>口座設定 ›</Text>
+              </TouchableOpacity>
+            </View>
             {byAccount.map((x) => (
               <View key={x.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 }}>
@@ -331,6 +340,26 @@ export default function Dashboard() {
             })}
           </Card>
         ) : null),
+    // 基本設定の入口。科目・カード・口座・タグ・予算の件数を並べ、押すとそれぞれの設定へ行く
+    setup: () => (
+      <Card title="基本設定">
+        {[
+          { label: '勘定科目', n: accounts.filter((a) => !isHidden(a)).length, href: '/manage/accounts' },
+          { label: 'カード', n: accounts.filter((a) => isCreditCard(a) && !isHidden(a)).length, href: '/manage/wallets' },
+          { label: '口座', n: wallets.filter((w) => accounts.find((a) => a.id === w.accountId)?.type !== 'liability').length, href: '/manage/wallets' },
+          { label: 'タグ', n: tags.length, href: '/manage/tags' },
+          { label: '予算', n: budgets.length, href: '/manage/budgets' },
+        ].map((x, i, all) => (
+          <TouchableOpacity key={x.label} onPress={() => router.push(x.href)} accessibilityRole="button"
+            style={[{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11 },
+              i < all.length - 1 ? { borderBottomWidth: 1, borderBottomColor: t.bd } : null]}>
+            <Text style={{ color: t.tx, fontSize: 15.5, flex: 1 }}>{x.label}</Text>
+            <Text style={{ color: x.n ? t.tx2 : t.tx3, fontSize: 14.5 }}>{x.n ? `${x.n} 件` : '未設定'}</Text>
+            <Ionicons name="chevron-forward" size={16} color={t.tx3} />
+          </TouchableOpacity>
+        ))}
+      </Card>
+    ),
     investments: () => (investments.length ? (
           <Card title="投資資産">
             {investments.map((r) => (
@@ -370,6 +399,8 @@ export default function Dashboard() {
     </Screen>
     {/* 右下の「広告を消す」。動画広告を見られない人には出ない（HomeAdFree） */}
     <HomeAdFree scrolling={scrolling} />
+    {/* ホームに着いたとき、新着の更新情報があれば画面の上に重ねて出す。Android はレビューのお願いも同じカード */}
+    <UpdatesOverlay />
     </View>
   );
 }

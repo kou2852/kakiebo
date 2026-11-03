@@ -16,6 +16,8 @@ export const HOME_ITEMS = [
   { id: 'trend', label: '支出の推移（6か月）', note: '支出があるときだけ出ます' },
   { id: 'budget', label: '予算の消化', note: '予算を決めているときだけ出ます' },
   { id: 'investments', label: '投資資産', note: '投資の科目があるときだけ出ます' },
+  // 科目・カード・口座・タグ・予算の設定への入口と件数（2026-11-03 追加）。保存済みの並びには末尾に足される
+  { id: 'setup', label: '基本設定', note: '科目・カード・口座・タグ・予算の設定への入口' },
 ];
 
 export const DEFAULT_LAYOUT = HOME_ITEMS.map((x) => ({ id: x.id, on: true }));

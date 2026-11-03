@@ -5,7 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AppState } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { clearPendingUpTo, listPending, loadIdMap, readLocal, rememberId, writeLocal } from '../db';
-import { applyIntent, upsert, remove, replace } from '../db/intents';
+import { applyIntent, upsert, remove, replace, stamp } from '../db/intents';
 import { emptyDataset } from '../db/defaults';
 import { syncNow } from './sync';
 import { readOnboardingIds } from './onboardingMark';
@@ -82,7 +82,8 @@ export function DataProvider({ children }) {
   }, []);
 
   // 意図を1つ適用して即座に保存する。UI は保存完了を待たない（オフライン前提のため）。
-  const commit = useCallback((intent) => {
+  const commit = useCallback((raw) => {
+    const intent = stamp(raw);
     setDataset((prev) => {
       const next = applyIntent(prev, intent);
       queueWrite(() => writeLocal(next, rev.current, intent))
@@ -103,7 +104,8 @@ export function DataProvider({ children }) {
   const commitAll = useCallback(async (intents) => {
     if (!intents.length) return;
     let cur = (await readLocal())?.dataset || emptyDataset();
-    for (const intent of intents) {
+    for (const raw of intents) {
+      const intent = stamp(raw);
       cur = applyIntent(cur, intent);
       await queueWrite(() => writeLocal(cur, rev.current, intent));
     }

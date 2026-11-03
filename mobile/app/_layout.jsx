@@ -151,6 +151,7 @@ function Nav() {
       <Stack.Screen name="manage/recurring" options={{ title: '定期取引' }} />
       <Stack.Screen name="manage/budgets" options={{ title: '予算' }} />
       <Stack.Screen name="manage/allocations" options={{ title: 'タグ配分' }} />
+      <Stack.Screen name="manage/tag-move" options={{ title: 'タグ付け替え' }} />
       <Stack.Screen name="manage/csv" options={{ title: 'CSV' }} />
       <Stack.Screen name="manage/csv-presets" options={{ title: '保存した割り当て' }} />
       <Stack.Screen name="manage/reconcile" options={{ title: '実査・評価替え' }} />

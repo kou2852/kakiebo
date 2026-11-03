@@ -19,6 +19,7 @@ import { forgetOnboarding } from '../../src/store/OnboardingProvider';
 import { codeCollisions } from '../../src/store/merge';
 import { rewardedReady } from '../../src/components/Rewarded';
 import { openStoreReview } from '../../src/components/ReviewAsk';
+import SettingsCards from '../../src/components/SettingsCards';
 import { useAdFree } from '../../src/adFree';
 import { useTourTarget } from '../../src/store/TourProvider';
 import { useNetWorthSets } from '../../src/store/netWorthSets';
@@ -82,6 +83,9 @@ export default function Settings() {
 
   return (
     <Screen>
+      {/* 一番上の、横にスライドするカード（いまはレビューのお願い。Android だけ） */}
+      <SettingsCards />
+
       <MenuList items={[
         {
           label: 'アカウントと同期',
@@ -128,6 +132,7 @@ export default function Settings() {
         { label: '実査・評価替え', sub: '実残高と突き合わせて帳簿を合わせる', onPress: go('/manage/reconcile') },
         { label: '予算', value: n(d.budgets), onPress: go('/manage/budgets') },
         { label: 'タグ配分', value: n(d.allocs || []), onPress: go('/manage/allocations'), tourRef: tour.allocs },
+        { label: 'タグ付け替え', sub: '配分を別のタグへ付け替える', onPress: go('/manage/tag-move') },
       ]} />
 
       <MenuList title="データ・その他" items={[

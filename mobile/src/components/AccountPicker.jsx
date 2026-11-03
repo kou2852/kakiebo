@@ -23,7 +23,8 @@ import { applyAccountOrder } from '../utils/listOrder';
 const TYPE_ORDER = ['expense', 'asset', 'liability', 'income', 'equity'];
 
 // multiple: 複数を選ぶ（value は id の配列）。押しても閉じず、押すたびに選択を切り替える。
-export default function AccountPicker({ label, accounts, value, onChange, placeholder = '選択してください', multiple = false, wallets }) {
+// compact: ラベルと値を左に詰めて並べる（「科目：全科目 ›」）。幅いっぱいに広げない。
+export default function AccountPicker({ label, accounts, value, onChange, placeholder = '選択してください', multiple = false, wallets, compact = false }) {
   const t = useTheme();
   const [open, setOpen] = useState(false);
   // 候補にある科目に付いた口座だけ（収入の入金先にカードは出さない、など）
@@ -43,10 +44,10 @@ export default function AccountPicker({ label, accounts, value, onChange, placeh
     <>
       <TouchableOpacity
         onPress={() => setOpen(true)}
-        style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 11, gap: 10 }}
+        style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: compact ? 8 : 11, gap: compact ? 2 : 10, alignSelf: compact ? 'flex-start' : undefined }}
       >
-        <Text style={{ color: t.tx2, fontSize: 15, flex: 1 }}>{label}</Text>
-        <Text style={{ color: selected ? t.tx : t.tx3, fontSize: 15, fontWeight: selected ? '600' : '400' }}
+        <Text style={{ color: t.tx2, fontSize: 15, flex: compact ? 0 : 1 }}>{label}</Text>
+        <Text style={{ color: selected ? t.tx : t.tx3, fontSize: 15, fontWeight: selected ? '600' : '400', flexShrink: 1 }}
           numberOfLines={1}>
           {selected ? selected.name : placeholder}
         </Text>
@@ -55,7 +56,7 @@ export default function AccountPicker({ label, accounts, value, onChange, placeh
 
       <PickerSheet
         visible={open} onClose={() => setOpen(false)}
-        title={label} accounts={accounts} value={value} multiple={multiple} wallets={wl}
+        title={String(label).replace(/[：:]$/, '')} accounts={accounts} value={value} multiple={multiple} wallets={wl}
         onPick={(id) => {
           if (!multiple) { onChange(id); setOpen(false); return; }
           const cur = value || [];

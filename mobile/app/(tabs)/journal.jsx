@@ -11,6 +11,8 @@ import { useEntryAd } from '../../src/components/Interstitial';
 const MODES = [
   { value: 'simple', label: '簡易' },
   { value: 'split', label: '複合仕訳' },
+  // 画面を切り替えるだけで、入力方法ではない。選んでも mode は変えず、付け替えの画面へ進む
+  { value: 'retag', label: 'タグ付け替え' },
 ];
 
 export default function JournalEntry() {
@@ -62,7 +64,8 @@ export default function JournalEntry() {
       // 入力が縦に長いので、切替はスクロールしても上に残す。
       // 下まで入力してから形式を変えたくなったときに、戻る手間をなくす。
       stickyTop={(
-        <Segmented options={MODES} value={mode} onChange={setMode} />
+        <Segmented options={MODES} value={mode}
+          onChange={(m) => (m === 'retag' ? router.push('/manage/tag-move') : setMode(m))} />
       )}
     >
       {mode === 'simple'

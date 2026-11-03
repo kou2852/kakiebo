@@ -1,5 +1,7 @@
 // reviewPrompt.js の検証。node src/utils/reviewPrompt.check.mjs
-import { MIN_DAYS_BETWEEN_ASKS, MIN_DAYS_SINCE_INSTALL, MIN_JOURNALS, installTime, shouldAsk } from './reviewPrompt.js';
+import {
+  CARD_AFTER_SYSTEM_ASK_DAYS, CARD_SNOOZE_DAYS, MIN_DAYS_BETWEEN_ASKS, MIN_DAYS_SINCE_INSTALL, MIN_JOURNALS, installTime, shouldAsk, shouldShowReviewCard,
+} from './reviewPrompt.js';
 
 let ng = 0;
 const ok = (cond, name) => {
@@ -42,6 +44,21 @@ ok(installTime({ legacyFirstUse: NaN, now: NOW }) === NOW, '新しく入れた�
 ok(installTime({ legacyFirstUse: NOW - 40 * DAY, now: NOW }) === NOW - 40 * DAY, '前から使っている人は最初に記帳した時刻（記録がある中で一番古い）');
 ok(installTime({ legacyFirstUse: 0, now: NOW }) === NOW, '0 は記録なしとして扱う');
 ok(installTime({ legacyFirstUse: NOW + DAY, now: NOW }) === NOW, '未来の時刻（端末の時計ずれ）は使わない');
+
+console.log('\nホームのレビューのお願いカード（Android）');
+{
+  const card = (over = {}) => shouldShowReviewCard({ journals: 0, installedAt: NOW, now: NOW, doneAt: NaN, dismissedAt: NaN, systemAskedAt: NaN, ...over });
+  ok(!card(), '入れた当日・0件では出さない');
+  ok(card({ journals: MIN_JOURNALS }), '20件で出す');
+  ok(card({ installedAt: NOW - MIN_DAYS_SINCE_INSTALL * DAY }), 'インストールから3日で出す');
+  ok(!card({ journals: MIN_JOURNALS, doneAt: NOW - 400 * DAY }), '押したことがあれば、何日経っても二度と出さない');
+  ok(!card({ journals: MIN_JOURNALS, dismissedAt: NOW - (CARD_SNOOZE_DAYS * DAY - 1) }), '「あとで」から90日に1ミリ秒足りなければ出さない');
+  ok(card({ journals: MIN_JOURNALS, dismissedAt: NOW - CARD_SNOOZE_DAYS * DAY }), '「あとで」からちょうど90日で出す');
+  ok(!card({ journals: MIN_JOURNALS, systemAskedAt: NOW - (CARD_AFTER_SYSTEM_ASK_DAYS * DAY - 1) }), '標準のレビューを出して30日以内には重ねない');
+  ok(card({ journals: MIN_JOURNALS, systemAskedAt: NOW - CARD_AFTER_SYSTEM_ASK_DAYS * DAY }), '標準のレビューからちょうど30日で出す');
+  ok(!card({ installedAt: NaN }), 'インストール時刻が無く20件未満なら出さない');
+  ok(card({ installedAt: NaN, journals: MIN_JOURNALS }), 'インストール時刻が無くても20件あれば出す');
+}
 
 console.log(ng ? `\n${ng} 件 NG` : '\nすべて ok');
 process.exit(ng ? 1 : 0);

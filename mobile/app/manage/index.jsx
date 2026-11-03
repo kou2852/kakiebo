@@ -13,6 +13,7 @@ const ITEMS = [
   { href: '/manage/recurring', label: '定期取引', count: 'recurring' },
   { href: '/manage/budgets', label: '予算', count: 'budgets' },
   { href: '/manage/allocations', label: 'タグ配分', count: 'allocs' },
+  { href: '/manage/tag-move', label: 'タグ付け替え', count: null },
   { href: '/manage/csv', label: 'CSV 取込・書き出し', count: 'journals' },
   { href: '/manage/reconcile', label: '実査・評価替え', count: 'accounts' },
   { href: '/manage/encryption', label: '暗号化', count: null },

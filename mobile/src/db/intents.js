@@ -12,6 +12,16 @@ export const remove = (c, id) => ({ t: 'remove', c, id });
 /** id を持たないコレクション（budgets / allocs）用。全置換になる。 */
 export const replace = (c, items) => ({ t: 'replace', c, items });
 
+/**
+ * 仕訳の保存に、記帳日（createdAt・最初の一度だけ）と更新日（updatedAt・保存のたび）を付ける。
+ * 仕訳帳の並べ替え（取引日・記帳日・更新日）が使う。ほかの意図はそのまま返す。
+ * サーバーも同じ項目を持つので、同期のあとはサーバーの値に置き換わる。
+ */
+export function stamp(intent, now = new Date().toISOString()) {
+  if (intent?.t !== 'upsert' || intent.c !== 'journals' || !intent.item) return intent;
+  return { ...intent, item: { ...intent.item, createdAt: intent.item.createdAt || now, updatedAt: now } };
+}
+
 /** 意図を1つ適用した新しいデータセットを返す（引数は変更しない）。 */
 export function applyIntent(dataset, intent) {
   const cur = dataset[intent.c] || [];

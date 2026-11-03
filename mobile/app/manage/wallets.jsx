@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import { Alert, Text, TouchableOpacity, View } from 'react-native';
 import { useData } from '../../src/store/DataProvider';
 import { useTheme } from '../../src/theme';
@@ -31,6 +32,11 @@ export default function Wallets() {
   const { wallets, accounts, journals, del, commitAll } = useData();
   const [sorting, setSorting] = useState(false);
   const [editing, setEditing] = useState(null);
+  // カード画面の「カードの追加」から来たときは、カードの追加の入力を最初から開く（?newCard=1）
+  const params = useLocalSearchParams();
+  useEffect(() => {
+    if (params.newCard) setEditing({ newCard: true, name: '', opening: '', ccDelay: 1 });
+  }, [params.newCard]);
 
   // カードは口座（支払い手段）ではない。負債の科目に紐づく口座はカードとして分けて出す。
   // 締め・引落の設定を持つカードで、口座にしていないものもカードとして出す。

@@ -27,3 +27,20 @@ export function shouldAsk({ journals, installedAt, lastAskedAt, now, adShown }) 
 export function installTime({ legacyFirstUse, now }) {
   return Number.isFinite(legacyFirstUse) && legacyFirstUse > 0 && legacyFirstUse <= now ? legacyFirstUse : now;
 }
+
+// ── ホームの「レビューのお願い」カード（Android だけ）。ストアのレビュー画面へ直接飛ばす ──
+// 標準のアプリ内レビューと違い、回数の制限は受けない。その代わり押し付けにならないよう、
+// ・押したら二度と出さない（レビューを書いたかは分からないので、聞き直さない）
+// ・「あとで」は90日出さない
+// ・標準のアプリ内レビューを出した直後（30日以内）には重ねない
+// 気分を聞いて振り分けることはしない（Google は評価カードの前の質問を禁じている）。
+export const CARD_SNOOZE_DAYS = 90;
+export const CARD_AFTER_SYSTEM_ASK_DAYS = 30;
+
+export function shouldShowReviewCard({ journals, installedAt, now, doneAt, dismissedAt, systemAskedAt }) {
+  if (Number.isFinite(doneAt) && doneAt > 0) return false;
+  if (Number.isFinite(dismissedAt) && dismissedAt > 0 && now - dismissedAt < CARD_SNOOZE_DAYS * DAY) return false;
+  if (Number.isFinite(systemAskedAt) && systemAskedAt > 0 && now - systemAskedAt < CARD_AFTER_SYSTEM_ASK_DAYS * DAY) return false;
+  if (journals >= MIN_JOURNALS) return true;
+  return Number.isFinite(installedAt) && now - installedAt >= MIN_DAYS_SINCE_INSTALL * DAY;
+}

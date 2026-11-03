@@ -9,9 +9,10 @@
 import { Animated, View } from 'react-native';
 import { useTheme } from '../theme';
 
-export default function PageDots({ count, x, step, size = 6, active = 18, gap = 6, style }) {
+// minCount: この枚数未満なら点を出さない（既定は2。1枚でも出したいときは1にする）
+export default function PageDots({ count, x, step, size = 6, active = 18, gap = 6, minCount = 2, style }) {
   const t = useTheme();
-  if (count < 2) return null;
+  if (count < minCount) return null;
   return (
     <View style={[{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap }, style]}>
       {Array.from({ length: count }, (_, i) => {

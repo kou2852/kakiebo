@@ -8,6 +8,7 @@
 import { useMemo, useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useData } from '../store/DataProvider';
 import { useTheme } from '../theme';
 import { Card } from './ui';
@@ -17,6 +18,7 @@ import { useTourTarget } from '../store/TourProvider';
 
 export default function TagUsage({ asOf }) {
   const t = useTheme();
+  const router = useRouter();
   const { journals: all, accounts, tags, allocs, wallets } = useData();
   // 時点は「口座の残高」のカードと同じ。先の日付の仕訳まで入れると、口座の額がカードとずれる（2026-10-21）
   const journals = useMemo(() => (asOf ? all.filter((j) => j.date <= asOf) : all), [all, asOf]);
@@ -43,7 +45,13 @@ export default function TagUsage({ asOf }) {
 
   return (
     <View ref={ref} collapsable={false}>
-    <Card title="資産の使いみち">
+    <Card>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ color: t.tx3, fontSize: 13.5, letterSpacing: 0.3, fontWeight: '700' }}>資産の使いみち</Text>
+        <TouchableOpacity onPress={() => router.push('/manage/tag-move')} accessibilityRole="link" hitSlop={8}>
+          <Text style={{ color: t.ac, fontSize: 13.5, fontWeight: '600' }}>タグ付け替え ›</Text>
+        </TouchableOpacity>
+      </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <Text style={{ color: t.tx3, fontSize: 13 }}>資産合計</Text>
         <Text style={{ color: t.tx, fontSize: 16, fontWeight: '800' }}>{faBal(total)}</Text>

@@ -50,7 +50,7 @@ export function buildLedger(journals, account, accounts, start, end) {
     crTotal += cr;
     // 相手科目は、この科目以外の行の名前を重複なしで並べる
     const counter = [...new Set(j.lines.filter((l) => l.accountId !== account.id).map((l) => name[l.accountId] || '?'))];
-    return { id: j.id, date: j.date, desc: j.desc || '', dr, cr, balance, counter };
+    return { id: j.id, date: j.date, desc: j.desc || '', dr, cr, balance, counter, createdAt: j.createdAt, updatedAt: j.updatedAt };
   });
 
   return { opening, closing: balance, dr: drTotal, cr: crTotal, rows };

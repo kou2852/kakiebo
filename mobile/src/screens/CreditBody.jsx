@@ -83,7 +83,8 @@ export default function CreditBody() {
     <>
       <PeriodBar period={period} />
 
-      <PageDots count={cards.length} x={scrollX} step={pageW + GAP} style={{ paddingBottom: 2 }} />
+      {/* 点は、カードの追加のページ（一番右）も1枚に数える */}
+      <PageDots count={cards.length + 1} x={scrollX} step={pageW + GAP} style={{ paddingBottom: 2 }} />
 
       <Animated.ScrollView
         horizontal pagingEnabled showsHorizontalScrollIndicator={false}
@@ -230,6 +231,18 @@ export default function CreditBody() {
           </View>
         );
       })}
+      {/* 一番右。紺色のカードに＋ボタンを置き、押すと口座・カードの画面でカードの追加の入力が開く */}
+      <View style={{ width: pageW, marginRight: GAP }}>
+        <TouchableOpacity onPress={() => router.push('/manage/wallets?newCard=1')} accessibilityRole="button" accessibilityLabel="カードを追加"
+          activeOpacity={0.85}
+          style={{ borderRadius: 16, padding: 15, backgroundColor: '#26314e', minHeight: 150, alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          <View style={{ width: 52, height: 52, borderRadius: 26, borderWidth: 2, borderColor: 'rgba(255,255,255,.75)', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: '#fff', fontSize: 32, lineHeight: 36, fontWeight: '300' }}>＋</Text>
+          </View>
+          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>カードの追加</Text>
+          <Text style={{ color: 'rgba(255,255,255,.65)', fontSize: 12.5, textAlign: 'center' }}>締め日・引落日・引落口座を設定できます</Text>
+        </TouchableOpacity>
+      </View>
       </Animated.ScrollView>
     </>
   );

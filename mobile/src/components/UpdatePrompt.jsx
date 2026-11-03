@@ -14,6 +14,7 @@ import { useOnboarding } from '../store/OnboardingProvider';
 import { useTour } from '../store/TourProvider';
 import { appVersion, useUpdates } from '../updates';
 import { shouldPromptUpdate } from '../utils/updatePrompt';
+import { isOverlayOpen, setOverlayOpen } from '../overlayBusy';
 
 const SNOOZE_KEY = 'updatePrompt.snooze'; // { version, at }
 const STORE_NAME = Platform.OS === 'android' ? 'Google Play' : 'App Store';
@@ -38,10 +39,16 @@ export default function UpdatePrompt() {
       checked.current = true;
       let snooze = null;
       try { snooze = JSON.parse((await AsyncStorage.getItem(SNOOZE_KEY)) || 'null'); } catch { snooze = null; }
-      if (shouldPromptUpdate({ current: appVersion, latest, snooze, now: Date.now() })) setShow(true);
+      if (!shouldPromptUpdate({ current: appVersion, latest, snooze, now: Date.now() })) return;
+      // 更新情報の案内（UpdatesOverlay）がホームに着いてすぐ出る。それが閉じてから出す
+      for (let i = 0; i < 60 && isOverlayOpen('updates'); i++) await new Promise((r) => setTimeout(r, 1000));
+      setShow(true);
     }, 2500);
     return () => clearTimeout(id);
   }, [ready, latest]);
+
+  // 更新情報の案内（UpdatesOverlay）が重ならないよう、出ている間は印を立てる
+  useEffect(() => { setOverlayOpen('appPrompt', show); return () => setOverlayOpen('appPrompt', false); }, [show]);
 
   const later = () => {
     setShow(false);

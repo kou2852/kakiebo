@@ -145,3 +145,53 @@ export function sameTagRows(a, b) {
   const key = (rows) => JSON.stringify([...rows].sort((x, y) => (x.tagId > y.tagId ? 1 : -1)));
   return key(a) === key(b);
 }
+
+/**
+ * 仕訳のタグを fromId から toId へ付け替える。金額・科目・行数は変えない。
+ * toId が null ならタグを外す。付け替え先が同じ行に既にあるときは、金額を足して1件にまとめる。
+ *
+ * 見る場所は3つ: 行の splits（現行）／行の tagId（旧形式・定期取引）／仕訳直下の tagId（旧クイック入力）。
+ * computeTagBalances がこの3つを読むので、どれに fromId が残っていても配分に効いてしまう。
+ *
+ * @returns {object|null} 変更後の仕訳。fromId が付いていなければ null（保存しなくてよい）。
+ */
+export function retagJournal(journal, fromId, toId) {
+  if (!journal || !fromId || fromId === toId) return null;
+  let changed = false;
+
+  const lines = (journal.lines || []).map((l) => {
+    let out = l;
+    if (l.splits?.some((s) => s.tagId === fromId)) {
+      const merged = [];
+      l.splits.forEach((s) => {
+        const tagId = s.tagId === fromId ? toId : s.tagId;
+        if (!tagId) return;
+        const hit = merged.find((m) => m.tagId === tagId);
+        if (hit) hit.amount += s.amount;
+        else merged.push({ ...s, tagId });
+      });
+      out = { ...out, splits: merged };
+      if (!merged.length) delete out.splits;
+      changed = true;
+    }
+    if (l.tagId === fromId) {
+      out = { ...out };
+      if (toId) out.tagId = toId; else delete out.tagId;
+      changed = true;
+    }
+    return out;
+  });
+
+  const next = { ...journal, lines };
+  if (journal.tagId === fromId) {
+    if (toId) next.tagId = toId; else delete next.tagId;
+    changed = true;
+  }
+  return changed ? next : null;
+}
+
+/** 仕訳の一覧に fromId が1つでも付いているか（付け替え元の選択肢を絞るのに使う）。 */
+export const journalHasTag = (journal, tagId) => (
+  journal?.tagId === tagId
+  || (journal?.lines || []).some((l) => l.tagId === tagId || (l.splits || []).some((s) => s.tagId === tagId))
+);
