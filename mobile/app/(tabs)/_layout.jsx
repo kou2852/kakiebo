@@ -23,22 +23,6 @@ function UpdatesBell() {
   );
 }
 
-// ホーム右上、ベルの左に置く「使い方」。設定を経由せず、設定の「使い方」と同じページ（/guide）を直接開く。
-// 戻るとダッシュボードに戻る（スタックでダッシュボードの上に積むため）。
-function GuideButton() {
-  const t = useTheme();
-  const router = useRouter();
-  return (
-    <TouchableOpacity onPress={() => router.push('/guide')} accessibilityRole="button" accessibilityLabel="使い方"
-      style={{
-        marginLeft: 8, marginRight: 2, paddingVertical: 5, paddingHorizontal: 12,
-        borderRadius: 14, borderWidth: 1, borderColor: t.ac,
-      }}>
-      <Text style={{ color: t.ac, fontSize: 14, fontWeight: '700' }}>使い方</Text>
-    </TouchableOpacity>
-  );
-}
-
 export default function TabsLayout() {
   const t = useTheme();
   const onboarding = useOnboarding();
@@ -58,7 +42,6 @@ export default function TabsLayout() {
       >
         <Tabs.Screen name="index"    options={{ title: 'ダッシュボード', tabBarLabel: 'ホーム', headerRight: () => (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <GuideButton />
             <UpdatesBell />
           </View>
         ) }} />
