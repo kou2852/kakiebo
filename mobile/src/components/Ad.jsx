@@ -64,8 +64,8 @@ export const PLACEMENTS = {
   // 仕訳帳の一覧の4行目（先頭3件のあと。2026-10-21 復活）。画面幅の帯で、高さは maxHeight まで。
   // この枠専用のユニット（AdMob の ledgerRow_ios / ledgerRow_android。2026-10-21 作成。作成直後は配信まで1時間ほどかかる）
   // 以前は固定の 320×50 で、その大きさの広告しか入らずマッチ率が 28% だった（2026-11-04 にインライン可変へ）。
-  // 高さを抑えないと画面の高さまでの広告が入りうるので、帯に収まる 100 までにする
-  ledgerRow: { unit: 'ca-app-pub-1494837719359912/6719018178', androidUnit: 'ca-app-pub-1494837719359912/1330960120', size: 'INLINE_ADAPTIVE_BANNER', test: 'ADAPTIVE_BANNER', maxHeight: 100 },
+  // 高さを抑えないと画面の高さまでの広告が入りうるので、60 までにする（100 は一覧の中で大きすぎた。2026-11-05）
+  ledgerRow: { unit: 'ca-app-pub-1494837719359912/6719018178', androidUnit: 'ca-app-pub-1494837719359912/1330960120', size: 'INLINE_ADAPTIVE_BANNER', test: 'ADAPTIVE_BANNER', maxHeight: 60 },
 };
 
 // ティア別の表示可否。Web 版 config/tiers.js の AD_CONFIG と同じ考え方。
