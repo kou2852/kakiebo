@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Dimensions, FlatList, Modal, PanResponder, Pressable, ScrollView, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, Dimensions, FlatList, Modal, PanResponder, Pressable, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useData } from '../../src/store/DataProvider';
 import { useSyncRefresh } from '../../src/store/useSyncRefresh';
@@ -157,6 +157,33 @@ function Stat({ label, value }) {
       <Text style={{ color: t.tx3, fontSize: 12 }}>{label}</Text>
       <Text style={{ color: t.tx, fontSize: 14, fontWeight: '700' }} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
     </View>
+  );
+}
+
+// 昇順 ⇄ 降順のトグル。文字をトグルの中に入れ、つまみの反対側に今の向きを出す（降順＝つまみが右）。
+// どちらも選べる向きなので、色は両方ともアクセント（オン・オフの灰色にはしない）。
+const DIR_W = 88, DIR_H = 34, DIR_KNOB = 28, DIR_PAD = 3;
+function DirToggle({ dir, onChange }) {
+  const t = useTheme();
+  const x = useRef(new Animated.Value(dir === 'desc' ? 1 : 0)).current;
+  useEffect(() => {
+    Animated.timing(x, { toValue: dir === 'desc' ? 1 : 0, duration: 160, useNativeDriver: true }).start();
+  }, [dir, x]);
+  const desc = dir === 'desc';
+  return (
+    <Pressable onPress={() => onChange(desc ? 'asc' : 'desc')} accessibilityRole="switch"
+      accessibilityState={{ checked: desc }} accessibilityLabel={`並びの向き: ${desc ? '降順' : '昇順'}`}
+      hitSlop={6}
+      style={{ width: DIR_W, height: DIR_H, borderRadius: DIR_H / 2, backgroundColor: t.ac, justifyContent: 'center' }}>
+      <Text style={{ position: 'absolute', [desc ? 'left' : 'right']: 12, color: t.acTx, fontSize: 14, fontWeight: '800' }}>
+        {desc ? '降順' : '昇順'}
+      </Text>
+      <Animated.View style={{
+        position: 'absolute', left: DIR_PAD, width: DIR_KNOB, height: DIR_KNOB, borderRadius: DIR_KNOB / 2, backgroundColor: '#ffffff',
+        shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 2, shadowOffset: { width: 0, height: 1 }, elevation: 2,
+        transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: [0, DIR_W - DIR_KNOB - DIR_PAD * 2] }) }],
+      }} />
+    </Pressable>
   );
 }
 
@@ -485,7 +512,7 @@ export default function Ledger() {
       {/* 並び順のドロップダウン。ボタンの真下に出す。選ぶとすぐ並び替わり、閉じて、この端末に覚えておく */}
       <Modal visible={!!sortMenu} transparent animationType="fade" onRequestClose={() => setSortMenu(null)} statusBarTranslucent>
         <Pressable onPress={() => setSortMenu(null)} accessibilityLabel="閉じる" style={{ flex: 1 }}>
-          <View style={[{ position: 'absolute', top: sortMenu?.top ?? 0, right: sortMenu?.right ?? 8, minWidth: 210,
+          <View style={[{ position: 'absolute', top: sortMenu?.top ?? 0, right: sortMenu?.right ?? 8,
             backgroundColor: t.bg1, borderRadius: 12, borderWidth: 1, borderColor: t.bd, paddingVertical: 4 }, t.shadow]}>
             {/* 種類を上に */}
             {SORT_KEYS.map((k) => {
@@ -493,18 +520,15 @@ export default function Ledger() {
               return (
                 <TouchableOpacity key={k.id} accessibilityRole="menuitem" accessibilityState={{ selected: on }}
                   onPress={() => setSort({ ...sort, key: k.id })}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11, paddingHorizontal: 14 }}>
-                  <Text style={{ color: on ? t.ac : t.tx, fontSize: 15.5, fontWeight: on ? '700' : '500', flex: 1 }}>{k.label}</Text>
-                  {on ? <Text style={{ color: t.ac, fontSize: 16, fontWeight: '800' }}>✓</Text> : null}
+                  style={{ marginHorizontal: 6, paddingVertical: 9, paddingHorizontal: 10, borderRadius: 8, backgroundColor: on ? t.acb : 'transparent' }}>
+                  {/* 右寄せ。選んでいる行は地の色で示す（✓ は付けない） */}
+                  <Text style={{ color: on ? t.ac : t.tx, fontSize: 15, fontWeight: on ? '700' : '500', textAlign: 'right' }}>{k.label}</Text>
                 </TouchableOpacity>
               );
             })}
             {/* 昇順 ⇄ 降順のトグル（右に倒すと降順＝新しい順） */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8, paddingHorizontal: 14, borderTopWidth: 1, borderTopColor: t.bd, marginTop: 4 }}>
-              <Text style={{ color: sort.dir === 'asc' ? t.ac : t.tx3, fontSize: 14.5, fontWeight: sort.dir === 'asc' ? '700' : '500' }}>昇順</Text>
-              <Switch value={sort.dir === 'desc'} onValueChange={(v) => setSort({ ...sort, dir: v ? 'desc' : 'asc' })}
-                trackColor={{ true: t.ac, false: t.ac }} accessibilityLabel="昇順と降順を切り替える" />
-              <Text style={{ color: sort.dir === 'desc' ? t.ac : t.tx3, fontSize: 14.5, fontWeight: sort.dir === 'desc' ? '700' : '500' }}>降順</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingTop: 8, paddingBottom: 4, paddingHorizontal: 6, borderTopWidth: 1, borderTopColor: t.bd, marginTop: 4 }}>
+              <DirToggle dir={sort.dir} onChange={(dir) => setSort({ ...sort, dir })} />
             </View>
           </View>
         </Pressable>
