@@ -33,7 +33,9 @@ export function initAds() {
   mobileAds()
     .setRequestConfiguration({
       // 家計簿アプリなので、成人向け等が混ざらないよう上限を設ける。
-      maxAdContentRating: MaxAdContentRating.G,
+      // 以前は G（家族・子ども向けだけ）で、広告の候補が狭くマッチ率が低かった。
+      // T（13歳以上）でも成人向け（MA: 酒・武器・性的な内容）は出ない（2026-11-04）。
+      maxAdContentRating: MaxAdContentRating.T,
       tagForChildDirectedTreatment: false,
       tagForUnderAgeOfConsent: false,
       testDeviceIdentifiers: TEST_DEVICES,
