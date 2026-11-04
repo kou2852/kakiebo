@@ -61,9 +61,11 @@ export const PLACEMENTS = {
   homeBottom: { unit: 'ca-app-pub-1494837719359912/9747424628', androidUnit: 'ca-app-pub-1494837719359912/2036236391', size: 'MEDIUM_RECTANGLE', test: 'BANNER' },
   // レポートの一番下（中サイズの四角）。4つのタブのどれを見ていても同じ位置に出る
   reportsBottom: { unit: 'ca-app-pub-1494837719359912/3790934097', androidUnit: 'ca-app-pub-1494837719359912/9723154728', size: 'MEDIUM_RECTANGLE', test: 'BANNER' },
-  // 仕訳帳の一覧の4行目（先頭3件のあと。2026-10-21 復活）。帯のバナー（320×50）。
+  // 仕訳帳の一覧の4行目（先頭3件のあと。2026-10-21 復活）。画面幅の帯で、高さは maxHeight まで。
   // この枠専用のユニット（AdMob の ledgerRow_ios / ledgerRow_android。2026-10-21 作成。作成直後は配信まで1時間ほどかかる）
-  ledgerRow: { unit: 'ca-app-pub-1494837719359912/6719018178', androidUnit: 'ca-app-pub-1494837719359912/1330960120', size: 'BANNER', test: 'BANNER' },
+  // 以前は固定の 320×50 で、その大きさの広告しか入らずマッチ率が 28% だった（2026-11-04 にインライン可変へ）。
+  // 高さを抑えないと画面の高さまでの広告が入りうるので、帯に収まる 100 までにする
+  ledgerRow: { unit: 'ca-app-pub-1494837719359912/6719018178', androidUnit: 'ca-app-pub-1494837719359912/1330960120', size: 'INLINE_ADAPTIVE_BANNER', test: 'ADAPTIVE_BANNER', maxHeight: 100 },
 };
 
 // ティア別の表示可否。Web 版 config/tiers.js の AD_CONFIG と同じ考え方。
@@ -153,6 +155,7 @@ export default function AnchoredAd({ tier = 'free', placement = 'anchored', hidd
         key={attempt}
         unitId={USE_TEST_ADS ? Ads.TestIds[p.test] : (Platform.OS === 'android' ? p.androidUnit : p.unit)}
         size={BannerAdSize[p.size]}
+        maxHeight={p.maxHeight}
         // 非パーソナライズに固定する。IDFA を使わないので ATT の許可ダイアログが不要になり、
         // 「家計データを外部に出さない」という訴求と矛盾しない。単価は下がるが意図した選択。
         requestOptions={{ requestNonPersonalizedAdsOnly: true }}
