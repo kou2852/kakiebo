@@ -99,9 +99,13 @@ export default function JournalForm({ initial, date, onSubmit, submitLabel = '�
       : tagSrc.length === 1 ? { tagRows: [{ tagId: tagSrc[0].tagId, amount: '' }], tagRatio: null }
         : fixed > 0 ? { tagRows: scalePresetSplits(tagSrc, fixed, fixed).map((x) => ({ tagId: x.tagId, amount: String(x.amount) })), tagRatio: null }
           : { tagRows: [], tagRatio: tagSrc };
+    // 種別は科目の組み合わせから決める。プリセットの type は支出か収入しか持たず、
+    // 振替（現金引き出し＝現金 ← 普通預金）を支出として開くと、借方の候補に現金が無く先頭の食費に化けていた
+    const typeOf = (id) => accounts.find((a) => a.id === id)?.type;
+    const byAccounts = TYPES.find((t) => t.dr.includes(typeOf(d?.accountId)) && t.cr.includes(typeOf(c?.accountId)))?.value;
     setF((prev) => ({
       ...prev,
-      type: p.type === 'in' ? 'in' : 'out',
+      type: byAccounts || (p.type === 'in' ? 'in' : 'out'),
       amount: fixed > 0 ? String(fixed) : prev.amount,
       drId: d?.accountId || prev.drId,
       crId: c?.accountId || prev.crId,

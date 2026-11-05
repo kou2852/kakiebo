@@ -1,9 +1,10 @@
 // ホームに着いたときに画面の上へ重ねて出す「お知らせ」カード（iOS・Android 共通）。ホームの中には置かない。
 // 出すのは、まだ読んでいない更新情報（新着）があるとき。Android はそれに加えて、レビューのお願いが出る条件のときも出す。
-// 「使い方」は、まだ一度も出していない端末に1回だけ、同じカードの中に全部を出す（大枠・ツアー・説明。以降は設定の「使い方」ページから）。
-// 閉じる（✕・外側・「閉じる」）と、更新情報は既読になり、使い方の案内は出し済みになる。起動1回につき1度まで。
+// 「使い方」は、まだ一度も出していない端末に1回だけ、全部を出す（大枠・ツアー・説明。以降は設定の「使い方」ページから）。
+// 更新情報・使い方・レビューのお願いは別々のカードにし、1枚ずつ順に出す（閉じると次が出る）。
+// 閉じる（✕・外側・「閉じる」）と、そのカードの分だけ記録する（更新情報は既読、使い方は出し済み）。起動1回につき1度まで。
 //
-// Android だけ、レビューのお願い（ストアのレビュー画面へ直接飛ばす）を同じカードに入れる。
+// Android だけ、レビューのお願い（ストアのレビュー画面へ直接飛ばす）を出す。
 // ・iOS には出さない。Apple は「独自のレビュー依頼は認めない」（App Store Review Guidelines 5.6.1）ので、
 //   iOS は標準の評価ダイアログ（ReviewAsk.maybeAskReview）と設定の「アプリを評価する」だけにする。
 // ・気分を聞いて振り分けない。星の数を指定しない。Google は評価カードの前の質問を禁じている。
@@ -32,6 +33,7 @@ import { reviewDue, reviewLater, reviewWrite } from '../reviewAsk';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 const GUIDE_KEY = 'guide.cardShown'; // 使い方の案内を出した日時。一度出したら出さない
+const markGuide = () => AsyncStorage.setItem(GUIDE_KEY, String(Date.now())).catch(() => {});
 
 export default function UpdatesOverlay() {
   const t = useTheme();
@@ -43,9 +45,10 @@ export default function UpdatesOverlay() {
   const signedIn = !!useAuth()?.signedIn;
   const { height } = useWindowDimensions();
   const { items, unread, markSeen } = useUpdates();
-  const [open, setOpen] = useState(false);
-  const [review, setReview] = useState(false);
-  const [guide, setGuide] = useState(false);
+  // 出すカードの順番待ち（'news' → 'guide' → 'review'）。先頭のカードを出す
+  const [queue, setQueue] = useState([]);
+  const card = queue[0];
+  const open = !!card;
   const checked = useRef(false);
 
   // ホームのモーダル（HomeIntro）を出している間も待つ。閉じてから出す（UpdatePrompt と同じ）
@@ -62,14 +65,13 @@ export default function UpdatesOverlay() {
       const askReview = await reviewDue(journals.length);
       const askGuide = !(await AsyncStorage.getItem(GUIDE_KEY).catch(() => null));
       if (!alive || checked.current) return;
-      if (!hasNews && !askReview && !askGuide) { checked.current = true; return; }
+      const cards = [hasNews && 'news', askGuide && 'guide', askReview && 'review'].filter(Boolean);
+      if (!cards.length) { checked.current = true; return; }
       // アップデートの案内が出ている間は待つ（閉じたら出す）
       for (let i = 0; i < 60 && isOverlayOpen('appPrompt'); i++) await wait(1000);
       if (!alive || checked.current) return;
       checked.current = true;
-      setReview(askReview);
-      setGuide(askGuide);
-      setOpen(true);
+      setQueue(cards);
     });
     return () => { alive = false; task.cancel(); };
   }, [ready, items, hasNews, journals.length]);
@@ -79,25 +81,27 @@ export default function UpdatesOverlay() {
 
   if (!open) return null;
 
-  // 閉じる。更新情報は既読にし、レビューのお願いは「あとで」として記録する
-  const finish = () => {
-    setOpen(false);
-    markSeen();
-    if (guide) AsyncStorage.setItem(GUIDE_KEY, String(Date.now())).catch(() => {});
+  // そのカードの分を記録する。更新情報は既読、使い方は出し済み（markGuide）
+  const markNews = () => markSeen();
+  // 閉じる（✕・外側・「閉じる」・「あとで」）。記録して次のカードへ。レビューのお願いは「あとで」として記録する
+  const close = () => {
+    if (card === 'news') markNews();
+    if (card === 'guide') markGuide();
+    if (card === 'review') reviewLater();
+    setQueue((q) => q.slice(1));
   };
-  const close = () => { finish(); if (review) reviewLater(); };
-  const goUpdates = () => { finish(); router.push('/updates'); };
+  // 別の画面やツアーへ移るときは、残りのカードは出さない（この起動では出し直さない）
+  const goUpdates = () => { markNews(); setQueue([]); router.push('/updates'); };
   // 使い方のツアー・大枠: カードを閉じてから始める（ホームの上にツアーや紹介が出る）
-  const startTour = (id) => { finish(); tour.start(id); };
-  const openIntro = () => { finish(); onboarding?.openIntro?.(); };
-  // ✕ は一番上のカードに付ける
+  const startTour = (id) => { markGuide(); setQueue([]); tour.start(id); };
+  const openIntro = () => { markGuide(); setQueue([]); onboarding?.openIntro?.(); };
   const closeBtn = (
     <Pressable onPress={close} hitSlop={10} accessibilityRole="button" accessibilityLabel="閉じる">
       <Ionicons name="close" size={22} color={t.tx3} />
     </Pressable>
   );
   const write = async () => {
-    finish();
+    setQueue([]);
     await reviewWrite();
   };
 
@@ -107,7 +111,7 @@ export default function UpdatesOverlay() {
         {/* 中のタップが背景に抜けて閉じないよう、空の onPress で受ける */}
         <Pressable onPress={() => {}} style={[{ backgroundColor: t.bg1, borderRadius: 18, maxHeight: height * 0.82 }, t.shadow]}>
          <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} showsVerticalScrollIndicator={false}>
-          {hasNews ? (
+          {card === 'news' ? (
             <Pressable onPress={goUpdates} accessibilityRole="button" accessibilityLabel={`更新情報。${latest.title}`} style={{ gap: 6 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Text style={{ color: t.tx, fontSize: 17, fontWeight: '800' }}>更新情報</Text>
@@ -124,11 +128,11 @@ export default function UpdatesOverlay() {
             </Pressable>
           ) : null}
 
-          {guide ? (
-            <View style={[{ gap: 8 }, hasNews ? { borderTopWidth: 1, borderTopColor: t.bd, paddingTop: 12 } : null]}>
+          {card === 'guide' ? (
+            <View style={{ gap: 8 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={{ color: t.tx, fontSize: 17, fontWeight: '800', flex: 1 }}>使い方</Text>
-                {!hasNews ? closeBtn : null}
+                {closeBtn}
               </View>
               <Pressable onPress={openIntro} accessibilityRole="button" style={{ paddingVertical: 8 }}>
                 <Text style={{ color: t.ac, fontSize: 15, fontWeight: '700' }}>使い方の大枠を見る ›</Text>
@@ -155,11 +159,11 @@ export default function UpdatesOverlay() {
             </View>
           ) : null}
 
-          {review ? (
-            <View style={[{ gap: 8 }, hasNews || guide ? { borderTopWidth: 1, borderTopColor: t.bd, paddingTop: 12 } : null]}>
+          {card === 'review' ? (
+            <View style={{ gap: 8 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Text style={{ color: t.tx, fontSize: 16, fontWeight: '800', flex: 1 }}>ご利用ありがとうございます</Text>
-                {!hasNews && !guide ? closeBtn : null}
+                {closeBtn}
               </View>
               <Text style={{ color: t.tx2, fontSize: 14, lineHeight: 21 }}>
                 よろしければ、Google Play にレビューをお寄せください。今後の改善の参考にします。
