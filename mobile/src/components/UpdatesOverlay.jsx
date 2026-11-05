@@ -1,8 +1,8 @@
 // ホームに着いたときに画面の上へ重ねて出す「お知らせ」カード（iOS・Android 共通）。ホームの中には置かない。
 // 出すのは、まだ読んでいない更新情報（新着）があるとき。Android はそれに加えて、レビューのお願いが出る条件のときも出す。
-// 「使い方」は、まだ一度も出していない端末に1回だけ、全部を出す（大枠・ツアー・説明。以降は設定の「使い方」ページから）。
-// 更新情報・使い方・レビューのお願いは別々のカードにし、1枚ずつ順に出す（閉じると次が出る）。
-// 閉じる（✕・外側・「閉じる」）と、そのカードの分だけ記録する（更新情報は既読、使い方は出し済み）。起動1回につき1度まで。
+// 「使い方」のカード（大枠・ツアー・説明）は勝手に出さない。ホーム右上の「使い方」を押したときだけ出す（showGuide。2026-11-06 指示）。
+// 更新情報・レビューのお願いは別々のカードにし、1枚ずつ順に出す（閉じると次が出る）。
+// 閉じる（✕・外側・「閉じる」）と、そのカードの分だけ記録する（更新情報は既読）。起動1回につき1度まで。
 //
 // Android だけ、レビューのお願い（ストアのレビュー画面へ直接飛ばす）を出す。
 // ・iOS には出さない。Apple は「独自のレビュー依頼は認めない」（App Store Review Guidelines 5.6.1）ので、
@@ -15,7 +15,6 @@
 // ・アップデートの案内（UpdatePrompt）が出ている間は待つ（overlayBusy）。こちらが先に出ていれば、向こうが待つ。
 //   オンボーディング・ツアー中は出さない。
 import { useEffect, useRef, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { InteractionManager, Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
@@ -32,8 +31,9 @@ import { Button } from './ui';
 import { reviewDue, reviewLater, reviewWrite } from '../reviewAsk';
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-const GUIDE_KEY = 'guide.cardShown'; // 使い方の案内を出した日時。一度出したら出さない
-const markGuide = () => AsyncStorage.setItem(GUIDE_KEY, String(Date.now())).catch(() => {});
+// ホーム右上の「使い方」から、使い方のカードを出す
+let openGuide = null;
+export const showGuide = () => openGuide?.();
 
 export default function UpdatesOverlay() {
   const t = useTheme();
@@ -45,11 +45,12 @@ export default function UpdatesOverlay() {
   const signedIn = !!useAuth()?.signedIn;
   const { height } = useWindowDimensions();
   const { items, unread, markSeen } = useUpdates();
-  // 出すカードの順番待ち（'news' → 'guide' → 'review'）。先頭のカードを出す
+  // 出すカードの順番待ち（'news' → 'review'。「使い方」を押したときは 'guide' だけ）。先頭のカードを出す
   const [queue, setQueue] = useState([]);
   const card = queue[0];
   const open = !!card;
   const checked = useRef(false);
+  useEffect(() => { openGuide = () => setQueue(['guide']); return () => { openGuide = null; }; }, []);
 
   // ホームのモーダル（HomeIntro）を出している間も待つ。閉じてから出す（UpdatePrompt と同じ）
   const ready = !loading && !!onboarding?.decided && !onboarding?.active && !onboarding?.intro && !tour?.tourId && path === '/';
@@ -63,9 +64,8 @@ export default function UpdatesOverlay() {
     const task = InteractionManager.runAfterInteractions(async () => {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const askReview = await reviewDue(journals.length);
-      const askGuide = !(await AsyncStorage.getItem(GUIDE_KEY).catch(() => null));
       if (!alive || checked.current) return;
-      const cards = [hasNews && 'news', askGuide && 'guide', askReview && 'review'].filter(Boolean);
+      const cards = [hasNews && 'news', askReview && 'review'].filter(Boolean);
       if (!cards.length) { checked.current = true; return; }
       // アップデートの案内が出ている間は待つ（閉じたら出す）
       for (let i = 0; i < 60 && isOverlayOpen('appPrompt'); i++) await wait(1000);
@@ -81,20 +81,19 @@ export default function UpdatesOverlay() {
 
   if (!open) return null;
 
-  // そのカードの分を記録する。更新情報は既読、使い方は出し済み（markGuide）
+  // そのカードの分を記録する。更新情報は既読
   const markNews = () => markSeen();
   // 閉じる（✕・外側・「閉じる」・「あとで」）。記録して次のカードへ。レビューのお願いは「あとで」として記録する
   const close = () => {
     if (card === 'news') markNews();
-    if (card === 'guide') markGuide();
     if (card === 'review') reviewLater();
     setQueue((q) => q.slice(1));
   };
   // 別の画面やツアーへ移るときは、残りのカードは出さない（この起動では出し直さない）
   const goUpdates = () => { markNews(); setQueue([]); router.push('/updates'); };
   // 使い方のツアー・大枠: カードを閉じてから始める（ホームの上にツアーや紹介が出る）
-  const startTour = (id) => { markGuide(); setQueue([]); tour.start(id); };
-  const openIntro = () => { markGuide(); setQueue([]); onboarding?.openIntro?.(); };
+  const startTour = (id) => { setQueue([]); tour.start(id); };
+  const openIntro = () => { setQueue([]); onboarding?.openIntro?.(); };
   const closeBtn = (
     <Pressable onPress={close} hitSlop={10} accessibilityRole="button" accessibilityLabel="閉じる">
       <Ionicons name="close" size={22} color={t.tx3} />

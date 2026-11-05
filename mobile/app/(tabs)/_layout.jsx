@@ -6,6 +6,7 @@ import HelpTitle from '../../src/components/HelpTitle';
 import TabBar from '../../src/components/TabBar';
 import { useOnboarding } from '../../src/store/OnboardingProvider';
 import { useUpdates } from '../../src/updates';
+import { showGuide } from '../../src/components/UpdatesOverlay';
 
 // ホーム右上の更新情報のベル。新しい記事があると赤い点を付ける（Web 版と同じ）。
 function UpdatesBell() {
@@ -19,6 +20,21 @@ function UpdatesBell() {
       {unread ? (
         <View style={{ position: 'absolute', top: 8, right: 18, width: 9, height: 9, borderRadius: 5, backgroundColor: t.red, borderWidth: 1.5, borderColor: t.bg1 }} />
       ) : null}
+    </TouchableOpacity>
+  );
+}
+
+// ホーム右上、ベルの左に置く「使い方」。押すと使い方のカード（大枠・ツアー・説明）をホームの上に出す。
+// カードは勝手には出さない（2026-11-06 指示）
+function GuideButton() {
+  const t = useTheme();
+  return (
+    <TouchableOpacity onPress={showGuide} accessibilityRole="button" accessibilityLabel="使い方"
+      style={{
+        marginLeft: 8, marginRight: 2, paddingVertical: 5, paddingHorizontal: 12,
+        borderRadius: 14, borderWidth: 1, borderColor: t.ac,
+      }}>
+      <Text style={{ color: t.ac, fontSize: 14, fontWeight: '700' }}>使い方</Text>
     </TouchableOpacity>
   );
 }
@@ -42,6 +58,7 @@ export default function TabsLayout() {
       >
         <Tabs.Screen name="index"    options={{ title: 'ダッシュボード', tabBarLabel: 'ホーム', headerRight: () => (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <GuideButton />
             <UpdatesBell />
           </View>
         ) }} />
