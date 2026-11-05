@@ -1,0 +1,78 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+frontend/dist/
+
+# Env / local config (account-specific; client config also ships in bundle)
+.env
+.env.*
+!.env.example
+
+# AWS SAM build artifacts (duplicates source)
+.aws-sam/
+backend/.aws-sam/
+
+# SAM deploy config (contains account IDs / personal email)
+samconfig.toml
+
+# Generated verification screenshots / design exports (not source)
+docs/design-gen/shots/
+docs/design-gen/shots-*/
+docs/design-gen/redesign/
+
+# Logs / temp / OS
+*.log
+*.gz
+.DS_Store
+Thumbs.db
+npm-debug.log*
+
+# 管理用は kakeibo-private へ分離（公開しない）
+docs/design-gen/
+docs/NEXT_STEPS.md
+docs/STRATEGY.md
+docs/SEO_ROADMAP.md
+docs/marketing-tracking.md
+docs/analytics/
+docs/zenn-*.md
+
+# design-sync の生成物・作業キャッシュ（アップロード成果物。ソースではない）
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules/
+
+# Claude Design が出力した自己完結HTML（10MB超。lp/index.html へ移植済みのため原本は追跡しない）
+黒福簿LP（スタンドアロン）.html
+
+# 管理ダッシュボードのCloudFrontログ取得キャッシュ
+scripts/admin/.cache-cflogs/
+scripts/admin/.cache-platforms/
+
+# sam package の出力（S3のオブジェクトURIが入るだけの生成物）
+backend/packaged-*.yaml
+
+# 動画の制作元データ（Remotion の素材と中間出力。合計 700MB 超）。
+# LP が配信するのは lp/video/ 配下だけで、こちらは成果物を作るための作業場。
+# git に入れると clone のたびに全員が取得することになり、消しても履歴からは消えない。
+/video/
+
+# 秘密鍵。Sign in with Apple の .p8 など。中身は SSM SecureString が正本で、
+# ここに置くのは手元での再利用のためだけ。絶対にコミットしない。
+secrets/
+*.p8
+
+# ── ここから EAS Build 専用 ──────────────────────────────
+# ⚠ eas-cli は送らない物の一覧をリポジトリの一番上でしか探さない（mobile/.easignore は読まれない）。
+#   ここに .easignore があると .gitignore は一切使われないので、上は .gitignore の写し。
+#   .gitignore を変えたらここも合わせる。
+# ⚠ .easignore が無いと .gitignore を使うが、Windows では mobile/.gitignore などの下の階層の指定が
+#   パス区切り（\ と /）の違いで効かず、mobile/android（手元の prebuild の生成物）が丸ごと送られていた（2026-11-06）。
+mobile/.expo
+mobile/android
+mobile/ios
+# ↑ 末尾に / を付けない。付けるとフォルダ自体は送られ（中身だけ外れ）、空の android があると
+#   EAS が「既にある」とみなして使い回す恐れがある。
